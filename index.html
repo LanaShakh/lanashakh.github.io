@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HumanWriter — AI Text Humanization Agent</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">HumanWriter <span>AI Agent</span></div>
+    </div>
+    <div class="header-right">
+      <span style="font-size: 0.8rem; color: var(--text-muted);">v1.0</span>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="humanize">Humanize Text</button>
+    <button class="nav-tab" data-tab="generate">Generate Text</button>
+    <button class="nav-tab" data-tab="methodology">Methodology</button>
+    <button class="nav-tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <!-- =============================== -->
+  <!-- TAB: Humanize                    -->
+  <!-- =============================== -->
+  <div id="tab-humanize" class="tab-content active">
+    <div class="main-container">
+      <!-- Left Panel: Input -->
+      <div class="panel panel-left">
+        <div class="section-header">
+          <span class="section-title">Input Text</span>
+          <button id="btn-clear-input" class="btn btn-sm">Clear</button>
+        </div>
+
+        <div class="textarea-container">
+          <textarea id="input-text" placeholder="Paste AI-generated text here to analyze and humanize..."></textarea>
+        </div>
+
+        <div class="word-count-bar">
+          <span id="input-word-count">0 words</span>
+        </div>
+
+        <div class="controls-row">
+          <label>
+            Type:
+            <select id="content-type"></select>
+          </label>
+          <label>
+            Strength:
+            <select id="aggressiveness">
+              <option value="light">Light</option>
+              <option value="medium" selected>Medium</option>
+              <option value="aggressive">Aggressive</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="btn-group">
+          <button id="btn-analyze" class="btn btn-primary">Analyze</button>
+          <button id="btn-humanize" class="btn btn-success">Humanize (Local)</button>
+          <button id="btn-humanize-llm" class="btn" style="background: var(--accent-purple); border-color: var(--accent-purple); color: #fff;">Humanize (LLM + Local)</button>
+        </div>
+      </div>
+
+      <!-- Right Panel: Output + Analysis -->
+      <div class="panel">
+        <!-- Score -->
+        <div id="score-display" class="score-display hidden"></div>
+
+        <!-- Output -->
+        <div class="section-header">
+          <span class="section-title">Output</span>
+          <button id="btn-copy-output" class="btn btn-sm">Copy</button>
+        </div>
+
+        <div class="textarea-container">
+          <textarea id="output-text" placeholder="Humanized text will appear here..." readonly></textarea>
+        </div>
+
+        <div class="word-count-bar">
+          <span id="output-word-count">0 words</span>
+        </div>
+
+        <!-- Analysis Details -->
+        <div class="section-header">
+          <span class="section-title">Detailed Analysis</span>
+        </div>
+        <div id="analysis-container"></div>
+
+        <!-- Log -->
+        <div class="section-header" style="margin-top: 0.5rem;">
+          <span class="section-title">Log</span>
+        </div>
+        <div id="log-container" class="log-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================== -->
+  <!-- TAB: Generate                    -->
+  <!-- =============================== -->
+  <div id="tab-generate" class="tab-content">
+    <div class="main-container">
+      <!-- Left Panel: Topic & Settings -->
+      <div class="panel panel-left">
+        <div class="section-header">
+          <span class="section-title">Generate Human-Like Text</span>
+        </div>
+
+        <label>Topic / Prompt:</label>
+        <textarea id="topic-input" style="min-height: 120px;" placeholder="Describe what you want to write about..."></textarea>
+
+        <label>
+          Content Type:
+          <select id="generate-type"></select>
+        </label>
+
+        <label>Additional Instructions (optional):</label>
+        <textarea id="instructions-input" style="min-height: 80px;" placeholder="Any specific requirements: tone, length, audience, etc."></textarea>
+
+        <div class="btn-group">
+          <button id="btn-generate" class="btn btn-primary btn-lg">Generate with Adversarial Refinement</button>
+        </div>
+
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+          Requires API key (Settings tab). Generates text, analyzes it for AI patterns,
+          and iteratively refines until the humanness score passes the threshold.
+        </p>
+      </div>
+
+      <!-- Right Panel: Output -->
+      <div class="panel">
+        <div class="section-header">
+          <span class="section-title">Generated Text</span>
+          <button id="btn-copy-generated" class="btn btn-sm">Copy</button>
+        </div>
+
+        <div class="textarea-container">
+          <textarea id="generate-output" placeholder="Generated text will appear here..." readonly style="min-height: 400px;"></textarea>
+        </div>
+
+        <div class="word-count-bar">
+          <span id="generate-word-count">0 words</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================== -->
+  <!-- TAB: Methodology                 -->
+  <!-- =============================== -->
+  <div id="tab-methodology" class="tab-content">
+    <div class="methodology-panel">
+
+      <h2>How AI Text Detectors Work</h2>
+      <p>Modern AI detectors use a combination of statistical analysis and deep learning to identify machine-generated text. Understanding their mechanisms is essential for producing genuinely human-like writing.</p>
+
+      <h3>Three Detection Paradigms</h3>
+      <table>
+        <tr><th>Approach</th><th>How It Works</th><th>Detectors</th></tr>
+        <tr>
+          <td>Statistical (Perplexity + Burstiness)</td>
+          <td>Measures how predictable word choices are and how much sentence length varies</td>
+          <td>Early GPTZero, basic classifiers</td>
+        </tr>
+        <tr>
+          <td>Classifier-Based (Fine-tuned transformers)</td>
+          <td>RoBERTa/DeBERTa models trained on millions of human vs. AI text samples</td>
+          <td>Originality.ai, Turnitin</td>
+        </tr>
+        <tr>
+          <td>Hybrid Deep Learning</td>
+          <td>Multi-component pipelines with statistical features feeding into deep learning</td>
+          <td>GPTZero (current), Turnitin (current)</td>
+        </tr>
+      </table>
+
+      <h3>Key Metrics Detectors Analyze</h3>
+
+      <div class="highlight-box">
+        <strong>Perplexity</strong> — How "surprised" a language model is by each word. AI text has low perplexity (5-10) because it picks the most probable tokens. Human text has higher perplexity (20-50) with unexpected word choices and creative expression.
+      </div>
+
+      <div class="highlight-box">
+        <strong>Burstiness</strong> — Variation in sentence length and complexity. Human writing is bursty: a 30-word sentence followed by a 4-word one. AI writing tends toward uniform lengths with a steady rhythm.
+      </div>
+
+      <h2>What Makes Text "Detectably AI"</h2>
+
+      <h3>Vocabulary Fingerprints (CMU PNAS Study, 2025)</h3>
+      <p>Research from Carnegie Mellon found massive vocabulary skews in LLM output:</p>
+      <ul>
+        <li>ChatGPT uses "camaraderie" and "tapestry" approximately <strong>150x more often</strong> than humans</li>
+        <li>Common AI tells: <code>delve</code>, <code>moreover</code>, <code>furthermore</code>, <code>notably</code>, <code>essentially</code>, <code>comprehensive</code>, <code>multifaceted</code></li>
+        <li>Overuse of formal transitions at rates far exceeding natural human frequency</li>
+        <li>Stiff openers: "It is important to note that...", "This highlights the fact that..."</li>
+      </ul>
+
+      <h3>Structural Patterns</h3>
+      <ul>
+        <li><strong>Participial clause overuse</strong>: LLMs use -ing constructions at 2-5x the human rate</li>
+        <li><strong>Nominalization overuse</strong>: "utilization" instead of "use", "implementation" instead of "building"</li>
+        <li><strong>Uniform paragraph length</strong>: every paragraph has 3-5 sentences</li>
+        <li><strong>Perfectly balanced arguments</strong>: AI always presents "both sides"</li>
+        <li><strong>Em dash overload</strong>: used as a stylistic crutch</li>
+        <li><strong>Monotonous sentence types</strong>: almost all declarative, rarely questions or fragments</li>
+      </ul>
+
+      <h3>Stylometric Evidence (Nature, 2025)</h3>
+      <p>University College Cork researchers using literary stylometry found that AI models produce <strong>tightly grouped clusters</strong> in stylometric space — each model has a uniform "fingerprint." Human authors display <strong>far greater stylistic range</strong>, scattered widely. The answer to whether LLMs can write prose statistically indistinguishable from humans is currently <strong>no</strong>.</p>
+
+      <h2>How This Agent Works</h2>
+
+      <h3>1. Vocabulary Engine</h3>
+      <p>Maintains a blocklist of 200+ AI-overused words with natural human replacements. Detects contraction usage rates (humans contract 60-80% of the time in informal writing; AI rarely does). Identifies overused transitions and sentence starters.</p>
+
+      <h3>2. Sentence Structure Analyzer</h3>
+      <p>Measures burstiness via coefficient of variation in sentence length. Detects participial clause density, nominalization rate, and sentence type distribution. Compares all metrics against human writing baselines.</p>
+
+      <h3>3. Humanization Pipeline (Local)</h3>
+      <p>Five-pass transformation:</p>
+      <ol>
+        <li><strong>Vocabulary replacement</strong> — swap AI words for human alternatives</li>
+        <li><strong>Sentence restructuring</strong> — merge short sentences, split long ones, add variety</li>
+        <li><strong>Register modulation</strong> — mix formal and informal language</li>
+        <li><strong>Structural variation</strong> — break up uniform paragraphs</li>
+        <li><strong>Natural patterns</strong> — add human-like touches: contractions, personal voice, rhetorical questions</li>
+      </ol>
+
+      <h3>4. LLM Adversarial Refinement Loop</h3>
+      <p>When an API key is configured, the agent uses a generate-analyze-refine cycle:</p>
+      <ol>
+        <li>Generate or rewrite text using optimized system prompts</li>
+        <li>Analyze the output with our detection simulators</li>
+        <li>If the score is below threshold, build a targeted improvement prompt identifying specific issues</li>
+        <li>Re-generate with the improvement instructions</li>
+        <li>Apply local humanization as a final pass</li>
+        <li>Repeat until the humanness score exceeds the target (default: 75/100)</li>
+      </ol>
+
+      <div class="highlight-box">
+        <strong>Key insight from research</strong>: Adversarial guidance from just one detector transfers universally to reduce detection across ALL detectors. This means our local analyzer provides transferable improvements even though it's not the same system as GPTZero or Turnitin.
+      </div>
+
+      <h3>5. Optimized System Prompts</h3>
+      <p>Each content type (article, essay, marketing, creative, email, technical) has a specialized system prompt that instructs the LLM to avoid the most common detection signals from the start. These prompts encode the research findings about vocabulary, sentence structure, and style directly into the generation instructions.</p>
+
+      <h2>Recommendations for Best Results</h2>
+      <ol>
+        <li><strong>Always review and edit the output yourself.</strong> The best human-like text is text that an actual human has touched. Even small personal edits dramatically improve detector evasion.</li>
+        <li><strong>Use the "Aggressive" setting</strong> for text that needs to pass strict detectors. It adds more personal voice and structural variation.</li>
+        <li><strong>Mix content from multiple sources.</strong> Combine AI-generated sections with your own writing. Detectors struggle most with genuinely mixed content.</li>
+        <li><strong>Read the analysis details.</strong> Understanding which specific patterns triggered detection helps you make targeted improvements.</li>
+        <li><strong>Use the LLM rewrite when possible.</strong> The adversarial refinement loop produces better results than local-only humanization.</li>
+      </ol>
+
+      <h2>Research Sources</h2>
+      <ul>
+        <li>CMU PNAS Study: "Do LLMs Write Like Humans?" (Feb 2025) — vocabulary and grammatical pattern analysis</li>
+        <li>University College Cork / Nature: Stylometric comparison of human vs. AI creative writing (2025)</li>
+        <li>GPTZero: Technical documentation on multi-component deep learning detection</li>
+        <li>Adversarial Paraphrasing (arXiv 2025): Universal transferability of guided evasion</li>
+        <li>TempParaphraser (EMNLP 2025): Sentence-level candidate selection for detection evasion</li>
+        <li>SynthID-Text (Nature 2024): Google's watermarking approach and its limitations</li>
+        <li>Turnitin: AI Bypasser Detection technology documentation (Aug 2025)</li>
+        <li>Frontiers in AI (2025): RoBERTa-based detection achieving 99.2% F1 in controlled settings</li>
+      </ul>
+
+    </div>
+  </div>
+
+  <!-- =============================== -->
+  <!-- TAB: Settings                    -->
+  <!-- =============================== -->
+  <div id="tab-settings" class="tab-content">
+    <div class="settings-panel">
+      <h2 style="margin-bottom: 1.5rem;">API Configuration</h2>
+
+      <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+        To use the "Generate" and "Humanize (LLM + Local)" features, provide your own API key.
+        Keys are stored in your browser's localStorage only — never sent anywhere except the API provider.
+      </p>
+
+      <div class="settings-group">
+        <h3>LLM Provider</h3>
+        <div class="settings-row">
+          <label>Provider:</label>
+          <select id="provider-select">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>API Key:</label>
+          <input type="password" id="api-key-input" placeholder="sk-... or sk-ant-..." style="flex: 1; max-width: 400px;">
+        </div>
+        <div class="settings-row">
+          <label>Model:</label>
+          <input type="text" id="model-input" placeholder="gpt-4o" style="flex: 1; max-width: 300px;">
+        </div>
+        <div class="settings-row">
+          <label>Temperature:</label>
+          <input type="number" id="temperature-input" value="1.0" min="0" max="2" step="0.1" style="width: 80px;">
+        </div>
+      </div>
+
+      <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+
+      <div class="settings-group" style="margin-top: 2rem;">
+        <h3>About Local Processing</h3>
+        <p style="color: var(--text-secondary);">
+          The "Analyze" and "Humanize (Local)" features work entirely in your browser.
+          No data is sent to any server. These features use the built-in vocabulary engine
+          and sentence analyzer to detect AI patterns and apply rule-based humanization.
+        </p>
+        <p style="color: var(--text-secondary);">
+          For best results, combine local humanization with LLM-based rewriting using
+          the adversarial refinement loop.
+        </p>
+      </div>
+
+      <div class="settings-group" style="margin-top: 2rem;">
+        <h3>Recommended Models</h3>
+        <table style="width: 100%; font-size: 0.85rem;">
+          <tr><th>Provider</th><th>Model</th><th>Notes</th></tr>
+          <tr>
+            <td>OpenAI</td>
+            <td><code>gpt-4o</code></td>
+            <td>Best balance of quality and cost</td>
+          </tr>
+          <tr>
+            <td>OpenAI</td>
+            <td><code>gpt-4o-mini</code></td>
+            <td>Faster and cheaper, slightly less nuanced</td>
+          </tr>
+          <tr>
+            <td>Anthropic</td>
+            <td><code>claude-sonnet-4-20250514</code></td>
+            <td>Strong writing quality, good instruction following</td>
+          </tr>
+          <tr>
+            <td>Anthropic</td>
+            <td><code>claude-haiku-4-20250514</code></td>
+            <td>Fast and affordable</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-left">
+      <div id="status-indicator" class="status-indicator"></div>
+      <span id="status-text">Ready</span>
+    </div>
+    <div class="status-right">
+      <span>HumanWriter AI Agent v1.0</span>
+    </div>
+  </div>
+
+  <!-- Scripts (order matters: dependencies first) -->
+  <script src="js/vocabulary.js"></script>
+  <script src="js/analyzer.js"></script>
+  <script src="js/prompts.js"></script>
+  <script src="js/humanizer.js"></script>
+  <script src="js/llm-integration.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

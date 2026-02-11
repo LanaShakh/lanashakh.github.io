@@ -1,163 +1,134 @@
-# Content Pipeline: Workflow Guide
+# Как писать статьи: 3 чата, 3 шага
 
-## Overview
-
-This is a 5-step content pipeline for producing expert SEO articles for its-ai.org/blog.
-Each step uses a specialized AI prompt (role). You run them sequentially, with human checkpoints.
+## Схема
 
 ```
-Step 1: Researcher         → finds & organizes sources
-   ↓
-   [YOU: approve/reject sources]
-   ↓
-Step 2: SEO Strategist     → creates content brief with keywords & structure
-   ↓
-   [YOU: review brief, adjust keywords if needed]
-   ↓
-Step 3: Copywriter          → writes the article draft with citations
-   ↓
-Step 4: Editor              → analyzes AI patterns + rewrites for human voice
-   ↓
-   [YOU: check via its-ai.org, manually fix any remaining flagged sentences]
-   ↓
-Step 5: Chief Editor        → fact-checks, SEO audit, final polish
-   ↓
-   [YOU: final approval → publish]
+ЧАТ 1 (Researcher)  →  ЧАТ 2 (SEO + Copywriter)  →  ЧАТ 3 (Editor + Chief)
+       │                         │                            │
+   найти источники          написать статью            отредактировать
+       │                         │                            │
+   ты одобряешь              ты получаешь               ты проверяешь
+   источники                 черновик статьи            через its-ai.org
+       │                         │                            │
+   копируешь                 копируешь                  правишь вручную
+   TRANSFER BLOCK            ВСЮ СТАТЬЮ                 флагнутые места
 ```
 
-## Detailed Steps
+---
 
-### Step 1: Research (prompt: `01_researcher.md`)
+## ШАГ 1: Исследование источников
 
-**Open a NEW chat.** Paste the full prompt from `01_researcher.md`, then add:
+**Файл промпта:** `01_researcher.md`
+
+### Что делать:
+1. Открой **новый чат** (Claude / GPT / Gemini)
+2. Вставь весь текст из файла `01_researcher.md`
+3. Сразу после промпта добавь:
 
 ```
-TOPIC: How AI Detection Works: A Technical Guide for Educators
-TARGET KEYWORDS: AI detection, AI detector, how AI detection works, AI content detection
+TOPIC: Как работает AI-детекция текста
+TARGET KEYWORDS: AI detection, AI detector, how AI detection works
 LANGUAGE: EN
 ```
 
-**What you get:** A structured research report with 5-10 verified sources, exact quotes, video timestamps, and key facts.
+4. Получишь развернутый отчет с источниками
+5. **Прочитай источники. Убери те, которые не подходят.**
+6. В конце ответа будет блок между маркерами:
 
-**Your action:** Review every source. Remove any you do not trust. Add sources you know about. This is CRITICAL — all claims in the final article come from these sources.
+```
+=== TRANSFER BLOCK 1 START ===
+...вот это...
+=== TRANSFER BLOCK 1 END ===
+```
+
+7. **Скопируй ТОЛЬКО этот блок** (между маркерами). Это ~30-50 строк.
 
 ---
 
-### Step 2: SEO Strategy (prompt: `02_seo_strategist.md`)
+## ШАГ 2: Написание статьи
 
-**Open a NEW chat.** Paste the full prompt from `02_seo_strategist.md`, then add:
+**Файл промпта:** `02_seo_copywriter.md`
+
+### Что делать:
+1. Открой **НОВЫЙ чат** (важно — не в том же!)
+2. Вставь весь текст из файла `02_seo_copywriter.md`
+3. Сразу после промпта добавь:
 
 ```
-TOPIC: How AI Detection Works: A Technical Guide for Educators
-TARGET KEYWORDS: AI detection, AI detector, how AI detection works, AI content detection
-APPROVED SOURCES: [paste your approved sources from Step 1]
-EXISTING BLOG ARTICLES: [list any existing article URLs from its-ai.org/blog for internal linking]
+=== TRANSFER BLOCK 1 START ===
+[сюда вставь скопированный блок из Шага 1]
+=== TRANSFER BLOCK 1 END ===
+
+TARGET KEYWORDS: AI detection, AI detector, how AI detection works
+EXISTING BLOG ARTICLES: https://its-ai.org/en/blog/article-1, https://its-ai.org/en/blog/article-2
+LANGUAGE: EN
+WORD COUNT: 2000-2500
+```
+
+4. Получишь **готовую статью** с цитатами, ссылками, SEO-ключевыми словами
+5. **Скопируй ВСЮ статью** (от `---` до `---` включительно)
+
+---
+
+## ШАГ 3: Редактура + проверка качества
+
+**Файл промпта:** `03_editor_chief.md`
+
+### Что делать:
+1. Открой **НОВЫЙ чат**
+2. Вставь весь текст из файла `03_editor_chief.md`
+3. Сразу после промпта добавь:
+
+```
+ARTICLE:
+[сюда вставь всю статью из Шага 2]
+
+TARGET KEYWORDS: AI detection, AI detector, how AI detection works
+AUTHOR VOICE: Direct, knowledgeable, conversational. Prefers examples over theory.
 LANGUAGE: EN
 ```
 
-**What you get:** A detailed SEO brief with keyword placement, article structure (H1/H2s), FAQ questions, meta tags, and competitive analysis.
+4. Получишь:
+   - **AI Pattern Scan** — какие предложения "фонят" как AI
+   - **Переписанная статья** — с человеческим голосом
+   - **Quality Report** — фактчек + SEO-аудит
 
-**Your action:** Review the structure. Does the outline cover what your audience needs? Adjust keywords or structure if needed.
-
----
-
-### Step 3: Write Draft (prompt: `03_copywriter.md`)
-
-**Open a NEW chat.** Paste the full prompt from `03_copywriter.md`, then add:
-
-```
-SEO BRIEF: [paste the full SEO brief from Step 2]
-APPROVED SOURCES: [paste approved sources from Step 1]
-LANGUAGE: EN
-WORD COUNT TARGET: 2000-2500 words
-```
-
-**What you get:** A complete article draft with inline citations, video timestamps, SEO keywords integrated, and anti-AI-detection writing applied.
-
-**Your action:** Quick read-through. Does the content make sense? Are sources used correctly? No need to edit heavily — that is the next step.
+### После получения:
+5. **Скопируй переписанную статью**
+6. **Открой its-ai.org** → вставь текст → проверь
+7. **Посмотри heatmap** — какие предложения подсвечены как AI
+8. **Перепиши эти предложения сама:**
+   - Замени целиком (не просто слова)
+   - Добавь свое мнение или реакцию
+   - Сделай длину отличной от соседних предложений
+   - Можно начать с: "Честно?", "Я это проверяла сама.", "Три слова: зависит от контекста."
+9. **Проверь снова** через its-ai.org → повтори пока не пройдет
 
 ---
 
-### Step 4: Edit & Humanize (prompt: `04_editor.md`)
+## Что копировать — шпаргалка
 
-**Open a NEW chat.** Paste the full prompt from `04_editor.md`, then add:
-
-```
-ARTICLE DRAFT: [paste the full draft from Step 3]
-TARGET KEYWORDS: AI detection, AI detector, how AI detection works, AI content detection
-AUTHOR VOICE NOTES: Direct, knowledgeable, slightly conversational. Prefer concrete examples over abstract theory. Occasional dry humor is fine.
-LANGUAGE: EN
-```
-
-**What you get:**
-1. An AI Pattern Analysis Report (shows which sentences are likely to get flagged)
-2. A fully rewritten version with human voice, varied rhythm, and natural imperfections
-
-**Your action (CRITICAL):**
-1. Take the rewritten version
-2. Go to its-ai.org and paste it into the detector
-3. Look at the heatmap — any sentences marked as AI?
-4. Manually rewrite those specific sentences in your own words
-5. Re-check until the text passes
-
-**Tips for manual fixes:**
-- Replace flagged sentences entirely — do not just swap words
-- Add a personal opinion or reaction
-- Make it shorter or longer than the surrounding sentences
-- Start with something unexpected ("Honestly?", "I tested this myself.", "Three words: it depends.")
+| Шаг | Что копируешь | Куда вставляешь | Размер |
+|-----|---------------|-----------------|--------|
+| 1→2 | Только TRANSFER BLOCK (между маркерами `===`) | После промпта в Чате 2 | ~30-50 строк |
+| 2→3 | Вся статья целиком | После промпта в Чате 3 | ~200-300 строк |
 
 ---
 
-### Step 5: Final Review (prompt: `05_chief_editor.md`)
+## Совет по батчингу
 
-**Open a NEW chat.** Paste the full prompt from `05_chief_editor.md`, then add:
+Для 10+ статей в месяц эффективнее работать батчами:
 
-```
-ARTICLE: [paste the article after your Its-AI check and manual fixes from Step 4]
-SEO BRIEF: [paste the SEO brief from Step 2]
-TARGET KEYWORDS: AI detection, AI detector, how AI detection works, AI content detection
-LANGUAGE: EN
-```
-
-**What you get:** Fact-check report, SEO compliance report, publication decision, and final polished version.
-
-**Your action:** Review the reports. Fix any remaining issues. Publish!
+1. **День 1:** Прогони Шаг 1 для 4-5 статей подряд. Одобри источники. Сохрани transfer blocks в отдельный файл.
+2. **День 2:** Прогони Шаг 2 для всех 4-5 статей. Сохрани черновики.
+3. **День 3-4:** Прогони Шаг 3 + ручная проверка через its-ai.org. Это основная работа.
 
 ---
 
-## Time Estimate Per Article
+## Файлы промптов
 
-| Step | AI Time | Your Time | Total |
-|------|---------|-----------|-------|
-| 1. Research | ~2 min | ~5 min (approve sources) | ~7 min |
-| 2. SEO Brief | ~2 min | ~3 min (review structure) | ~5 min |
-| 3. Draft | ~3 min | ~5 min (quick review) | ~8 min |
-| 4. Edit + Its-AI check | ~3 min | ~20-40 min (detector + fixes) | ~25-45 min |
-| 5. Chief Editor | ~2 min | ~5 min (final check) | ~7 min |
-| **TOTAL** | **~12 min** | **~38-58 min** | **~50-70 min** |
-
----
-
-## Tips for Best Results
-
-1. **Always use a NEW chat for each step.** This gives the AI a clean context and prevents confusion between roles.
-
-2. **Copy-paste the FULL output from one step to the next.** Do not summarize — the next role needs all the detail.
-
-3. **The Editor step (4) is where you invest the most time.** This is what makes the difference between AI-detected and human-passing content.
-
-4. **Build a voice profile over time.** After a few articles, you will know which phrases and patterns Its-AI flags. Create a personal "do not use" list.
-
-5. **Batch your work:** Run Steps 1-3 for 3-4 articles at once (mostly AI work). Then spend a focused block on Step 4 (your main effort). Then batch Step 5.
-
-6. **Track what works.** After each article, note: what Its-AI flagged, what your manual fixes were, and what passed. This builds your editing intuition.
-
-## Prompt Files
-
-| File | Role | Purpose |
-|------|------|---------|
-| `01_researcher.md` | Senior Research Analyst | Find & verify official sources |
-| `02_seo_strategist.md` | SEO Content Strategist | Create keyword-optimized content brief |
-| `03_copywriter.md` | Expert Tech Copywriter | Write the article draft with citations |
-| `04_editor.md` | Human-Voice Editor | Analyze AI patterns + rewrite for human voice |
-| `05_chief_editor.md` | Chief Editor | Fact-check, SEO audit, final approval |
+| Файл | Роль | Чат |
+|------|------|-----|
+| `01_researcher.md` | Research Analyst | Чат 1 |
+| `02_seo_copywriter.md` | SEO Strategist + Copywriter | Чат 2 |
+| `03_editor_chief.md` | Editor + Chief Editor | Чат 3 |

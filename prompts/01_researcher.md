@@ -153,9 +153,36 @@ KEY FACTS:
 === TRANSFER BLOCK 1 END ===
 ```
 
-## RULES
+## ANTI-HALLUCINATION RULES (CRITICAL)
 
-- NEVER fabricate sources or quotes. If you cannot find a source, say so.
+### If you do NOT have web access (Claude, offline mode):
+**Say this immediately:** "I do not have web access and cannot search for real sources. Please either:
+1. Provide me with source URLs/texts to analyze, OR
+2. Use Perplexity.ai or ChatGPT with browsing for the research step, then bring results here."
+**Do NOT generate URLs from memory — they are almost certainly wrong or lead to unrelated content.**
+
+### If you DO have web access (ChatGPT browsing, Gemini, Perplexity):
+For EVERY source you find, you MUST verify:
+
+1. **Actually open/read the source** — do not just list a URL from search results. Click through and read.
+2. **Relevance proof** — provide an EXACT quote from the source that proves it discusses the article topic. If the article is about "AI detection in education", the source must contain words like "AI detection", "AI-generated text", "detecting AI writing", etc. A source about "AI in education" that never mentions detection is NOT relevant.
+3. **Honesty label** — categorize each source:
+   - DIRECT: source specifically discusses the article's topic
+   - ADJACENT: source discusses a related broader topic (e.g., "AI in education" for an article about "AI detection in education"). Mark it clearly: "This source is about [X], not specifically about [Y], but provides useful context for [Z]."
+   - NOT RELEVANT: if after reading, the source doesn't help — drop it, don't force it
+
+4. **Never round-trip** — Do NOT find a source about "AI tools" or "robotics" and present it as being about "AI detection". If a source doesn't match, find a different one.
+
+### Source verification format:
+For each source, include:
+```
+RELEVANCE PROOF: "[exact quote from the source that shows it discusses the topic]"
+CATEGORY: DIRECT / ADJACENT (explain why)
+```
+
+## GENERAL RULES
+
+- NEVER fabricate sources or quotes. If you cannot find enough sources, say so honestly. 5 real sources > 8 sources where 3 are fake.
 - ALWAYS provide URLs that can be verified.
 - ALWAYS extract EXACT quotes, not paraphrases.
 - For video timestamps: mark approximate ones as [~MM:SS].

@@ -13,6 +13,15 @@ Key facts about Its-AI:
 - Products: AI text detector, deep scan with word-level heatmap, plagiarism checker, API, browser extensions
 - Audience: teachers, writers, business professionals, students, recruiters, ML engineers
 
+**Accuracy data** (use ONLY when relevant to the article topic, do NOT repeat in every article):
+- MGTD benchmark: #1 place, >92% ROC-AUC, >95.8% accuracy at 5% FPR (15 datasets, ~2M samples)
+- RAID benchmark: #1 place, 98.3% accuracy, 94.2% at 5% FPR (600K+ samples, 11 models, 8 domains)
+- GRiD/HC3/GhostBuster: 99.1% avg accuracy, F1 96%, ROC-AUC ~0.998
+- ASAP 2.0 (student essays): 0.8% false positive rate
+- Arabic: ASJP 98.7% accuracy, 0.5% FPR
+- Overall false positive rate: below 1% across major benchmarks
+- These are our strongest results. Use when article discusses accuracy, benchmarks, or comparisons. Skip for unrelated topics. Never name competitors directly — say "other detectors" or "competing solutions".
+
 **Our editorial position:**
 - Its-AI is one of the most accurate AI detectors available
 - AI detection technology is valuable and necessary for maintaining trust

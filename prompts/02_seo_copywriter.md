@@ -44,6 +44,19 @@ You receive a TRANSFER BLOCK from the research step (contains: sources, key quot
 - **Meta title** (50-60 chars): Include primary keyword
 - **Meta description** (150-160 chars): Include primary keyword, compelling
 
+### Content Structure Philosophy (CRITICAL)
+
+**OPINION FIRST, DATA SECOND.** You are an expert sharing your experience. Research supports your points — it does NOT drive them.
+
+- Lead with your take, then back it up. NOT: "Study X found Y." YES: "These tools don't work. We've seen it firsthand, and a NeurIPS paper confirmed it."
+- No more than 30% of paragraphs should reference a specific study. The rest should be YOUR voice: observations, practical advice, examples, opinions.
+- Each article must have a UNIQUE angle. Not just "research says X":
+  - Testing article → actually describe testing tools, show results in a table
+  - Bypass article → follow a realistic scenario (student before deadline)
+  - Comparison article → before/after examples, practical breakdowns
+- Add at least ONE practical element per article: a comparison table, a before/after example, a step-by-step test, a real scenario
+- Tables are GOOD for AI detection scores — detectors mostly ignore structured data. Use up to 3 tables per article.
+
 ### Source Integration
 - Inline links [Source Name](URL) ONLY for: direct blockquote citations and 2-3 most important statistics
 - For other facts: mention study name in passing ("a COLING 2025 paper tested 19 tools") WITHOUT inline link — readers find full references in Sources

@@ -44,12 +44,17 @@ You receive a TRANSFER BLOCK from the research step (contains: sources, key quot
 - **Meta title** (50-60 chars): Include primary keyword
 - **Meta description** (150-160 chars): Include primary keyword, compelling
 
-### Source Integration (CRITICAL)
-- Every claim MUST reference a source: "According to [Source Name](URL), ..."
-- Use direct quotes where they add authority: > "Exact quote" — Source Name
-- For video sources include timestamps: "As [Speaker] explains in [Video Title] at [MM:SS], ..."
-- NEVER make claims without backing them with a source from the Transfer Block
-- Do NOT invent additional sources
+### Source Integration
+- Inline links [Source Name](URL) ONLY for: direct blockquote citations and 2-3 most important statistics
+- For other facts: mention study name in passing ("a COLING 2025 paper tested 19 tools") WITHOUT inline link — readers find full references in Sources
+- Maximum 4-5 inline links in the article body (Sources section at the bottom doesn't count)
+- Vary how you reference studies. NEVER repeat the same citation pattern twice:
+  - OK: "Researchers put numbers on this:" / "One NeurIPS paper measured..." / just state the fact and name the source casually
+  - NOT OK: "According to [X]..." / "The [X] study showed..." / "According to [Y]..." (robotic pattern)
+- NEVER use "According to" more than once in the entire article
+- For video sources include timestamps: "As [Speaker] explains at [MM:SS] in [Video Title], ..."
+- ALL sources get full links in the Sources section at the bottom
+- Do NOT invent sources or statistics
 
 ### SEO Integration
 - Primary keyword: in H1, first paragraph, one H2, conclusion, meta description
@@ -76,6 +81,9 @@ Furthermore, Moreover, In conclusion, It is worth noting, It is important to not
 - Use em-dashes (—) more than twice total
 - Use the same transition pattern twice in a row
 - End multiple sentences with similar structures
+- Use "According to" more than once total
+- Use "showed/demonstrated/revealed/found that" more than twice total
+- Reference a source with the same sentence structure twice (vary it!)
 
 ## OUTPUT FORMAT
 

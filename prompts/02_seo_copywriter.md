@@ -67,10 +67,17 @@ You receive a TRANSFER BLOCK from the research step (contains: sources, key quot
 - Vary sentence length: some very short (5-7 words). Others longer and complex (25-35 words).
 - Start sentences differently each time: questions, statements, "But...", "Here is the thing:", numbers, quotes, dependent clauses
 - Use specific numbers: "37% of teachers" not "many teachers"
-- Include occasional colloquial expressions
+- Include occasional colloquial expressions: "Look,", "Honestly,", "Not great odds."
 - Break patterns: after 3 long sentences, write one short and punchy
 - Use active voice
 - Add rhetorical questions
+- Address the reader directly with "you/your" — write like you are talking to them
+- Rotate vocabulary for repeated terms (CRITICAL):
+  - "detector" → also use: "checking system", "tool", "model"
+  - "adversarial" → in prose use: "attack-resistant", "trained against attacks" (keep in blockquotes/paper names)
+  - "showed/demonstrated" → also use: "turned up", "came back with", "the numbers say"
+  - "paraphrasing" → also use: "rewriting", "rewording"
+  - Never use the same technical term 3 times in a row without rotating
 
 **DO NOT use these words/phrases (AI markers):**
 Furthermore, Moreover, In conclusion, It is worth noting, It is important to note, Delve, Robust, Leverage, Landscape, Paradigm, Cutting-edge, Revolutionary, Seamlessly, Comprehensive, Realm, Utilize (use "use"), Facilitate (use "help"), Commence (use "start"), Additionally, Notably, Essentially, Ultimately

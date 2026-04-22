@@ -4,101 +4,95 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Контакты — Светлана Шахова</title>
-  <meta name="description" content="Контакты Светланы Шаховой. Telegram, email, загрузка резюме.">
+  <meta name="description" content="Связь: Telegram, email, скачать резюме.">
   <meta property="og:title" content="Контакты — Светлана Шахова">
-  <meta property="og:description" content="Telegram, email, download CV.">
+  <meta property="og:description" content="Telegram, email, скачать CV.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://lanashakh.github.io/contact.html">
   <script>(function(){try{var s=localStorage.getItem("portfolioLang");document.documentElement.setAttribute("data-lang-active",s==="en"?"en":"ru");}catch(e){document.documentElement.setAttribute("data-lang-active","ru");}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
   <header class="site-header">
-    <div class="container header-inner">
-      <a class="brand" href="index.html">Светлана <span>Шахова</span></a>
-      <nav aria-label="Main navigation">
+    <div class="container-wide header-inner">
+      <a class="brand" href="index.html">Светлана Шахова</a>
+      <nav aria-label="Навигация">
         <ul class="nav-list">
-          <li><a class="nav-link" href="index.html">Главная</a></li>
-          <li><a class="nav-link" href="cases.html">Кейсы</a></li>
-          <li><a class="nav-link" href="about.html">Обо мне</a></li>
-          <li><a class="nav-link active" href="contact.html">Контакты</a></li>
+          <li><a class="nav-link" href="index.html" data-lang="ru">Главная</a><a class="nav-link" href="index.html" data-lang="en">Home</a></li>
+          <li><a class="nav-link" href="cases.html" data-lang="ru">Кейсы</a><a class="nav-link" href="cases.html" data-lang="en">Cases</a></li>
+          <li><a class="nav-link" href="about.html" data-lang="ru">Обо мне</a><a class="nav-link" href="about.html" data-lang="en">About</a></li>
+          <li><a class="nav-link active" href="contact.html" data-lang="ru">Контакты</a><a class="nav-link active" href="contact.html" data-lang="en">Contact</a></li>
         </ul>
       </nav>
       <div class="lang-switch">
         <button class="lang-btn active" data-set-lang="ru" type="button">RU</button>
+        <span class="lang-sep">/</span>
         <button class="lang-btn" data-set-lang="en" type="button">EN</button>
       </div>
     </div>
   </header>
 
-  <main class="container">
-    <section class="hero">
-      <span class="badge" data-lang="ru">Контакты</span>
-      <span class="badge" data-lang="en">Contact</span>
-      <h1 data-lang="ru" class="is-visible">Готова обсудить задачу или вакансию</h1>
-      <h1 data-lang="en">Open to discussing a task or role</h1>
-      <p data-lang="ru" class="lead is-visible">
-        Пишите в Telegram, на почту или скачайте резюме. Если есть бриф или вакансия, пришлю оценку по формату и срокам в день обращения.
-      </p>
-      <p data-lang="en" class="lead">
-        Telegram, email, or download my CV. If you have a brief or role, I'll send an assessment of format and timeline the same day.
-      </p>
+  <main>
+    <div class="container">
+      <section class="intro">
+        <span class="eyebrow" data-lang="ru">Связь</span>
+        <span class="eyebrow" data-lang="en">Contact</span>
+        <h1 data-lang="ru">Пишите в Telegram или на почту</h1>
+        <h1 data-lang="en">Telegram or email works best</h1>
+        <p class="lead" data-lang="ru">
+          Если у вас есть вакансия, бриф или задача, пришлю оценку по формату и срокам в тот же рабочий день.
+        </p>
+        <p class="lead" data-lang="en">
+          If you have a role, brief, or task, I'll reply with a format and timeline estimate on the same working day.
+        </p>
+      </section>
 
-      <div class="hero-cta">
-        <a class="btn btn-primary" href="https://t.me/LanaShakh" target="_blank" rel="noopener">Telegram</a>
-        <a class="btn btn-primary" href="mailto:dena.sssd@gmail.com">Email</a>
-        <a class="btn btn-secondary" href="cv/Shakhova-Svetlana-CV.pdf" download data-lang="ru">Скачать резюме (PDF)</a>
-        <a class="btn btn-secondary" href="cv/Shakhova-Svetlana-CV.pdf" download data-lang="en">Download CV (PDF)</a>
-      </div>
-    </section>
+      <section>
+        <div class="contact-row">
+          <span class="contact-key">Telegram</span>
+          <span class="contact-val"><a href="https://t.me/LanaShakh" target="_blank" rel="noopener">@LanaShakh</a></span>
+        </div>
+        <div class="contact-row">
+          <span class="contact-key">Email</span>
+          <span class="contact-val"><a href="mailto:dena.sssd@gmail.com">dena.sssd@gmail.com</a></span>
+        </div>
+        <div class="contact-row">
+          <span class="contact-key" data-lang="ru">Резюме</span>
+          <span class="contact-key" data-lang="en">CV</span>
+          <span class="contact-val">
+            <a class="btn-link" href="cv/Shakhova-Svetlana-CV.pdf" download data-lang="ru">Скачать PDF</a>
+            <a class="btn-link" href="cv/Shakhova-Svetlana-CV.pdf" download data-lang="en">Download PDF</a>
+          </span>
+        </div>
+        <div class="contact-row">
+          <span class="contact-key" data-lang="ru">Формат</span>
+          <span class="contact-key" data-lang="en">Format</span>
+          <span class="contact-val" data-lang="ru">Удалённо, GMT+7. Проектно или full-time.</span>
+          <span class="contact-val" data-lang="en">Remote, GMT+7. Project or full-time.</span>
+        </div>
+      </section>
 
-    <section class="section">
-      <h2 data-lang="ru" class="is-visible">Прямые каналы связи</h2>
-      <h2 data-lang="en">Direct channels</h2>
-      <ul class="contact-list">
-        <li>
-          <strong>Telegram:</strong> <a href="https://t.me/LanaShakh" target="_blank" rel="noopener">@LanaShakh</a><br>
-          <span class="muted is-visible" data-lang="ru">Оптимально для быстрых обсуждений и созвонов.</span>
-          <span class="muted" data-lang="en">Best for quick discussions and calls.</span>
-        </li>
-        <li>
-          <strong>Email:</strong> <a href="mailto:dena.sssd@gmail.com">dena.sssd@gmail.com</a><br>
-          <span class="muted is-visible" data-lang="ru">Подходит для вакансий и длинных брифов.</span>
-          <span class="muted" data-lang="en">Best for roles and long briefs.</span>
-        </li>
-        <li>
-          <strong data-lang="ru" class="is-visible">Резюме:</strong>
-          <strong data-lang="en">CV:</strong>
-          <a href="cv/Shakhova-Svetlana-CV.pdf" download>Shakhova-Svetlana-CV.pdf</a><br>
-          <span class="muted is-visible" data-lang="ru">PDF с актуальным опытом и достижениями.</span>
-          <span class="muted" data-lang="en">PDF with current experience and achievements.</span>
-        </li>
-      </ul>
-    </section>
-
-    <section class="section card">
-      <h2 data-lang="ru" class="is-visible">Шаблон первого сообщения</h2>
-      <h2 data-lang="en">First message template</h2>
-      <p data-lang="ru" class="is-visible">
-        Формат задач, текущая проблема или вакансия, ожидаемая метрика или KPI, срок. Этого достаточно, чтобы я прислала рабочий план и оценку.
-      </p>
-      <p data-lang="en">
-        Task format, current problem or role, target metric or KPI, deadline. That's enough for me to respond with a plan and estimate.
-      </p>
-    </section>
-
-    <section class="section card">
-      <h2 data-lang="ru" class="is-visible">Режим работы</h2>
-      <h2 data-lang="en">Working hours</h2>
-      <p data-lang="ru" class="is-visible">GMT+7 (Барнаул, Россия). Удалённо. Первый ответ в течение 24 часов в рабочие дни.</p>
-      <p data-lang="en">GMT+7 (Barnaul, Russia). Remote. First reply within 24 business hours.</p>
-    </section>
+      <section class="section">
+        <span class="section-label" data-lang="ru">Что написать в первом сообщении</span>
+        <span class="section-label" data-lang="en">What to send first</span>
+        <p data-lang="ru">
+          Формат задачи, текущая ситуация или вакансия, целевая метрика, срок. Этого достаточно, чтобы я вернулась с рабочим планом и оценкой.
+        </p>
+        <p data-lang="en">
+          Task format, current situation or role, target metric, deadline. That's enough for me to return with a plan and estimate.
+        </p>
+      </section>
+    </div>
   </main>
 
   <footer class="site-footer">
-    <div class="container">
-      <span data-lang="ru" class="is-visible">© 2026 Светлана Шахова. Контент-менеджер, SEO-копирайтер, AI-workflow.</span>
-      <span data-lang="en">© 2026 Svetlana Shakhova. Content manager, SEO copywriter, AI workflow.</span>
+    <div class="container-wide">
+      <span data-lang="ru">Барнаул · GMT+7 · работаю удалённо</span>
+      <span data-lang="en">Barnaul · GMT+7 · remote work</span>
+      <span>&copy; 2026 Светлана Шахова</span>
     </div>
   </footer>
 

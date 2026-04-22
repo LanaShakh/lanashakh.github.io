@@ -1,0 +1,403 @@
+:root {
+  --bg: #f5f7ff;
+  --surface: #ffffff;
+  --text: #1a2340;
+  --muted: #5a6480;
+  --primary: #3e5fff;
+  --primary-dark: #2f4df0;
+  --accent: #7c93f7;
+  --border: #dce2ff;
+  --success: #0f8f52;
+  --shadow: 0 12px 32px rgba(43, 71, 202, 0.12);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--primary-dark);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  width: min(1080px, calc(100% - 2rem));
+  margin: 0 auto;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(245, 247, 255, 0.92);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.brand span {
+  color: var(--primary);
+}
+
+.nav-list {
+  list-style: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  gap: 1rem;
+}
+
+.nav-link {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+}
+
+.nav-link.active,
+.nav-link:hover {
+  background: #e8edff;
+  text-decoration: none;
+}
+
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.lang-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.45rem 0.75rem;
+  font-weight: 600;
+}
+
+.lang-btn.active {
+  background: #dfe6ff;
+  color: var(--text);
+}
+
+main {
+  padding: 2rem 0 4rem;
+}
+
+.hero {
+  display: grid;
+  gap: 1.2rem;
+  background: linear-gradient(145deg, #eef2ff, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  box-shadow: var(--shadow);
+}
+
+.hero-split {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2rem;
+}
+
+.hero-text {
+  display: grid;
+  gap: 1rem;
+}
+
+.hero-photo {
+  width: clamp(180px, 22vw, 260px);
+  aspect-ratio: 3 / 4;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 4px solid #fff;
+  box-shadow: var(--shadow);
+  background: linear-gradient(135deg, #7c93f7, #3e5fff);
+  position: relative;
+}
+
+.hero-photo::before {
+  content: "СШ";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hero-photo img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  background: #e9efff;
+  color: #2a3f9f;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 5vw, 2.9rem);
+}
+
+h2 {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  margin-bottom: 0.8rem;
+}
+
+h3 {
+  font-size: 1.15rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.lead {
+  font-size: 1.08rem;
+  color: #23315f;
+  margin: 0;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.btn {
+  display: inline-block;
+  border-radius: 12px;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  text-decoration: none;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background: #eef2ff;
+  text-decoration: none;
+}
+
+.section {
+  margin-top: 2.2rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.metrics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.1rem;
+  box-shadow: 0 6px 18px rgba(60, 83, 190, 0.08);
+}
+
+.case-card {
+  padding: 1.3rem;
+  grid-column: 1 / -1;
+}
+
+.case-card ul {
+  padding-left: 1.2rem;
+  margin: 0.4rem 0;
+}
+
+.case-card li {
+  margin-bottom: 0.3rem;
+}
+
+.metric {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+  margin: 0 0 0.4rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.case-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.7rem 0;
+}
+
+.tag {
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  background: #f2f5ff;
+  color: #324375;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+}
+
+.case-result {
+  margin-top: 0.6rem;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.case-meta {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+}
+
+.testimonial {
+  border-left: 4px solid var(--accent);
+}
+
+.testimonial-text {
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--text);
+  margin: 0 0 0.7rem;
+}
+
+.testimonial-meta {
+  font-size: 0.88rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0;
+}
+
+.cta-section {
+  margin-top: 2.8rem;
+  background: linear-gradient(145deg, #eef2ff, #ffffff);
+  border: 1px solid var(--border);
+  padding: clamp(1.4rem, 4vw, 2rem);
+}
+
+.cta-section h2 {
+  margin-bottom: 0.5rem;
+}
+
+.cta-section .hero-cta {
+  margin-top: 1rem;
+}
+
+.contact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.contact-list li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 1.2rem 0 2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+html[data-lang-active="ru"] [data-lang="en"],
+html[data-lang-active="en"] [data-lang="ru"] {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .header-inner {
+    flex-wrap: wrap;
+  }
+
+  .nav-list {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .hero-split {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-photo {
+    justify-self: center;
+    width: 60vw;
+    max-width: 260px;
+  }
+}

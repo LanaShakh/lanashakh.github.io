@@ -219,6 +219,57 @@
   .cmp-btn.wrong { background:#e74c3c !important; box-shadow:0 6px 0 #c0392b; animation: no .4s; }
 
   .confetti { position: absolute; top: -20px; width: 12px; height: 12px; opacity: 0; pointer-events: none; z-index: 30; }
+
+  /* ===== НОВОЕ: подарок дня, кнопки-навигация на главной ===== */
+  .home-actions { display:flex; gap:8px; margin:6px 0 12px; }
+  .home-actions button { flex:1; border:none; border-radius:16px; padding:12px 8px; font-size:15px; font-family:inherit; font-weight:bold; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.18); }
+  .home-actions button:active { transform:translateY(2px); }
+  .map-btn { background:linear-gradient(90deg,#7b2ff7,#4361ee); color:#fff; }
+  .daily-btn { background:#dbe2ff; color:#3046b5; }
+  .daily-btn.ready { background:linear-gradient(90deg,#ffd56b,#ff9f1c); color:#5a3a00; animation: glow 1.4s ease-in-out infinite; }
+
+  /* ===== НОВОЕ: пауэр-апы в игре ===== */
+  .pwrbar { display:flex; gap:8px; justify-content:center; margin:2px 0 10px; }
+  .pwr { border:none; border-radius:14px; padding:8px 10px; font-size:14px; font-family:inherit; font-weight:bold; cursor:pointer; background:#eef2ff; color:#3046b5; box-shadow:0 3px 0 #b9c5ff; position:relative; }
+  .pwr:active { transform:translateY(2px); box-shadow:0 1px 0 #b9c5ff; }
+  .pwr:disabled { opacity:.45; cursor:default; }
+  .pwr.on { background:linear-gradient(90deg,#38ef7d,#2ecc71); color:#fff; box-shadow:0 3px 0 #1e9e57; }
+  .pwr .cnt { background:#ff6b6b; color:#fff; border-radius:10px; font-size:11px; padding:0 5px; margin-left:4px; }
+
+  /* ===== НОВОЕ: универсальное окошко-награда ===== */
+  .reward-card { display:none; position:absolute; inset:0; background:rgba(43,43,74,0.6); z-index:30; align-items:center; justify-content:center; padding:22px; animation: pop .3s ease; }
+  .reward-card.show { display:flex; }
+  .reward-inner { background:#fffdf5; border-radius:24px; padding:24px 20px; text-align:center; max-width:420px; box-shadow:0 16px 40px rgba(0,0,0,.35); border:4px solid #b9c5ff; }
+  .reward-emoji { font-size:64px; animation: bounce 1s infinite; }
+  .reward-title { font-size:22px; font-weight:bold; color:#4361ee; margin:8px 0; }
+  .reward-text { font-size:17px; line-height:1.4; color:#3a3a55; margin-bottom:16px; }
+  .reward-close { background:linear-gradient(90deg,#4361ee,#38ef7d); color:#fff; border:none; border-radius:16px; padding:13px 26px; font-size:18px; font-family:inherit; font-weight:bold; cursor:pointer; box-shadow:0 5px 0 #2a3eaa; }
+  .reward-close:active { transform:translateY(3px); box-shadow:0 2px 0 #2a3eaa; }
+
+  /* ===== НОВОЕ: карта приключений ===== */
+  .map-intro { text-align:center; font-size:15px; color:#6a6a8a; margin-bottom:10px; }
+  .friend-box { text-align:center; background:#eef2ff; border:3px solid #b9c5ff; border-radius:18px; padding:12px; margin-bottom:12px; }
+  .friend-emoji { font-size:54px; line-height:1; }
+  .friend-parts { font-size:14px; color:#3046b5; font-weight:bold; margin-top:6px; }
+  .chapter { display:flex; align-items:center; gap:12px; background:#fff; border:2px solid #dbe2ff; border-radius:18px; padding:12px; margin:9px 0; box-shadow:0 3px 0 rgba(0,0,0,.06); }
+  .chapter.locked { opacity:.6; }
+  .chapter.done { border-color:#9be8b6; background:#f3fff8; }
+  .chap-emoji { font-size:34px; width:44px; text-align:center; }
+  .chap-info { flex:1; text-align:left; }
+  .chap-title { font-size:16px; font-weight:bold; color:#2b2b4a; }
+  .chap-sub { font-size:13px; color:#8a8aa5; }
+  .chap-btn { border:none; border-radius:14px; padding:10px 14px; font-size:14px; font-family:inherit; font-weight:bold; cursor:pointer; color:#fff; background:#4361ee; box-shadow:0 4px 0 #2a3eaa; }
+  .chap-btn:active { transform:translateY(2px); box-shadow:0 2px 0 #2a3eaa; }
+  .chap-btn.locked { background:#b9c5ff; box-shadow:none; cursor:default; }
+  .chap-btn.done { background:#2ecc71; box-shadow:0 4px 0 #27ae60; }
+
+  /* ===== НОВОЕ: комикс ===== */
+  .comic-title { text-align:center; font-size:22px; color:#4361ee; margin:4px 0 10px; }
+  .panel { background:#fff; border:3px solid #2b2b4a; border-radius:16px; padding:12px; margin:10px 0; box-shadow:5px 5px 0 rgba(43,43,74,.18); animation: pop .4s ease; }
+  .panel-art { width:100%; height:150px; border-radius:10px; background:#eef2ff; display:flex; align-items:center; justify-content:center; font-size:74px; overflow:hidden; }
+  .panel-art img { width:auto; height:100%; }
+  .panel-say { margin-top:10px; background:#fff7e6; border:2px solid #ffd56b; border-radius:12px; padding:9px 12px; font-size:16px; color:#3a3a55; line-height:1.4; }
+  .panel-say b { color:#a36a00; }
 </style>
 </head>
 <body>
@@ -236,9 +287,14 @@
       <div class="statsline" id="statsLine">📊 Решено: 0 · верно: 0 · с ошибкой: 0</div>
     </div>
 
+    <div class="home-actions">
+      <button class="map-btn" id="btnMap">🗺️ Приключение</button>
+      <button class="daily-btn" id="btnDaily">🎁 Подарок дня</button>
+    </div>
+
     <div class="shopbar">
       <div class="hintsown">💡 Подсказок: <span id="homeHints">0</span></div>
-      <button class="shop-btn" id="btnShop">🛒 Магазин подсказок</button>
+      <button class="shop-btn" id="btnShop">🛒 Магазин</button>
     </div>
 
     <div class="puzzlebox">
@@ -300,6 +356,12 @@
     <div class="bubble" id="bubble">Системы готовы! Поехали!</div>
     <div class="question" id="question"></div>
 
+    <div class="pwrbar" id="pwrbar">
+      <button class="pwr" id="pwrX2" title="Удвоить звёзды за раунд">✖️2 <span class="cnt" id="cntX2">0</span></button>
+      <button class="pwr" id="pwrShield" title="Щит: одна ошибка не собьёт серию">🛡️ <span class="cnt" id="cntShield">0</span></button>
+      <button class="pwr" id="pwrSkip" title="Пропустить этот пример">⏭️ <span class="cnt" id="cntSkip">0</span></button>
+    </div>
+
     <div class="answers" id="answers"></div>
 
     <div class="type-area" id="typeArea" style="display:none;">
@@ -353,6 +415,17 @@
       <button class="buy-btn" data-buy="5" data-price="60">Купить</button>
     </div>
 
+    <div class="section-title">🎁 Коробка-сюрприз</div>
+    <p class="puzzle-hint" style="margin-top:0;">Внутри случайный приз: герой, тема, подсказки или звёзды!</p>
+    <div class="shop-item">
+      <div class="shop-info"><b>🎁 Открыть коробку</b><br>цена: 50 ⭐</div>
+      <button class="buy-btn" id="btnSurprise" data-price="50">Открыть</button>
+    </div>
+
+    <div class="section-title">⚡ Усиления</div>
+    <p class="puzzle-hint" style="margin-top:0;">Помогают в игре. Включаются кнопками во время раунда.</p>
+    <div id="shopPowerups"></div>
+
     <div class="section-title">🎮 Мини-игры</div>
     <p class="puzzle-hint" style="margin-top:0;">Открой новый режим тренировки!</p>
     <div id="shopGames"></div>
@@ -360,6 +433,10 @@
     <div class="section-title">🤖 Маскоты и апгрейды</div>
     <p class="puzzle-hint" style="margin-top:0;">Выбери себе нового героя — он появится в игре вместо робота!</p>
     <div id="shopMascots"></div>
+
+    <div class="section-title">🎨 Оформление</div>
+    <p class="puzzle-hint" style="margin-top:0;">Темы и фоны для игры — выбери настроение!</p>
+    <div id="shopThemes"></div>
 
     <p class="shop-msg" id="shopMsg"></p>
     <button class="ghost-btn" id="btnShopHome">🏠 На главную</button>
@@ -399,6 +476,35 @@
     <div class="answers" id="ladAnswers"></div>
   </div>
 
+  <!-- КАРТА ПРИКЛЮЧЕНИЙ (МАСТЕРСКАЯ) -->
+  <div class="screen" id="screen-map">
+    <div class="topbar">
+      <button class="home-btn" id="btnMapHome">🏠</button>
+      <div class="stat">🛠️ Мастерская</div>
+      <div class="stat">🎖️ ур. <span class="num" id="mapLevel">1</span></div>
+    </div>
+    <h1>🗺️ Собери Дружка!</h1>
+    <p class="map-intro">Реши примеры, открывай главы — и собери робота-друга по имени Дружок!</p>
+    <div class="friend-box">
+      <div class="friend-emoji" id="friendEmoji">🔩</div>
+      <div class="friend-parts" id="friendParts">Деталей собрано: 0</div>
+    </div>
+    <div id="chapterList"></div>
+    <button class="ghost-btn" id="btnMapHome2">🏠 На главную</button>
+  </div>
+
+  <!-- КОМИКС (ГЛАВА) -->
+  <div class="screen" id="screen-comic">
+    <div class="topbar">
+      <button class="home-btn" id="btnComicBack">⬅️</button>
+      <div class="stat" id="comicChapTag">Глава 1</div>
+      <div class="stat"></div>
+    </div>
+    <h1 class="comic-title" id="comicTitle">Глава</h1>
+    <div id="comicPanels"></div>
+    <button class="start-btn" id="btnComicDone">Дальше ▶️</button>
+  </div>
+
   <!-- ПОДСКАЗКА -->
   <div class="hint-card" id="hintCard">
     <div class="hint-inner">
@@ -406,6 +512,16 @@
       <div class="hint-title">Как посчитать?</div>
       <div class="hint-text" id="hintText"></div>
       <button class="hint-close" id="btnHintClose">Понятно! 👍</button>
+    </div>
+  </div>
+
+  <!-- УНИВЕРСАЛЬНАЯ НАГРАДА -->
+  <div class="reward-card" id="rewardCard">
+    <div class="reward-inner">
+      <div class="reward-emoji" id="rewardEmoji">🎁</div>
+      <div class="reward-title" id="rewardTitle">Награда!</div>
+      <div class="reward-text" id="rewardText"></div>
+      <button class="reward-close" id="rewardClose">Ура! 🎉</button>
     </div>
   </div>
 
@@ -419,7 +535,8 @@
   var ADVANCE_DELAY = 2200;   // пауза после верного ответа
   var COLS = 3, ROWS = 2, NPIECES = 6;
   var settings = { op:"both", max:10, mode:"choice" };
-  var state = { qIndex:0, score:0, streak:0, correctCount:0, current:null, solved:false, mistake:false };
+  var state = { qIndex:0, score:0, streak:0, correctCount:0, current:null, solved:false, mistake:false,
+                x2:false, shield:false, shieldUsed:false };
   var typed = "", advanceTimer = null;
 
   function el(id){ return document.getElementById(id); }
@@ -550,9 +667,59 @@
     {id:"ladder",  e:"🪜", name:"Лесенка без ошибок", price:500, req:4}
   ];
 
+  // ---------- ТЕМЫ ОФОРМЛЕНИЯ (фоны) ----------
+  var THEMES = [
+    {id:"space",  name:"Космос",   price:0,    req:1, bg:"linear-gradient(160deg,#3a1c71 0%,#5f72be 45%,#38ef7d 100%)"},
+    {id:"sea",    name:"Море",     price:150,  req:1, bg:"linear-gradient(160deg,#2b5876 0%,#4e4376 50%,#42a5f5 100%)"},
+    {id:"candy",  name:"Конфетка", price:300,  req:2, bg:"linear-gradient(160deg,#ff9a9e 0%,#fad0c4 50%,#fbc2eb 100%)"},
+    {id:"forest", name:"Лес",      price:500,  req:3, bg:"linear-gradient(160deg,#0ba360 0%,#3cba92 100%)"},
+    {id:"sunset", name:"Закат",    price:800,  req:4, bg:"linear-gradient(160deg,#ff512f 0%,#dd2476 60%,#ff8a00 100%)"},
+    {id:"night",  name:"Ночь",     price:1200, req:5, bg:"linear-gradient(160deg,#0f2027 0%,#203a43 50%,#2c5364 100%)"}
+  ];
+  function themeById(id){ for (var i=0;i<THEMES.length;i++) if (THEMES[i].id===id) return THEMES[i]; return THEMES[0]; }
+
+  // ---------- УСИЛЕНИЯ (пауэр-апы) ----------
+  var POWERUPS = [
+    {id:"x2",     e:"✖️2", name:"Удвоение звёзд", desc:"Весь раунд звёзды ×2",            price:40},
+    {id:"shield", e:"🛡️",  name:"Щит серии",      desc:"Одна ошибка не собьёт огонёк 🔥",  price:30},
+    {id:"skip",   e:"⏭️",  name:"Пропуск",        desc:"Пропустить трудный пример",        price:20}
+  ];
+  function pwrById(id){ for (var i=0;i<POWERUPS.length;i++) if (POWERUPS[i].id===id) return POWERUPS[i]; return POWERUPS[0]; }
+
+  // ---------- СЮЖЕТ «МАСТЕРСКАЯ»: собираем Дружка ----------
+  var STORY = [
+    {part:"⚙️", title:"Глава 1. Находка", reqLevel:1, reward:20, panels:[
+      {art:"🔩",    say:"Однажды в мастерской ты нашёл коробку со старыми деталями робота."},
+      {art:"robot", say:"«Если решать примеры, появится энергия — и я соберу настоящего друга!» — решил ты."}
+    ]},
+    {part:"🔋", title:"Глава 2. Сердце-батарейка", reqLevel:2, reward:30, panels:[
+      {art:"🔋",    say:"За решённые примеры накопилась энергия. Ты вставил Дружку батарейку-сердце."},
+      {art:"robot", say:"Тук-тук! Внутри тихонько загудело. Дружок почти живой!"}
+    ]},
+    {part:"👀", title:"Глава 3. Глаза", reqLevel:3, reward:40, panels:[
+      {art:"👀",    say:"Ты приладил два круглых глаза. Дружок моргнул и осмотрелся."},
+      {art:"robot", say:"«Привет! Кажется, я вижу тебя!» — пискнул Дружок."}
+    ]},
+    {part:"💪", title:"Глава 4. Руки-помощники", reqLevel:5, reward:60, panels:[
+      {art:"💪",    say:"Новые руки! Теперь Дружок может махать и считать на пальцах вместе с тобой."},
+      {art:"robot", say:"Дружок показал большой палец: «Ты отлично считаешь!»"}
+    ]},
+    {part:"🦿", title:"Глава 5. Ноги-колёсики", reqLevel:7, reward:80, panels:[
+      {art:"🦿",    say:"Ты прикрутил колёсики. Дружок прокатился по мастерской — вжух!"},
+      {art:"robot", say:"«Теперь я могу гулять с тобой!» — обрадовался Дружок."}
+    ]},
+    {part:"📡", title:"Глава 6. Дружок оживает!", reqLevel:9, reward:120, panels:[
+      {art:"📡",    say:"Последняя деталь — антенна. Ты щёлкнул выключателем..."},
+      {art:"robot", say:"«УРА! Я полностью собран! Без тебя я бы не ожил — спасибо, что научился считать!»"},
+      {art:"🎉",    say:"Дружок танцует от счастья. Теперь вы настоящие друзья! 🤖❤️"}
+    ]}
+  ];
+
   // ---------- ПРОГРЕСС ----------
   var save  = { total:0, wallet:0, hints:0, pieces:0, robotIndex:0, gallery:[],
-                mascot:"🤖", mascots:["🤖"], games:[], bestLadder:0, stats:{ solved:0, correct:0, wrong:0 } };
+                mascot:"🤖", mascots:["🤖"], games:[], bestLadder:0, stats:{ solved:0, correct:0, wrong:0 },
+                theme:"space", themes:["space"], powerups:{ x2:0, shield:0, skip:0 },
+                daily:{ last:"", streak:0 }, storyRead:[] };
   var skill = { 10:1, 20:1, 100:1 };
   function loadSave(){
     try {
@@ -569,6 +736,12 @@
       var st=localStorage.getItem("robomath_stats"); if(st){ var s2=JSON.parse(st)||{}; save.stats.solved=s2.solved||0; save.stats.correct=s2.correct||0; save.stats.wrong=s2.wrong||0; }
       var gm=localStorage.getItem("robomath_games"); if(gm){ var ga=JSON.parse(gm); if(Array.isArray(ga)) save.games=ga; }
       var bl=localStorage.getItem("robomath_bestladder"); if(bl!==null) save.bestLadder=parseInt(bl,10)||0;
+      var th=localStorage.getItem("robomath_theme"); if(th) save.theme=th;
+      var ths=localStorage.getItem("robomath_themes"); if(ths){ var ta=JSON.parse(ths); if(Array.isArray(ta)&&ta.length) save.themes=ta; }
+      if (save.themes.indexOf("space")<0) save.themes.unshift("space");
+      var pu=localStorage.getItem("robomath_powerups"); if(pu){ var po=JSON.parse(pu)||{}; save.powerups.x2=po.x2||0; save.powerups.shield=po.shield||0; save.powerups.skip=po.skip||0; }
+      var dl=localStorage.getItem("robomath_daily"); if(dl){ var do2=JSON.parse(dl)||{}; save.daily.last=do2.last||""; save.daily.streak=do2.streak||0; }
+      var sr=localStorage.getItem("robomath_story"); if(sr){ var sa=JSON.parse(sr); if(Array.isArray(sa)) save.storyRead=sa; }
     } catch(e){}
   }
   function persist(){
@@ -585,6 +758,11 @@
       localStorage.setItem("robomath_games", JSON.stringify(save.games));
       localStorage.setItem("robomath_bestladder", String(save.bestLadder));
       localStorage.setItem("robomath_stats", JSON.stringify(save.stats));
+      localStorage.setItem("robomath_theme", save.theme);
+      localStorage.setItem("robomath_themes", JSON.stringify(save.themes));
+      localStorage.setItem("robomath_powerups", JSON.stringify(save.powerups));
+      localStorage.setItem("robomath_daily", JSON.stringify(save.daily));
+      localStorage.setItem("robomath_story", JSON.stringify(save.storyRead));
     } catch(e){}
   }
   function levelOf(s){ return Math.floor(s/STARS_PER_LEVEL)+1; }
@@ -596,7 +774,7 @@
     el("lvlProg").style.width = ((save.total % STARS_PER_LEVEL)/STARS_PER_LEVEL*100)+"%";
     el("statsLine").textContent = "📊 Решено: "+save.stats.solved+" · верно: "+save.stats.correct+" · с ошибкой: "+save.stats.wrong;
     el("homeHints").textContent = save.hints;
-    applyMascot();
+    applyMascot(); applyTheme(); updateDailyBtn();
     el("sk10").textContent  = "· ступень "+skill[10]+"/"+MAXSKILL;
     el("sk20").textContent  = "· ступень "+skill[20]+"/"+MAXSKILL;
     el("sk100").textContent = "· ступень "+skill[100]+"/"+MAXSKILL;
@@ -662,6 +840,15 @@
                             : { solved:0, correct:0, wrong:0 };
           save.games      = Array.isArray(d.save.games) ? d.save.games : [];
           save.bestLadder = parseInt(d.save.bestLadder,10) || 0;
+          save.theme      = d.save.theme || "space";
+          save.themes     = (Array.isArray(d.save.themes) && d.save.themes.length) ? d.save.themes : ["space"];
+          if (save.themes.indexOf("space")<0) save.themes.unshift("space");
+          save.powerups   = (d.save.powerups && typeof d.save.powerups==="object")
+                            ? { x2:d.save.powerups.x2||0, shield:d.save.powerups.shield||0, skip:d.save.powerups.skip||0 }
+                            : { x2:0, shield:0, skip:0 };
+          save.daily      = (d.save.daily && typeof d.save.daily==="object")
+                            ? { last:d.save.daily.last||"", streak:d.save.daily.streak||0 } : { last:"", streak:0 };
+          save.storyRead  = Array.isArray(d.save.storyRead) ? d.save.storyRead : [];
         }
         if (d && d.skill){
           skill[10]  = parseInt(d.skill[10],10)  || 1;
@@ -770,9 +957,12 @@
     if (parseInt(typed,10) === state.current.answer){
       el("typedDisplay").classList.add("good"); handleCorrect();
     } else {
-      state.mistake = true;
       el("typedDisplay").classList.add("bad");
-      setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+      if (state.shield && !state.shieldUsed){
+        state.shieldUsed = true; setMascot("", "🛡️ Щит спас огонёк! Попробуй ещё разок"); soundClick();
+      } else {
+        state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+      }
       typed = ""; setTimeout(updateTypedDisplay, 650);
     }
   }
@@ -797,6 +987,7 @@
     }
     var pct = state.qIndex/TOTAL_QUESTIONS*100;
     elFill.style.width = pct+"%"; elBot.style.left = pct+"%";
+    updatePwrBar();
   }
 
   // ---------- ОТВЕТЫ (с дорешиванием) ----------
@@ -808,7 +999,11 @@
       handleCorrect();
     } else {
       btn.classList.add("wrong"); btn.disabled = true;
-      state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+      if (state.shield && !state.shieldUsed){
+        state.shieldUsed = true; setMascot("", "🛡️ Щит спас огонёк! Попробуй ещё разок"); soundClick();
+      } else {
+        state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+      }
     }
   }
 
@@ -818,14 +1013,16 @@
     if (!state.mistake){
       gain = 5 + (state.streak>=3 ? 3 : 0);
       state.streak += 1; state.correctCount += 1;
-      msg = pick(PRAISE) + " +" + gain + " ⭐";
-      if (state.streak===3) msg = "🔥 Три подряд! +"+gain+" ⭐";
-      if (state.streak===5) msg = "⚡ Пять подряд! Турборежим! +"+gain+" ⭐";
-      if (state.streak>=7) msg = "🏆 "+state.streak+" подряд! Невероятно! +"+gain+" ⭐";
+      msg = pick(PRAISE);
+      if (state.streak===3) msg = "🔥 Три подряд!";
+      else if (state.streak===5) msg = "⚡ Пять подряд! Турборежим!";
+      else if (state.streak>=7) msg = "🏆 "+state.streak+" подряд! Невероятно!";
     } else {
       gain = 1; state.streak = 0;
-      msg = "Ура, получилось! +" + gain + " ⭐";
+      msg = "Ура, получилось!";
     }
+    if (state.x2) gain *= 2;
+    msg += " +" + gain + " ⭐" + (state.x2 ? " ✖️2" : "");
     state.score += gain;
     save.stats.solved += 1;
     if (state.mistake) save.stats.wrong += 1; else save.stats.correct += 1;
@@ -961,6 +1158,156 @@
     el("trackBot").textContent = m;
   }
 
+  // ---------- ТЕМА ОФОРМЛЕНИЯ ----------
+  function applyTheme(){ document.body.style.background = themeById(save.theme).bg; }
+
+  // ---------- УНИВЕРСАЛЬНОЕ ОКНО-НАГРАДА ----------
+  function showReward(emoji, title, html){
+    el("rewardEmoji").textContent = emoji;
+    el("rewardTitle").textContent = title;
+    el("rewardText").innerHTML = html;
+    el("rewardCard").classList.add("show");
+  }
+
+  // ---------- ПОДАРОК ДНЯ ----------
+  function dayKey(offset){
+    var d = new Date(); if (offset) d.setDate(d.getDate()+offset);
+    return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+  }
+  function dailyReady(){ return save.daily.last !== dayKey(0); }
+  function updateDailyBtn(){
+    var b = el("btnDaily");
+    if (dailyReady()){ b.classList.add("ready"); b.textContent = "🎁 Подарок дня!"; }
+    else { b.classList.remove("ready"); b.textContent = "🎁 Уже получено"; }
+  }
+  function claimDaily(){
+    if (!dailyReady()){ showReward("⏳","Уже получено","Подарок дня ты уже забрал. Загляни завтра! 🎁"); return; }
+    save.daily.streak = (save.daily.last === dayKey(-1)) ? (save.daily.streak + 1) : 1;
+    save.daily.last = dayKey(0);
+    var bonus = 10 + (save.daily.streak - 1) * 5; if (bonus > 40) bonus = 40;
+    save.total += bonus; save.wallet += bonus;
+    var extra = "";
+    if (save.daily.streak % 3 === 0){ save.hints += 1; extra = " и 💡 подсказка"; }
+    persist(); renderHome(); soundChime(); burstConfetti(30);
+    showReward("🎁","Подарок дня!","+"+bonus+" ⭐"+extra+"<br>Заходишь "+save.daily.streak+" дн. подряд! 🔥");
+  }
+
+  // ---------- КОРОБКА-СЮРПРИЗ ----------
+  function openSurprise(){
+    if (save.wallet < 50){ el("shopMsg").textContent = "Не хватает звёзд для коробки. ⭐"; return; }
+    save.wallet -= 50;
+    var text = giveRandomReward();
+    persist(); renderShop();
+    soundChime(); burstConfetti(40);
+    showReward("🎁","Сюрприз!", text);
+  }
+  function giveRandomReward(){
+    var lvl = levelOf(save.total), pool = [];
+    THEMES.forEach(function(t){ if (save.themes.indexOf(t.id) < 0 && lvl >= t.req) pool.push({type:"theme", t:t}); });
+    MASCOTS.forEach(function(m){ if (save.mascots.indexOf(m.e) < 0 && lvl >= m.req) pool.push({type:"mascot", m:m}); });
+    pool.push({type:"hints", n:2});
+    pool.push({type:"stars", n:30});
+    pool.push({type:"pwr", id:"x2"});
+    pool.push({type:"pwr", id:"shield"});
+    pool.push({type:"pwr", id:"skip"});
+    var p = pick(pool);
+    if (p.type === "theme"){ save.themes.push(p.t.id); return "Новая тема: <b>"+p.t.name+"</b> 🎨<br>Выбери её в магазине!"; }
+    if (p.type === "mascot"){ save.mascots.push(p.m.e); return "Новый герой: "+p.m.e+" <b>"+p.m.name+"</b>!"; }
+    if (p.type === "hints"){ save.hints += p.n; return "+"+p.n+" 💡 подсказки!"; }
+    if (p.type === "stars"){ save.wallet += p.n; save.total += p.n; return "+"+p.n+" ⭐ звёзд!"; }
+    save.powerups[p.id] += 1; var pw = pwrById(p.id);
+    return "Усиление: "+pw.e+" <b>"+pw.name+"</b>!";
+  }
+
+  // ---------- ПАУЭР-АПЫ В ИГРЕ ----------
+  function updatePwrBar(){
+    el("cntX2").textContent = save.powerups.x2;
+    el("cntShield").textContent = save.powerups.shield;
+    el("cntSkip").textContent = save.powerups.skip;
+    el("pwrX2").classList.toggle("on", !!state.x2);
+    el("pwrShield").classList.toggle("on", !!state.shield);
+    el("pwrX2").disabled = state.x2 || save.powerups.x2 <= 0;
+    el("pwrShield").disabled = state.shield || save.powerups.shield <= 0;
+    el("pwrSkip").disabled = save.powerups.skip <= 0 || state.solved;
+  }
+  function activateX2(){
+    if (state.x2 || save.powerups.x2 <= 0) return;
+    save.powerups.x2 -= 1; state.x2 = true; persist(); updatePwrBar();
+    setMascot("", "✖️2 включено! Звёзды за раунд удвоятся");
+  }
+  function activateShield(){
+    if (state.shield || save.powerups.shield <= 0) return;
+    save.powerups.shield -= 1; state.shield = true; state.shieldUsed = false; persist(); updatePwrBar();
+    setMascot("", "🛡️ Щит включён! Одна ошибка прощается");
+  }
+  function doSkip(){
+    if (state.solved || !state.current || save.powerups.skip <= 0) return;
+    save.powerups.skip -= 1; persist(); updatePwrBar();
+    state.solved = true; clearTimeout(advanceTimer);
+    setMascot("", "Пропускаем этот пример ⏭️");
+    setTimeout(nextQuestion, 350);
+  }
+
+  // ---------- КАРТА ПРИКЛЮЧЕНИЙ ----------
+  function chapterUnlocked(ch){ return levelOf(save.total) >= ch.reqLevel; }
+  function openMap(){ renderMap(); show("map"); }
+  function renderMap(){
+    el("mapLevel").textContent = levelOf(save.total);
+    var done = save.storyRead.length;
+    el("friendEmoji").textContent = done >= STORY.length ? "🤖" : (done > 0 ? STORY[done-1].part : "🔩");
+    el("friendParts").textContent = "Деталей собрано: " + done + " из " + STORY.length +
+                                    (done >= STORY.length ? " — Дружок готов! 🎉" : "");
+    var list = el("chapterList"); list.innerHTML = "";
+    STORY.forEach(function(ch, idx){
+      var read = save.storyRead.indexOf(idx) >= 0;
+      var unlocked = chapterUnlocked(ch);
+      var item = document.createElement("div");
+      item.className = "chapter" + (read ? " done" : "") + (unlocked ? "" : " locked");
+      var emo = document.createElement("div"); emo.className = "chap-emoji"; emo.textContent = unlocked ? ch.part : "🔒";
+      var info = document.createElement("div"); info.className = "chap-info";
+      var tt = document.createElement("div"); tt.className = "chap-title"; tt.textContent = ch.title;
+      var sub = document.createElement("div"); sub.className = "chap-sub";
+      sub.textContent = unlocked ? (read ? "Прочитано ✓" : "Новая глава!") : ("Откроется на уровне " + ch.reqLevel);
+      info.appendChild(tt); info.appendChild(sub);
+      var btn = document.createElement("button");
+      if (!unlocked){ btn.className = "chap-btn locked"; btn.textContent = "🔒"; btn.disabled = true; }
+      else { btn.className = "chap-btn" + (read ? " done" : ""); btn.textContent = read ? "Читать" : "Открыть";
+             btn.addEventListener("click", function(){ openComic(idx); }); }
+      item.appendChild(emo); item.appendChild(info); item.appendChild(btn);
+      list.appendChild(item);
+    });
+  }
+  var curChapter = -1;
+  function openComic(idx){
+    curChapter = idx; var ch = STORY[idx];
+    el("comicChapTag").textContent = "Глава " + (idx + 1);
+    el("comicTitle").textContent = ch.title;
+    var wrap = el("comicPanels"); wrap.innerHTML = "";
+    var svg = currentSVG();
+    ch.panels.forEach(function(p){
+      var panel = document.createElement("div"); panel.className = "panel";
+      var art = document.createElement("div"); art.className = "panel-art";
+      if (p.art === "robot"){ var im = document.createElement("img"); im.src = svg; art.appendChild(im); }
+      else { art.textContent = p.art; }
+      var say = document.createElement("div"); say.className = "panel-say"; say.innerHTML = p.say;
+      panel.appendChild(art); panel.appendChild(say);
+      wrap.appendChild(panel);
+    });
+    show("comic");
+  }
+  function finishComic(){
+    var idx = curChapter;
+    if (idx < 0){ openMap(); return; }
+    if (save.storyRead.indexOf(idx) < 0){
+      save.storyRead.push(idx);
+      var ch = STORY[idx];
+      save.total += ch.reward; save.wallet += ch.reward;
+      persist(); soundChime(); burstConfetti(40);
+      showReward(ch.part, "Деталь добавлена!", "Дружок получил деталь " + ch.part + "<br>+" + ch.reward + " ⭐");
+    }
+    openMap();
+  }
+
   // ---------- ПОДСКАЗКИ (лайфхаки) ----------
   function updateHintUI(){ el("hintCount").textContent = save.hints; el("homeHints").textContent = save.hints; }
   function hintFor(q){
@@ -1026,7 +1373,59 @@
       item.appendChild(emo); item.appendChild(nm); item.appendChild(btn);
       gbox.appendChild(item);
     });
+    renderPowerups(el("shopPowerups"));
+    renderThemes(el("shopThemes"));
   }
+
+  function renderPowerups(box){
+    box.innerHTML = "";
+    POWERUPS.forEach(function(p){
+      var item = document.createElement("div"); item.className = "mascot-item";
+      var emo = document.createElement("div"); emo.className = "mascot-emoji"; emo.textContent = p.e;
+      var nm = document.createElement("div"); nm.className = "mascot-name";
+      nm.innerHTML = p.name + " · " + p.price + " ⭐<br><span style='font-weight:normal;font-size:12px;color:#6a6a8a;'>" +
+                     p.desc + " · у тебя: " + save.powerups[p.id] + "</span>";
+      var btn = document.createElement("button"); btn.className = "buy-btn"; btn.textContent = "Купить";
+      btn.addEventListener("click", function(){ buyPowerup(p); });
+      item.appendChild(emo); item.appendChild(nm); item.appendChild(btn);
+      box.appendChild(item);
+    });
+  }
+  function buyPowerup(p){
+    if (save.wallet >= p.price){
+      save.wallet -= p.price; save.powerups[p.id] += 1; persist(); renderShop();
+      el("shopMsg").textContent = "Куплено: " + p.e + " " + p.name + " (у тебя " + save.powerups[p.id] + ")"; soundChime();
+    } else { el("shopMsg").textContent = "Не хватает звёзд для «" + p.name + "». ⭐"; }
+  }
+
+  function renderThemes(box){
+    box.innerHTML = ""; var lvl = levelOf(save.total);
+    THEMES.forEach(function(t){
+      var owned = save.themes.indexOf(t.id) >= 0;
+      var active = save.theme === t.id;
+      var item = document.createElement("div"); item.className = "mascot-item";
+      var sw = document.createElement("div"); sw.className = "mascot-emoji";
+      sw.style.background = t.bg; sw.style.borderRadius = "8px"; sw.style.width = "40px"; sw.style.height = "40px";
+      var nm = document.createElement("div"); nm.className = "mascot-name";
+      nm.textContent = t.name + (owned ? "" : (" · " + t.price + " ⭐"));
+      var btn = document.createElement("button");
+      if (active){ btn.className = "buy-btn equipped"; btn.textContent = "✓ Выбрана"; btn.disabled = true; }
+      else if (owned){ btn.className = "buy-btn equip-btn"; btn.textContent = "Выбрать"; btn.addEventListener("click", function(){ equipTheme(t.id); }); }
+      else if (lvl < t.req){ btn.className = "buy-btn equipped"; btn.textContent = "🔒 ур. " + t.req; btn.disabled = true; }
+      else { btn.className = "buy-btn"; btn.textContent = "Купить"; btn.addEventListener("click", function(){ buyTheme(t); }); }
+      item.appendChild(sw); item.appendChild(nm); item.appendChild(btn);
+      box.appendChild(item);
+    });
+  }
+  function buyTheme(t){
+    if (levelOf(save.total) < t.req){ el("shopMsg").textContent = "Тема «" + t.name + "» откроется на уровне " + t.req + ". 🎖️"; return; }
+    if (save.wallet >= t.price){
+      save.wallet -= t.price; save.themes.push(t.id); save.theme = t.id; persist(); applyTheme(); renderShop();
+      el("shopMsg").textContent = "Тема «" + t.name + "» куплена и выбрана! 🎨"; soundChime();
+    } else { el("shopMsg").textContent = "Не хватает звёзд для темы «" + t.name + "». ⭐"; }
+  }
+  function equipTheme(id){ save.theme = id; persist(); applyTheme(); renderShop(); el("shopMsg").textContent = "Тема выбрана! 🎨"; }
+
   function buyGame(g){
     if (save.games.indexOf(g.id) >= 0){ playGame(g.id); return; }
     if (levelOf(save.total) < g.req){ el("shopMsg").textContent = g.name + " откроется на уровне " + g.req + ". 🎖️"; return; }
@@ -1143,15 +1542,16 @@
   function equipMascot(e){ save.mascot = e; persist(); applyMascot(); renderShop(); el("shopMsg").textContent = "Маскот " + e + " выбран!"; }
 
   // ---------- НАВИГАЦИЯ ----------
-  var screens = { start:el("screen-start"), game:el("screen-game"), win:el("screen-win"), puzzle:el("screen-puzzle"), shop:el("screen-shop"), compare:el("screen-compare"), ladder:el("screen-ladder") };
+  var screens = { start:el("screen-start"), game:el("screen-game"), win:el("screen-win"), puzzle:el("screen-puzzle"), shop:el("screen-shop"), compare:el("screen-compare"), ladder:el("screen-ladder"), map:el("screen-map"), comic:el("screen-comic") };
   function show(name){ for (var k in screens) screens[k].classList.remove("active"); screens[name].classList.add("active"); }
 
   function startGame(){
     audio(); if (actx && actx.resume) actx.resume();
-    state = { qIndex:0, score:0, streak:0, correctCount:0, current:null, solved:false, mistake:false };
+    state = { qIndex:0, score:0, streak:0, correctCount:0, current:null, solved:false, mistake:false,
+              x2:false, shield:false, shieldUsed:false };
     elScore.textContent="0"; elStreak.textContent="0";
     applyMascot(); updateHintUI();
-    show("game"); renderQuestion();
+    show("game"); renderQuestion(); updatePwrBar();
   }
   el("btnStart").addEventListener("click", startGame);
   el("btnAgain").addEventListener("click", function(){ renderHome(); show("start"); });
@@ -1170,6 +1570,19 @@
   });
   el("btnHint").addEventListener("click", useHint);
   el("btnHintClose").addEventListener("click", function(){ el("hintCard").classList.remove("show"); });
+
+  // новые кнопки: карта, комикс, подарок дня, сюрприз, усиления, окно-награда
+  el("btnMap").addEventListener("click", openMap);
+  el("btnMapHome").addEventListener("click", function(){ renderHome(); show("start"); });
+  el("btnMapHome2").addEventListener("click", function(){ renderHome(); show("start"); });
+  el("btnComicBack").addEventListener("click", function(){ openMap(); });
+  el("btnComicDone").addEventListener("click", finishComic);
+  el("btnDaily").addEventListener("click", claimDaily);
+  el("btnSurprise").addEventListener("click", openSurprise);
+  el("rewardClose").addEventListener("click", function(){ el("rewardCard").classList.remove("show"); });
+  el("pwrX2").addEventListener("click", activateX2);
+  el("pwrShield").addEventListener("click", activateShield);
+  el("pwrSkip").addEventListener("click", doSkip);
   el("btnCompareHome").addEventListener("click", function(){ renderHome(); show("start"); });
   el("btnLadderHome").addEventListener("click", function(){ renderHome(); show("start"); });
   document.querySelectorAll(".cmp-btn").forEach(function(b){ b.addEventListener("click", function(){ onCompare(b.getAttribute("data-sign"), b); }); });

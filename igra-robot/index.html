@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Считаем с Роботом! 🤖</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Comic Sans MS', 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg, #3a1c71 0%, #5f72be 45%, #38ef7d 100%);
+    color: #2b2b4a; min-height: 100%;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 14px 12px; overflow-x: hidden; user-select: none;
+  }
+  .app {
+    width: 100%; max-width: 540px; background: #fbfdff;
+    border-radius: 30px; box-shadow: 0 22px 55px rgba(0,0,0,0.3);
+    padding: 20px 18px 26px; position: relative; overflow: hidden;
+  }
+  .screen { display: none; animation: pop .35s ease; }
+  .screen.active { display: block; }
+  @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  h1 { text-align: center; font-size: 28px; color: #4361ee; margin-bottom: 4px; }
+  .subtitle { text-align: center; font-size: 15px; color: #6a6a8a; margin-bottom: 12px; }
+
+  .hero { text-align:center; font-size: 70px; line-height:1; margin: 2px 0 4px; animation: floaty 2.6s ease-in-out infinite; }
+  @keyframes floaty { 0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-9px) rotate(3deg)} }
+
+  .panel { background:#eef2ff; border-radius:18px; padding:12px 14px; margin:6px 0 12px; }
+  .panel .row { display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:15px; }
+  .lvlnum { color:#4361ee; } .starnum { color:#ff9f1c; }
+  .lvlprog { height:10px; background:#dbe2ff; border-radius:8px; margin-top:8px; overflow:hidden; }
+  .lvlprog > div { height:100%; width:0%; background:linear-gradient(90deg,#4361ee,#38ef7d); transition:width .5s; }
+
+  .puzzlebox { background:#fff7e6; border:3px solid #ffd56b; border-radius:18px; padding:12px; margin:6px 0 12px; text-align:center; }
+  .puzzlebox .pttl { font-weight:bold; font-size:15px; color:#a36a00; margin-bottom:8px; }
+  .pieces-row { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .pslot { width:46px; height:46px; border-radius:8px; background:#efe3c8; display:flex; align-items:center; justify-content:center; font-size:20px; color:#c8a85a; box-shadow: inset 0 0 0 2px #e2cfa0; }
+  .pcount { font-size:13px; color:#a36a00; margin-top:8px; font-weight:bold; }
+  .gallery { margin-top:8px; }
+  .gallery .gttl { font-size:13px; color:#6a6a8a; margin-bottom:4px; }
+  .gal-row { display:flex; gap:5px; justify-content:center; flex-wrap:wrap; }
+  .gal-img { width:48px; height:32px; border-radius:6px; background-size:cover; background-position:center; box-shadow:0 2px 5px rgba(0,0,0,.18); }
+
+  .savebar { display:flex; gap:8px; margin:4px 0 4px; }
+  .save-btn { flex:1; background:#eef2ff; color:#3046b5; border:2px solid #b9c5ff; border-radius:14px; padding:10px 6px; font-size:14px; font-family:inherit; font-weight:bold; cursor:pointer; }
+  .save-btn:active { transform: translateY(2px); }
+  .save-note { font-size:12px; color:#8a8aa5; text-align:center; margin-bottom:6px; }
+
+  .section-title { text-align: center; font-size: 15px; color: #4a4a6a; margin: 12px 0 7px; font-weight: bold; }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice-btn {
+    border: none; border-radius: 16px; padding: 13px; font-size: 17px;
+    font-family: inherit; font-weight: bold; cursor: pointer; color: #fff;
+    transition: transform .12s, box-shadow .12s, outline .12s;
+    box-shadow: 0 5px 0 rgba(0,0,0,0.18); outline: 4px solid transparent;
+  }
+  .choice-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.18); }
+  .choice-btn.selected { outline: 4px solid #2b2b4a; transform: translateY(2px); }
+  .lvl1 { background: #2ecc71; } .lvl2 { background: #f39c12; } .lvl3 { background: #e74c3c; }
+  .mode1 { background:#4361ee; } .mode2 { background:#7b2ff7; }
+  .skilltag { font-size:13px; opacity:.9; font-weight:normal; }
+  .diff-note { font-size:12px; color:#8a8aa5; text-align:center; margin-top:6px; }
+
+  .start-btn {
+    width: 100%; margin-top: 16px;
+    background: linear-gradient(90deg,#4361ee,#38ef7d); color: #fff;
+    border: none; border-radius: 22px; padding: 17px; font-size: 23px;
+    font-family: inherit; font-weight: bold; cursor: pointer; box-shadow: 0 6px 0 #2a3eaa;
+  }
+  .start-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #2a3eaa; }
+  .ghost-btn {
+    width:100%; margin-top:10px; background:#fff; color:#4361ee;
+    border:3px solid #4361ee; border-radius:20px; padding:13px; font-size:18px;
+    font-family:inherit; font-weight:bold; cursor:pointer;
+  }
+  .ghost-btn:active { transform: translateY(2px); }
+  .build-btn {
+    width:100%; margin-top:10px; background:linear-gradient(90deg,#ff9f1c,#ff6b6b); color:#fff;
+    border:none; border-radius:20px; padding:15px; font-size:20px; font-family:inherit;
+    font-weight:bold; cursor:pointer; box-shadow:0 5px 0 #c75000; animation: glow 1.4s ease-in-out infinite;
+  }
+  .build-btn:active { transform: translateY(3px); box-shadow:0 2px 0 #c75000; }
+  @keyframes glow { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.18)} }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .home-btn { background: #dfe6e9; border: none; border-radius: 14px; padding: 8px 12px; font-size: 18px; cursor: pointer; }
+  .stat { font-size: 15px; font-weight: bold; }
+  .stat .num { color: #4361ee; font-size: 19px; }
+
+  .track { position: relative; height: 38px; margin: 4px 0 10px; }
+  .track-line { position:absolute; top: 24px; left: 6px; right: 6px; height: 10px; background:#e6e9f5; border-radius: 8px; overflow:hidden; }
+  .track-fill { height:100%; width:0%; background: linear-gradient(90deg,#4361ee,#38ef7d); transition: width .45s; }
+  .track-bot { position:absolute; top: 0; left: 0%; font-size: 26px; transition: left .45s cubic-bezier(.34,1.56,.64,1); transform: translateX(-50%); }
+  .track-flag { position:absolute; top: 4px; right: -2px; font-size: 22px; }
+
+  .mascot { text-align:center; font-size: 56px; line-height:1; height: 60px; }
+  .mascot.happy { animation: hop .5s; }
+  .mascot.sad { animation: tilt .5s; }
+  @keyframes hop { 0%,100%{transform:translateY(0)} 30%{transform:translateY(-16px) scale(1.12)} }
+  @keyframes tilt { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-9deg)} 75%{transform:rotate(9deg)} }
+  .bubble {
+    text-align:center; background:#eef2ff; border:3px solid #b9c5ff; border-radius:14px;
+    padding:7px 12px; font-size:17px; font-weight:bold; color:#3046b5; margin: 5px auto 8px;
+    max-width: 94%; min-height: 50px; display:flex; align-items:center; justify-content:center;
+  }
+  .joke-line { display:none; text-align:center; background:#fff7e6; border:2px dashed #ffce54;
+    border-radius:14px; padding:10px 12px; font-size:16px; color:#9a6700; margin: 0 auto 8px; max-width:94%; }
+
+  .question { text-align: center; font-size: 48px; font-weight: bold; margin: 6px 0 14px; letter-spacing: 2px; }
+  .question .q { color: #4361ee; }
+  .question .ans { color: #2ecc71; display:inline-block; animation: yes .45s; }
+
+  .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .answer-btn {
+    border: none; border-radius: 18px; padding: 22px 10px; font-size: 32px;
+    font-family: inherit; font-weight: bold; background: #5b8def; color: #fff;
+    cursor: pointer; box-shadow: 0 6px 0 #2e63c7; transition: transform .1s;
+  }
+  .answer-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #2e63c7; }
+  .answer-btn:disabled { cursor: default; }
+  .answer-btn.correct { background: #2ecc71 !important; box-shadow: 0 6px 0 #27ae60; animation: yes .4s; }
+  .answer-btn.wrong { background: #e74c3c !important; box-shadow: 0 6px 0 #c0392b; opacity:.7; animation: no .4s; }
+  @keyframes yes { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+  @keyframes no { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+  .type-area { text-align:center; }
+  .typed-display {
+    font-size:44px; font-weight:bold; color:#4361ee; background:#eef2ff;
+    border:3px solid #b9c5ff; border-radius:16px; padding:8px; margin:0 auto 12px;
+    min-height:62px; display:flex; align-items:center; justify-content:center;
+  }
+  .typed-display.good { color:#2ecc71; border-color:#9be8b6; }
+  .typed-display.bad { color:#e74c3c; border-color:#f5b3b3; animation:no .4s; }
+  .keypad { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .key {
+    border:none; border-radius:16px; padding:18px 0; font-size:26px; font-family:inherit;
+    font-weight:bold; background:#5b8def; color:#fff; cursor:pointer; box-shadow:0 5px 0 #2e63c7;
+  }
+  .key:active { transform:translateY(3px); box-shadow:0 2px 0 #2e63c7; }
+  .key.ok { background:#2ecc71; box-shadow:0 5px 0 #27ae60; }
+  .key.del { background:#ff9f1c; box-shadow:0 5px 0 #c77f00; }
+
+  .next-wrap { margin-top:14px; }
+  .next-btn {
+    width:100%; background:linear-gradient(90deg,#4361ee,#38ef7d); color:#fff; border:none;
+    border-radius:18px; padding:15px; font-size:22px; font-family:inherit; font-weight:bold;
+    cursor:pointer; box-shadow:0 5px 0 #2a3eaa; animation: glow 1.2s ease-in-out infinite;
+  }
+  .next-btn:active { transform:translateY(3px); box-shadow:0 2px 0 #2a3eaa; }
+
+  .medal { text-align:center; font-size: 84px; margin: 2px 0; animation: bounce 1s infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-13px)} }
+  .result-text { text-align: center; font-size: 19px; margin-bottom: 6px; }
+  .result-text .big { color: #4361ee; font-size: 27px; font-weight: bold; }
+  .diffmsg { text-align:center; font-size:16px; font-weight:bold; color:#7b2ff7; margin:6px 0; }
+  .piecewon { text-align:center; background:#fff7e6; border:3px solid #ffd56b; border-radius:16px; padding:12px; margin:10px 0; }
+  .piecewon .big2 { font-size:20px; font-weight:bold; color:#a36a00; }
+  .newlevel { text-align:center; font-size:17px; font-weight:bold; color:#4361ee; margin: 6px 0; }
+
+  .fact-win { background:#eef2ff; border:3px solid #b9c5ff; border-radius:18px; padding:16px 14px; margin:12px 0; text-align:center; }
+  .fact-emoji { font-size: 46px; }
+  .fact-tag { display:inline-block; font-size:13px; font-weight:bold; color:#fff; background:#4361ee; border-radius:10px; padding:3px 10px; margin:6px 0; }
+  .fact-text { font-size: 17px; line-height: 1.4; color:#3a3a55; margin-bottom: 10px; }
+  .fact-more { background:#fff; color:#4361ee; border:2px solid #4361ee; border-radius:14px; padding:8px 16px; font-size:15px; font-family:inherit; font-weight:bold; cursor:pointer; }
+  .fact-more:active { transform: translateY(2px); }
+
+  .puzzle-hint { font-size:15px; color:#6a6a8a; margin: 6px 0 12px; text-align:center; }
+  .board {
+    width:300px; height:200px; margin: 0 auto; position:relative;
+    display:grid; grid-template-columns: repeat(3,100px); grid-template-rows: repeat(2,100px);
+    gap:3px; background:#e6e9f5; padding:3px; border-radius:12px;
+  }
+  .pcell {
+    width:100px; height:100px; border-radius:6px; cursor:pointer; position:relative;
+    background-repeat:no-repeat; transition: transform .12s; box-shadow: inset 0 0 0 2px rgba(255,255,255,.4);
+  }
+  .pcell.sel { outline:4px solid #ff9f1c; outline-offset:-4px; transform: scale(.94); z-index:2; }
+  .pcell.locked { box-shadow: inset 0 0 0 3px #2ecc71; }
+
+  .hint-btn { background:#ffd56b; color:#7a5200; border:none; border-radius:14px; padding:8px 10px; font-size:15px; font-family:inherit; font-weight:bold; cursor:pointer; box-shadow:0 3px 0 #d9a93a; }
+  .hint-btn:active { transform:translateY(2px); box-shadow:0 1px 0 #d9a93a; }
+  .statsline { margin-top:8px; font-size:13px; color:#5a5a7a; text-align:center; font-weight:bold; }
+  .shopbar { display:flex; align-items:center; gap:8px; margin:0 0 12px; }
+  .hintsown { flex:1; font-size:14px; font-weight:bold; color:#a36a00; text-align:left; }
+  .shop-btn { background:linear-gradient(90deg,#ffd56b,#ff9f1c); color:#5a3a00; border:none; border-radius:14px; padding:11px 14px; font-size:15px; font-family:inherit; font-weight:bold; cursor:pointer; box-shadow:0 4px 0 #c77f00; }
+  .shop-btn:active { transform:translateY(2px); box-shadow:0 2px 0 #c77f00; }
+  .shop-balance { text-align:center; font-size:18px; font-weight:bold; color:#4361ee; margin-bottom:6px; }
+  .shop-item { display:flex; align-items:center; gap:10px; background:#fff7e6; border:2px solid #ffd56b; border-radius:16px; padding:12px; margin:10px 0; }
+  .shop-info { flex:1; text-align:left; font-size:15px; color:#7a5200; line-height:1.4; }
+  .buy-btn { background:#2ecc71; color:#fff; border:none; border-radius:14px; padding:12px 18px; font-size:16px; font-family:inherit; font-weight:bold; cursor:pointer; box-shadow:0 4px 0 #27ae60; }
+  .buy-btn:active { transform:translateY(2px); box-shadow:0 2px 0 #27ae60; }
+  .shop-msg { text-align:center; font-size:15px; font-weight:bold; color:#2ecc71; min-height:20px; margin:6px 0; }
+  .hint-card { display:none; position:absolute; inset:0; background:rgba(43,43,74,0.6); z-index:25; align-items:center; justify-content:center; padding:22px; animation: pop .3s ease; }
+  .hint-card.show { display:flex; }
+  .hint-inner { background:#fffdf5; border-radius:24px; padding:22px 20px; text-align:center; max-width:420px; box-shadow:0 16px 40px rgba(0,0,0,.35); border:4px solid #ffd56b; }
+  .hint-emoji { font-size:50px; }
+  .hint-title { font-size:20px; font-weight:bold; color:#a36a00; margin:6px 0 10px; }
+  .hint-text { font-size:18px; line-height:1.45; color:#3a3a55; margin-bottom:16px; }
+  .hint-close { background:linear-gradient(90deg,#ffd56b,#ff9f1c); color:#5a3a00; border:none; border-radius:16px; padding:13px 24px; font-size:18px; font-family:inherit; font-weight:bold; cursor:pointer; box-shadow:0 5px 0 #c77f00; }
+  .hint-close:active { transform:translateY(3px); box-shadow:0 2px 0 #c77f00; }
+  .mascot-item { display:flex; align-items:center; gap:10px; background:#eef2ff; border:2px solid #b9c5ff; border-radius:16px; padding:9px 12px; margin:8px 0; }
+  .mascot-emoji { font-size:32px; width:40px; text-align:center; }
+  .mascot-name { flex:1; text-align:left; font-size:15px; font-weight:bold; color:#3046b5; }
+  .mascot-item .buy-btn { padding:10px 14px; font-size:14px; }
+  .mascot-item .equip-btn { background:#4361ee; box-shadow:0 4px 0 #2a3eaa; }
+  .mascot-item .equip-btn:active { box-shadow:0 2px 0 #2a3eaa; }
+  .mascot-item .equipped { background:#b9c5ff; color:#2b2b4a; box-shadow:none; cursor:default; }
+  .compare-row { display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0 18px; }
+  .cmp-val { font-size:40px; font-weight:bold; color:#2b2b4a; background:#eef2ff; border:3px solid #b9c5ff; border-radius:16px; padding:14px 12px; min-width:96px; text-align:center; }
+  .cmp-q { font-size:38px; font-weight:bold; color:#4361ee; }
+  .cmp-buttons { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .cmp-btn { border:none; border-radius:18px; padding:24px 0; font-size:38px; font-family:inherit; font-weight:bold; background:#5b8def; color:#fff; cursor:pointer; box-shadow:0 6px 0 #2e63c7; }
+  .cmp-btn:active { transform:translateY(3px); box-shadow:0 3px 0 #2e63c7; }
+  .cmp-btn.correct { background:#2ecc71 !important; box-shadow:0 6px 0 #27ae60; animation: yes .4s; }
+  .cmp-btn.wrong { background:#e74c3c !important; box-shadow:0 6px 0 #c0392b; animation: no .4s; }
+
+  .confetti { position: absolute; top: -20px; width: 12px; height: 12px; opacity: 0; pointer-events: none; z-index: 30; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- СТАРТ -->
+  <div class="screen active" id="screen-start">
+    <div class="hero" id="hero">🤖</div>
+    <h1>Считаем с Роботом!</h1>
+    <p class="subtitle">Решай примеры, собирай кусочки пазла и узнавай крутые факты ⚡</p>
+
+    <div class="panel">
+      <div class="row"><span>🎖️ Уровень <span class="lvlnum" id="lvlNum">1</span></span><span>⭐ Звёзды: <span class="starnum" id="totalStars">0</span></span></div>
+      <div class="lvlprog"><div id="lvlProg"></div></div>
+      <div class="statsline" id="statsLine">📊 Решено: 0 · верно: 0 · с ошибкой: 0</div>
+    </div>
+
+    <div class="shopbar">
+      <div class="hintsown">💡 Подсказок: <span id="homeHints">0</span></div>
+      <button class="shop-btn" id="btnShop">🛒 Магазин подсказок</button>
+    </div>
+
+    <div class="puzzlebox">
+      <div class="pttl" id="puzzleTitle">🧩 Робот-пазл №1</div>
+      <div class="pieces-row" id="piecesRow"></div>
+      <div class="pcount" id="pieceCount">0 / 6 кусочков</div>
+      <button class="build-btn" id="btnBuild" style="display:none;">🔧 Собрать пазл!</button>
+      <div class="gallery" id="galleryWrap" style="display:none;">
+        <div class="gttl">🏆 Собранные роботы:</div>
+        <div class="gal-row" id="galRow"></div>
+      </div>
+    </div>
+
+    <div class="savebar">
+      <button class="save-btn" id="btnExport">💾 Сохранить в файл</button>
+      <button class="save-btn" id="btnImport">📂 Загрузить</button>
+      <input type="file" id="fileInput" accept=".json,application/json" style="display:none;">
+    </div>
+    <div class="save-note">Прогресс сохраняется сам. Кнопка «Сохранить в файл» — резервная копия на всякий случай.</div>
+
+    <div class="section-title">Что будем решать?</div>
+    <div class="choices">
+      <button class="choice-btn lvl1 selected" data-op="both">➕ ➖ Сложение и вычитание</button>
+      <button class="choice-btn lvl2" data-op="add">➕ Только сложение</button>
+      <button class="choice-btn lvl3" data-op="sub">➖ Только вычитание</button>
+    </div>
+
+    <div class="section-title">Как отвечать?</div>
+    <div class="choices">
+      <button class="choice-btn mode1 selected" data-mode="choice">🔘 Выбрать из вариантов</button>
+      <button class="choice-btn mode2" data-mode="type">⌨️ Ввести ответ самому (сложнее)</button>
+    </div>
+
+    <div class="section-title">Выбери диапазон чисел</div>
+    <div class="choices">
+      <button class="choice-btn lvl1 selected" data-max="10">🐣 До 10 <span class="skilltag" id="sk10"></span></button>
+      <button class="choice-btn lvl2" data-max="20">🚀 До 20 <span class="skilltag" id="sk20"></span></button>
+      <button class="choice-btn lvl3" data-max="100">🔥 До 100 <span class="skilltag" id="sk100"></span></button>
+    </div>
+    <div class="diff-note">Сложность примеров растёт сама: за правильные ответы числа становятся больше. ⬆️</div>
+
+    <button class="start-btn" id="btnStart">Поехали! 🚀</button>
+  </div>
+
+  <!-- ИГРА -->
+  <div class="screen" id="screen-game">
+    <div class="topbar">
+      <button class="home-btn" id="btnHome">🏠</button>
+      <div class="stat">⭐ <span class="num" id="score">0</span></div>
+      <div class="stat">🔥 <span class="num" id="streak">0</span></div>
+      <button class="hint-btn" id="btnHint">💡 <span id="hintCount">0</span></button>
+    </div>
+    <div class="track">
+      <div class="track-line"><div class="track-fill" id="trackFill"></div></div>
+      <div class="track-bot" id="trackBot">🤖</div>
+      <div class="track-flag">🏁</div>
+    </div>
+    <div class="mascot" id="mascot">🤖</div>
+    <div class="bubble" id="bubble">Системы готовы! Поехали!</div>
+    <div class="question" id="question"></div>
+
+    <div class="answers" id="answers"></div>
+
+    <div class="type-area" id="typeArea" style="display:none;">
+      <div class="typed-display" id="typedDisplay">?</div>
+      <div class="keypad" id="keypad"></div>
+    </div>
+  </div>
+
+  <!-- ПОБЕДА (конец раунда) -->
+  <div class="screen" id="screen-win">
+    <div class="medal" id="medal">🥇</div>
+    <h1 id="winTitle">Отличная работа!</h1>
+    <p class="result-text">С первого раза решено: <span class="big" id="resultCorrect">0</span> из <span id="resultTotal">10</span></p>
+    <p class="result-text">Заработано звёзд: <span class="big" id="resultScore">0</span> ⭐</p>
+    <div class="newlevel" id="newLevel"></div>
+    <div class="diffmsg" id="diffMsg"></div>
+    <div class="piecewon" id="pieceWon"></div>
+
+    <div class="fact-win" id="factWin">
+      <div class="fact-emoji" id="factEmoji">🤖</div>
+      <div class="fact-tag" id="factTag">Факт</div>
+      <div class="fact-text" id="factText"></div>
+      <button class="fact-more" id="btnMoreFact">🔁 Ещё факт</button>
+    </div>
+
+    <button class="build-btn" id="btnBuildWin" style="display:none;">🔧 Собрать пазл!</button>
+    <button class="start-btn" id="btnAgain">Играть ещё! 🔄</button>
+  </div>
+
+  <!-- СБОРКА ПАЗЛА -->
+  <div class="screen" id="screen-puzzle">
+    <h1>🧩 Собери робота!</h1>
+    <p class="puzzle-hint">Нажми на два кусочка, чтобы поменять их местами. Зелёная рамка — кусочек на своём месте!</p>
+    <div class="board" id="board"></div>
+    <p class="puzzle-hint" id="puzzleStatus" style="margin-top:14px;"></p>
+    <button class="ghost-btn" id="btnPuzzleHome">🏠 На главную</button>
+  </div>
+
+  <!-- МАГАЗИН -->
+  <div class="screen" id="screen-shop">
+    <div class="hero" style="font-size:54px;">🛒</div>
+    <h1>Магазин подсказок</h1>
+    <p class="shop-balance">У тебя: <span id="shopWallet">0</span> ⭐ · Подсказок: <span id="shopHints">0</span> 💡</p>
+    <p class="puzzle-hint">Подсказка не даёт готовый ответ — она учит, КАК посчитать. Это классный лайфхак! 🧠</p>
+    <div class="shop-item">
+      <div class="shop-info"><b>💡 1 подсказка</b><br>цена: 15 ⭐</div>
+      <button class="buy-btn" data-buy="1" data-price="15">Купить</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-info"><b>💡 5 подсказок</b><br>цена: 60 ⭐ — выгодно!</div>
+      <button class="buy-btn" data-buy="5" data-price="60">Купить</button>
+    </div>
+
+    <div class="section-title">🎮 Мини-игры</div>
+    <p class="puzzle-hint" style="margin-top:0;">Открой новый режим тренировки!</p>
+    <div id="shopGames"></div>
+
+    <div class="section-title">🤖 Маскоты и апгрейды</div>
+    <p class="puzzle-hint" style="margin-top:0;">Выбери себе нового героя — он появится в игре вместо робота!</p>
+    <div id="shopMascots"></div>
+
+    <p class="shop-msg" id="shopMsg"></p>
+    <button class="ghost-btn" id="btnShopHome">🏠 На главную</button>
+  </div>
+
+  <!-- МИНИ-ИГРА: БОЛЬШЕ ИЛИ МЕНЬШЕ -->
+  <div class="screen" id="screen-compare">
+    <div class="topbar">
+      <button class="home-btn" id="btnCompareHome">🏠</button>
+      <div class="stat">⚖️ Сравни</div>
+      <div class="stat">✅ <span class="num" id="cmpScore">0</span>/10</div>
+    </div>
+    <div class="mascot" id="cmpMascot">🤖</div>
+    <div class="bubble" id="cmpBubble">Что больше?</div>
+    <div class="compare-row">
+      <div class="cmp-val" id="cmpLeft">3</div>
+      <div class="cmp-q">?</div>
+      <div class="cmp-val" id="cmpRight">5</div>
+    </div>
+    <div class="cmp-buttons">
+      <button class="cmp-btn" data-sign="<">&lt;</button>
+      <button class="cmp-btn" data-sign="=">=</button>
+      <button class="cmp-btn" data-sign=">">&gt;</button>
+    </div>
+  </div>
+
+  <!-- МИНИ-ИГРА: ЛЕСЕНКА -->
+  <div class="screen" id="screen-ladder">
+    <div class="topbar">
+      <button class="home-btn" id="btnLadderHome">🏠</button>
+      <div class="stat">🪜 <span class="num" id="ladHeight">0</span></div>
+      <div class="stat">🏆 <span class="num" id="ladBest">0</span></div>
+    </div>
+    <div class="mascot" id="ladMascot">🤖</div>
+    <div class="bubble" id="ladBubble">Решай без ошибок и забирайся выше!</div>
+    <div class="question" id="ladQuestion"></div>
+    <div class="answers" id="ladAnswers"></div>
+  </div>
+
+  <!-- ПОДСКАЗКА -->
+  <div class="hint-card" id="hintCard">
+    <div class="hint-inner">
+      <div class="hint-emoji">💡</div>
+      <div class="hint-title">Как посчитать?</div>
+      <div class="hint-text" id="hintText"></div>
+      <button class="hint-close" id="btnHintClose">Понятно! 👍</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TOTAL_QUESTIONS = 10, STARS_PER_LEVEL = 250, MAXSKILL = 6;
+  var ADVANCE_DELAY = 2200;   // пауза после верного ответа
+  var COLS = 3, ROWS = 2, NPIECES = 6;
+  var settings = { op:"both", max:10, mode:"choice" };
+  var state = { qIndex:0, score:0, streak:0, correctCount:0, current:null, solved:false, mistake:false };
+  var typed = "", advanceTimer = null;
+
+  function el(id){ return document.getElementById(id); }
+  function rnd(n){ return Math.floor(Math.random()*n); }
+  function randRange(lo, hi){ if (hi<lo) hi=lo; return lo + rnd(hi-lo+1); }
+  function pick(a){ return a[rnd(a.length)]; }
+
+  // ---------- ТЕКСТЫ ----------
+  var START_MSGS = ["Считай внимательно!","Сколько получится?","Ты справишься!","Включаю расчёт... считай ты!","А ну-ка, посчитаем!"];
+  var PRAISE = ["Верно!","Супер!","Точный расчёт!","Молодец!","Отлично!","Ты гений!","Так держать!","Класс!"];
+  var WRONG_MSGS = ["Ой, не то! Попробуй ещё 🤔","Почти! Подумай ещё разок 💭","Не сдавайся — попробуй другой ответ! 💪","Хм, давай ещё раз 🧐","Чуть-чуть мимо. Ты сможешь!"];
+  var JOKES = [
+    "Почему робот не устаёт считать? У него железная выдержка! 🤖",
+    "Что любит на обед компьютер? Микрочипсы! 🍟",
+    "Почему учебник математики грустит? В нём слишком много задач! 📘",
+    "Что делает робот, когда устал? Перезагружается! 🔋",
+    "Куда роботы ходят веселиться? На дис-ко-те-ку! 💃",
+    "Что сказал калькулятор ученику? Можешь на меня рассчитывать! 🧮",
+    "Почему компьютер пошёл спать? У него сел заряд! 🔌",
+    "Сколько роботов нужно, чтобы посчитать до пяти? Один, но очень умный! 🤖",
+    "Что говорит робот утром? Доброе утро, перезагрузка прошла успешно! ☀️",
+    "Почему двойка дружит с четвёркой? Вместе они делают шесть! ➕",
+    "Какая любимая музыка у робота? Би-би-боп и немного би-бип! 🎵",
+    "Чем компьютерная мышка лучше обычной? Она не боится кота! 🖱️",
+    "Какое число самое непоседливое? Шустрая семёрка! 7️⃣",
+    "Почему ноль такой спокойный? Он всегда остаётся собой! 0️⃣"
+  ];
+
+  // ---------- ФАКТЫ (достоверные) ----------
+  var FACTS = [
+    {e:"🤖", c:"Роботы", t:"Слово «робот» придумали больше 100 лет назад — оно впервые появилось в пьесе чешского писателя."},
+    {e:"🤖", c:"Роботы", t:"Слово «робот» означает «работа»: ведь роботов придумали, чтобы помогать людям трудиться."},
+    {e:"🚀", c:"Роботы", t:"Прямо сейчас на Марсе ездят роботы-вездеходы, которыми управляют учёные с Земли."},
+    {e:"🤸", c:"Роботы", t:"Некоторые роботы умеют делать настоящее сальто назад, как акробаты!"},
+    {e:"🧭", c:"Роботы", t:"Робот-пылесос сам строит карту комнаты, чтобы знать, где стены и мебель."},
+    {e:"🐕", c:"Роботы", t:"Существуют роботы-собаки: они бегают, прыгают и даже умеют открывать двери."},
+    {e:"🎮", c:"Игры", t:"Самую первую видеоигру создали почти 70 лет назад — это был простой теннис на экране."},
+    {e:"🧒", c:"Игры", t:"Девочка по имени Зора создала свою собственную видеоигру, когда ей было всего 7 лет!"},
+    {e:"⛏️", c:"Игры", t:"Minecraft — самая продаваемая игра в мире: её купили больше 350 миллионов раз."},
+    {e:"🌍", c:"Игры", t:"Мир в игре Minecraft такой огромный, что по площади он больше всей планеты Земля."},
+    {e:"🕹️", c:"Игры", t:"Старые игры помещались на картриджах, где памяти было меньше, чем сегодня занимает одна фотография."},
+    {e:"💻", c:"Интернет", t:"Самое первое сообщение в интернете хотели написать «LOGIN», но компьютер сломался — и вышло только «LO»."},
+    {e:"🌐", c:"Интернет", t:"Первый в мире сайт появился в 1991 году — и он работает до сих пор!"},
+    {e:"🐒", c:"Интернет", t:"Значок @ в разных странах называют по-разному: «собачка», «улитка» или даже «обезьянка»."},
+    {e:"📶", c:"Интернет", t:"Wi-Fi передаёт интернет прямо по воздуху — с помощью невидимых радиоволн."},
+    {e:"✉️", c:"Интернет", t:"Каждый день люди по всему миру отправляют друг другу миллиарды сообщений."},
+    {e:"🟥", c:"Roblox", t:"Почти все игры в Roblox придумали сами игроки — там уже миллионы разных игр."},
+    {e:"🧑‍💻", c:"Roblox", t:"Многие популярные игры в Roblox создали обычные школьники и подростки."},
+    {e:"🛠️", c:"Roblox", t:"В Roblox можно не только играть, но и научиться делать свои собственные игры."},
+    {e:"💰", c:"Roblox", t:"Игровые денежки в Roblox называются «робаксы»."},
+    {e:"🌎", c:"Roblox", t:"В Roblox каждый день играют десятки миллионов людей со всего мира."},
+    {e:"🎽", c:"Roblox", t:"Своего героя в Roblox можно наряжать в тысячи разных костюмов и аксессуаров."}
+  ];
+  var factOrder = [];
+  function nextFact(){
+    if (!factOrder.length){
+      factOrder = FACTS.map(function(_,i){return i;});
+      for (var i=factOrder.length-1;i>0;i--){ var j=rnd(i+1),t=factOrder[i]; factOrder[i]=factOrder[j]; factOrder[j]=t; }
+    }
+    return FACTS[factOrder.pop()];
+  }
+  function showFact(){
+    var f = nextFact();
+    el("factEmoji").textContent = f.e; el("factTag").textContent = f.c; el("factText").textContent = f.t;
+  }
+
+  // ---------- РОБОТ-КАРТИНКА ----------
+  var SCHEMES = [
+    {body:"#4dabf7", accent:"#ffd43b", bg:"#e7f5ff"},
+    {body:"#ff6b6b", accent:"#ffd43b", bg:"#fff0f0"},
+    {body:"#51cf66", accent:"#ff922b", bg:"#ebfbee"},
+    {body:"#cc5de8", accent:"#ffe066", bg:"#f8f0fc"},
+    {body:"#ff922b", accent:"#74c0fc", bg:"#fff4e6"},
+    {body:"#22b8cf", accent:"#ffd43b", bg:"#e3fafc"}
+  ];
+  function buildRobotSVG(c){
+    var d="#2b2b4a";
+    var svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">'+
+    '<rect width="300" height="200" rx="16" fill="'+c.bg+'"/>'+
+    '<g fill="'+c.accent+'" opacity="0.28">'+
+      '<circle cx="28" cy="30" r="13"/><circle cx="272" cy="34" r="9"/>'+
+      '<circle cx="34" cy="172" r="11"/><circle cx="266" cy="170" r="15"/></g>'+
+    '<line x1="150" y1="30" x2="150" y2="12" stroke="'+d+'" stroke-width="4"/>'+
+    '<circle cx="150" cy="9" r="6" fill="'+c.accent+'" stroke="'+d+'" stroke-width="2"/>'+
+    '<rect x="74" y="98" width="18" height="50" rx="9" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<circle cx="83" cy="150" r="9" fill="'+c.accent+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<rect x="208" y="98" width="18" height="50" rx="9" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<circle cx="217" cy="150" r="9" fill="'+c.accent+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<rect x="108" y="28" width="84" height="54" rx="14" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<circle cx="132" cy="54" r="11" fill="#fff" stroke="'+d+'" stroke-width="2"/>'+
+    '<circle cx="132" cy="54" r="5" fill="'+d+'"/>'+
+    '<circle cx="168" cy="54" r="11" fill="#fff" stroke="'+d+'" stroke-width="2"/>'+
+    '<circle cx="168" cy="54" r="5" fill="'+d+'"/>'+
+    '<rect x="134" y="70" width="32" height="7" rx="3.5" fill="'+d+'"/>'+
+    '<rect x="100" y="86" width="100" height="76" rx="16" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<circle cx="150" cy="120" r="17" fill="'+c.accent+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<circle cx="150" cy="120" r="6" fill="'+d+'"/>'+
+    '<circle cx="116" cy="98" r="4" fill="'+d+'"/><circle cx="184" cy="98" r="4" fill="'+d+'"/>'+
+    '<rect x="126" y="140" width="48" height="10" rx="5" fill="'+c.bg+'" stroke="'+d+'" stroke-width="2"/>'+
+    '<rect x="118" y="162" width="20" height="26" rx="7" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
+    '<rect x="162" y="162" width="20" height="26" rx="7" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
+    '</svg>';
+    return "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+  function currentSVG(){ return buildRobotSVG(SCHEMES[save.robotIndex % SCHEMES.length]); }
+  function applyPieceBg(node, svg, index, sizePx){
+    var s = sizePx/100, col = index%COLS, row = Math.floor(index/COLS);
+    node.style.backgroundImage = 'url("'+svg+'")';
+    node.style.backgroundSize = (COLS*100*s)+'px '+(ROWS*100*s)+'px';
+    node.style.backgroundPosition = (-(col*sizePx))+'px '+(-(row*sizePx))+'px';
+  }
+
+  // ---------- МАСКОТЫ (для магазина) ----------
+  var MASCOTS = [
+    {e:"🤖", name:"Робот",          price:0,     req:1},
+    {e:"👾", name:"Пришелец",       price:200,   req:2},
+    {e:"🐱", name:"Котик",          price:500,   req:3},
+    {e:"🦊", name:"Лисёнок",        price:1000,  req:5},
+    {e:"🦉", name:"Совёнок",        price:1800,  req:7},
+    {e:"🐲", name:"Дракончик",      price:3000,  req:9},
+    {e:"🦄", name:"Единорог",       price:5000,  req:12},
+    {e:"🚀", name:"Ракета",         price:8000,  req:16},
+    {e:"👑", name:"Золотой робот",  price:15000, req:22}
+  ];
+  var GAMES = [
+    {id:"compare", e:"⚖️", name:"Больше или меньше", price:300, req:3},
+    {id:"ladder",  e:"🪜", name:"Лесенка без ошибок", price:500, req:4}
+  ];
+
+  // ---------- ПРОГРЕСС ----------
+  var save  = { total:0, wallet:0, hints:0, pieces:0, robotIndex:0, gallery:[],
+                mascot:"🤖", mascots:["🤖"], games:[], bestLadder:0, stats:{ solved:0, correct:0, wrong:0 } };
+  var skill = { 10:1, 20:1, 100:1 };
+  function loadSave(){
+    try {
+      var t=localStorage.getItem("robomath_total"); if(t!==null) save.total=parseInt(t,10)||0;
+      var p=localStorage.getItem("robomath_pieces"); if(p!==null) save.pieces=parseInt(p,10)||0;
+      var r=localStorage.getItem("robomath_robot"); if(r!==null) save.robotIndex=parseInt(r,10)||0;
+      var g=localStorage.getItem("robomath_gallery"); if(g) save.gallery=JSON.parse(g)||[];
+      var s=localStorage.getItem("robomath_skill"); if(s){ var sk=JSON.parse(s)||{}; skill[10]=sk[10]||1; skill[20]=sk[20]||1; skill[100]=sk[100]||1; }
+      var w=localStorage.getItem("robomath_wallet"); save.wallet = (w!==null) ? (parseInt(w,10)||0) : save.total;
+      var h=localStorage.getItem("robomath_hints"); if(h!==null) save.hints=parseInt(h,10)||0;
+      var mc=localStorage.getItem("robomath_mascot"); if(mc) save.mascot=mc;
+      var ms=localStorage.getItem("robomath_mascots"); if(ms){ var arr=JSON.parse(ms); if(Array.isArray(arr)&&arr.length) save.mascots=arr; }
+      if (save.mascots.indexOf("🤖")<0) save.mascots.unshift("🤖");
+      var st=localStorage.getItem("robomath_stats"); if(st){ var s2=JSON.parse(st)||{}; save.stats.solved=s2.solved||0; save.stats.correct=s2.correct||0; save.stats.wrong=s2.wrong||0; }
+      var gm=localStorage.getItem("robomath_games"); if(gm){ var ga=JSON.parse(gm); if(Array.isArray(ga)) save.games=ga; }
+      var bl=localStorage.getItem("robomath_bestladder"); if(bl!==null) save.bestLadder=parseInt(bl,10)||0;
+    } catch(e){}
+  }
+  function persist(){
+    try {
+      localStorage.setItem("robomath_total", String(save.total));
+      localStorage.setItem("robomath_wallet", String(save.wallet));
+      localStorage.setItem("robomath_hints", String(save.hints));
+      localStorage.setItem("robomath_pieces", String(save.pieces));
+      localStorage.setItem("robomath_robot", String(save.robotIndex));
+      localStorage.setItem("robomath_gallery", JSON.stringify(save.gallery));
+      localStorage.setItem("robomath_skill", JSON.stringify(skill));
+      localStorage.setItem("robomath_mascot", save.mascot);
+      localStorage.setItem("robomath_mascots", JSON.stringify(save.mascots));
+      localStorage.setItem("robomath_games", JSON.stringify(save.games));
+      localStorage.setItem("robomath_bestladder", String(save.bestLadder));
+      localStorage.setItem("robomath_stats", JSON.stringify(save.stats));
+    } catch(e){}
+  }
+  function levelOf(s){ return Math.floor(s/STARS_PER_LEVEL)+1; }
+  function curSkill(){ return skill[settings.max] || 1; }
+
+  function renderHome(){
+    el("lvlNum").textContent = levelOf(save.total);
+    el("totalStars").textContent = save.wallet;
+    el("lvlProg").style.width = ((save.total % STARS_PER_LEVEL)/STARS_PER_LEVEL*100)+"%";
+    el("statsLine").textContent = "📊 Решено: "+save.stats.solved+" · верно: "+save.stats.correct+" · с ошибкой: "+save.stats.wrong;
+    el("homeHints").textContent = save.hints;
+    applyMascot();
+    el("sk10").textContent  = "· ступень "+skill[10]+"/"+MAXSKILL;
+    el("sk20").textContent  = "· ступень "+skill[20]+"/"+MAXSKILL;
+    el("sk100").textContent = "· ступень "+skill[100]+"/"+MAXSKILL;
+    el("puzzleTitle").textContent = "🧩 Робот-пазл №" + (save.gallery.length + 1);
+    var svg = currentSVG();
+    var row = el("piecesRow"); row.innerHTML = "";
+    for (var i=0;i<NPIECES;i++){
+      var slot = document.createElement("div"); slot.className = "pslot";
+      if (i < save.pieces){ applyPieceBg(slot, svg, i, 46); } else { slot.textContent = "❓"; }
+      row.appendChild(slot);
+    }
+    el("pieceCount").textContent = save.pieces + " / " + NPIECES + " кусочков";
+    el("btnBuild").style.display = (save.pieces >= NPIECES) ? "block" : "none";
+    var gw = el("galleryWrap"), gr = el("galRow"); gr.innerHTML = "";
+    if (save.gallery.length){
+      gw.style.display = "block";
+      save.gallery.forEach(function(idx){
+        var im = document.createElement("div"); im.className = "gal-img";
+        im.style.backgroundImage = 'url("'+buildRobotSVG(SCHEMES[idx % SCHEMES.length])+'")';
+        gr.appendChild(im);
+      });
+    } else { gw.style.display = "none"; }
+  }
+
+  // ---------- ВЫБОР НА СТАРТЕ ----------
+  function wireGroup(attr, onPick){
+    var btns = document.querySelectorAll(".choice-btn[" + attr + "]");
+    btns.forEach(function(b){ b.addEventListener("click", function(){
+      btns.forEach(function(x){ x.classList.remove("selected"); });
+      b.classList.add("selected"); onPick(b.getAttribute(attr));
+    }); });
+  }
+  wireGroup("data-op",   function(v){ settings.op = v; });
+  wireGroup("data-max",  function(v){ settings.max = parseInt(v,10); });
+  wireGroup("data-mode", function(v){ settings.mode = v; });
+
+  // ---------- СОХРАНЕНИЕ В ФАЙЛ ----------
+  function exportSave(){
+    var data = JSON.stringify({ app:"robomath", v:1, save:save, skill:skill });
+    var blob = new Blob([data], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = "robot-progress.json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+  }
+  function importSave(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try {
+        var d = JSON.parse(reader.result);
+        if (d && d.save){
+          save.total      = parseInt(d.save.total,10)      || 0;
+          save.pieces     = parseInt(d.save.pieces,10)     || 0;
+          save.robotIndex = parseInt(d.save.robotIndex,10) || 0;
+          save.gallery    = Array.isArray(d.save.gallery)  ? d.save.gallery : [];
+          var iw = parseInt(d.save.wallet,10); save.wallet = isNaN(iw) ? save.total : iw;
+          save.hints      = parseInt(d.save.hints,10)      || 0;
+          save.mascot     = d.save.mascot || "🤖";
+          save.mascots    = (Array.isArray(d.save.mascots) && d.save.mascots.length) ? d.save.mascots : ["🤖"];
+          if (save.mascots.indexOf("🤖")<0) save.mascots.unshift("🤖");
+          save.stats      = (d.save.stats && typeof d.save.stats==="object")
+                            ? { solved:d.save.stats.solved||0, correct:d.save.stats.correct||0, wrong:d.save.stats.wrong||0 }
+                            : { solved:0, correct:0, wrong:0 };
+          save.games      = Array.isArray(d.save.games) ? d.save.games : [];
+          save.bestLadder = parseInt(d.save.bestLadder,10) || 0;
+        }
+        if (d && d.skill){
+          skill[10]  = parseInt(d.skill[10],10)  || 1;
+          skill[20]  = parseInt(d.skill[20],10)  || 1;
+          skill[100] = parseInt(d.skill[100],10) || 1;
+        }
+        persist(); renderHome(); alert("Прогресс загружен! 🎉");
+      } catch(e){ alert("Не получилось прочитать файл прогресса 😕"); }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- ЗВУКИ ----------
+  var actx=null, master=null;
+  function audio(){
+    if (!actx){
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain(); master.gain.value = 0.5;
+      var lp = actx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=2600;
+      master.connect(lp); lp.connect(actx.destination);
+    }
+    return actx;
+  }
+  function tone(freq, t0, dur, vol, type){
+    var ctx = audio();
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type||"sine"; o.frequency.value = freq;
+    o.connect(g); g.connect(master);
+    var s = ctx.currentTime + t0;
+    g.gain.setValueAtTime(0.0001, s);
+    g.gain.linearRampToValueAtTime(vol, s+0.025);
+    g.gain.exponentialRampToValueAtTime(0.0001, s+dur);
+    o.start(s); o.stop(s+dur+0.03);
+  }
+  function soundRight(){ tone(523.25,0,0.18,0.32,"triangle"); tone(659.25,0.10,0.18,0.30,"triangle"); tone(783.99,0.20,0.30,0.32,"triangle"); }
+  function soundWrong(){ tone(311.13,0,0.20,0.22,"sine"); tone(246.94,0.12,0.28,0.22,"sine"); }
+  function soundWin(){ var n=[523.25,659.25,783.99,1046.5]; n.forEach(function(f,i){ tone(f,i*0.14,0.32,0.30,"triangle"); }); tone(1046.5,0.62,0.5,0.26,"sine"); }
+  function soundChime(){ tone(1318.5,0,0.5,0.22,"sine"); tone(1760,0.08,0.5,0.20,"sine"); tone(2093,0.16,0.6,0.20,"sine"); }
+  function soundClick(){ tone(587.33,0,0.07,0.18,"sine"); }
+
+  // ---------- ГЕНЕРАЦИЯ С РОСТОМ СЛОЖНОСТИ ----------
+  function effCeiling(max){
+    var f = 0.35 + 0.65 * ((curSkill()-1) / (MAXSKILL-1));
+    return Math.min(max, Math.max(3, Math.round(max * f)));
+  }
+  function makeQuestion(){
+    var max = settings.max;
+    var op = settings.op; if (op==="both") op = Math.random()<0.5 ? "add":"sub";
+    var ceil = effCeiling(max);
+    var hard = curSkill() >= 4;
+    var a,b,answer,sign;
+    if (op==="add"){
+      var sumLo = hard ? Math.max(2, Math.round(ceil*0.4)) : 2;
+      var sum = randRange(sumLo, ceil);
+      a = randRange(0, sum); b = sum - a;
+      if (hard && sum>=4 && (a<2 || b<2)){ a = randRange(2, sum-2); b = sum - a; }
+      answer = sum; sign = "+";
+    } else {
+      var aLo = hard ? Math.max(3, Math.round(ceil*0.4)) : 2;
+      a = randRange(aLo, ceil); b = randRange(0, a);
+      if (hard && a>=4 && b<2){ b = randRange(2, a-1); }
+      if (hard && a===b && a>=3){ b = randRange(1, a-1); }
+      answer = a - b; sign = "−";
+    }
+    return { a:a, b:b, sign:sign, answer:answer };
+  }
+  function makeOptions(answer){
+    var set={}; set[answer]=true; var opts=[answer], guard=0;
+    var spread = answer > 20 ? 5 : 3;
+    while (opts.length<4 && guard<120){ guard++;
+      var dd=rnd(spread*2+1)-spread; if(dd===0)dd=1; var cc=answer+dd;
+      if(cc<0)cc=answer+Math.abs(dd); if(cc<0)continue;
+      if(!set[cc]){ set[cc]=true; opts.push(cc); } }
+    var extra=answer+1;
+    while(opts.length<4){ if(!set[extra]){set[extra]=true;opts.push(extra);} extra++; }
+    for (var i=opts.length-1;i>0;i--){ var j=rnd(i+1),t=opts[i]; opts[i]=opts[j]; opts[j]=t; }
+    return opts;
+  }
+
+  // ---------- РЕНДЕР ВОПРОСА ----------
+  var elQ=el("question"), elA=el("answers"), elScore=el("score"), elStreak=el("streak");
+  var elFill=el("trackFill"), elBot=el("trackBot"), elMascot=el("mascot"), elBubble=el("bubble");
+  function setMascot(mood, msg){ elMascot.className = "mascot" + (mood?" "+mood:""); if(msg!==undefined) elBubble.textContent = msg; }
+
+  function buildKeypad(){
+    var kp = el("keypad"); kp.innerHTML = "";
+    ["1","2","3","4","5","6","7","8","9","⌫","0","✓"].forEach(function(k){
+      var b=document.createElement("button"); b.className="key"; b.textContent=k;
+      if(k==="✓") b.classList.add("ok"); if(k==="⌫") b.classList.add("del");
+      b.addEventListener("click", function(){ onKey(k); });
+      kp.appendChild(b);
+    });
+  }
+  function updateTypedDisplay(){
+    var d = el("typedDisplay"); d.classList.remove("bad","good");
+    d.textContent = typed==="" ? "?" : typed;
+  }
+  function onKey(k){
+    if (state.solved) return;
+    if (k==="⌫"){ typed = typed.slice(0,-1); updateTypedDisplay(); return; }
+    if (k==="✓"){ checkTyped(); return; }
+    if (typed.length < 3){ typed += k; updateTypedDisplay(); }
+  }
+  function checkTyped(){
+    if (typed === "") return;
+    if (parseInt(typed,10) === state.current.answer){
+      el("typedDisplay").classList.add("good"); handleCorrect();
+    } else {
+      state.mistake = true;
+      el("typedDisplay").classList.add("bad");
+      setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+      typed = ""; setTimeout(updateTypedDisplay, 650);
+    }
+  }
+
+  function renderQuestion(){
+    state.current = makeQuestion();
+    state.solved = false; state.mistake = false; typed = "";
+    setMascot("", pick(START_MSGS));
+    elQ.innerHTML = state.current.a + " <span class='q'>"+state.current.sign+"</span> " + state.current.b + " <span class='q'>=</span> ?";
+
+    if (settings.mode === "type"){
+      el("answers").style.display = "none"; el("answers").innerHTML = "";
+      el("typeArea").style.display = "block"; updateTypedDisplay();
+    } else {
+      el("typeArea").style.display = "none";
+      var area = el("answers"); area.style.display = "grid"; area.innerHTML = "";
+      makeOptions(state.current.answer).forEach(function(val){
+        var btn=document.createElement("button"); btn.className="answer-btn"; btn.textContent=val;
+        btn.addEventListener("click", function(){ onChoice(btn,val); });
+        area.appendChild(btn);
+      });
+    }
+    var pct = state.qIndex/TOTAL_QUESTIONS*100;
+    elFill.style.width = pct+"%"; elBot.style.left = pct+"%";
+  }
+
+  // ---------- ОТВЕТЫ (с дорешиванием) ----------
+  function onChoice(btn, val){
+    if (state.solved) return;
+    if (val === state.current.answer){
+      btn.classList.add("correct");
+      Array.prototype.forEach.call(elA.children, function(b){ b.disabled = true; });
+      handleCorrect();
+    } else {
+      btn.classList.add("wrong"); btn.disabled = true;
+      state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+    }
+  }
+
+  function handleCorrect(){
+    state.solved = true;
+    var gain, msg;
+    if (!state.mistake){
+      gain = 5 + (state.streak>=3 ? 3 : 0);
+      state.streak += 1; state.correctCount += 1;
+      msg = pick(PRAISE) + " +" + gain + " ⭐";
+      if (state.streak===3) msg = "🔥 Три подряд! +"+gain+" ⭐";
+      if (state.streak===5) msg = "⚡ Пять подряд! Турборежим! +"+gain+" ⭐";
+      if (state.streak>=7) msg = "🏆 "+state.streak+" подряд! Невероятно! +"+gain+" ⭐";
+    } else {
+      gain = 1; state.streak = 0;
+      msg = "Ура, получилось! +" + gain + " ⭐";
+    }
+    state.score += gain;
+    save.stats.solved += 1;
+    if (state.mistake) save.stats.wrong += 1; else save.stats.correct += 1;
+    persist();
+    elScore.textContent = state.score; elStreak.textContent = state.streak;
+    // показываем готовый пример с ответом на месте «?»
+    elQ.innerHTML = state.current.a + " <span class='q'>"+state.current.sign+"</span> " + state.current.b +
+                    " <span class='q'>=</span> <span class='ans'>"+state.current.answer+"</span>";
+    setMascot("happy", msg);
+    soundRight(); burstConfetti(12);
+    advanceTimer = setTimeout(nextQuestion, ADVANCE_DELAY);
+  }
+
+  function nextQuestion(){
+    if (!state.solved) return;        // защита от двойного перехода
+    state.solved = false;
+    clearTimeout(advanceTimer);
+    state.qIndex += 1;
+    if (state.qIndex >= TOTAL_QUESTIONS){ finish(); return; }
+    renderQuestion();
+  }
+
+  // ---------- КОНЕЦ РАУНДА ----------
+  function finish(){
+    var beforeLevel = levelOf(save.total);
+    save.total += state.score;
+    save.wallet += state.score;
+    var afterLevel = levelOf(save.total);
+
+    var diffMsg = "Сложность: ступень " + curSkill() + " из " + MAXSKILL;
+    if (state.correctCount >= 8 && curSkill() < MAXSKILL){
+      skill[settings.max] = curSkill() + 1;
+      diffMsg = "Сложность выросла! Теперь ступень " + curSkill() + " ⬆️";
+    } else if (state.correctCount <= 4 && curSkill() > 1){
+      skill[settings.max] = curSkill() - 1;
+      diffMsg = "Стало чуть легче — потренируемся ещё 💪 (ступень " + curSkill() + ")";
+    }
+
+    var gotPiece = false;
+    if (save.pieces < NPIECES){ save.pieces += 1; gotPiece = true; }
+    persist();
+
+    var medal, title;
+    if (state.correctCount>=9){ medal="🥇"; title="Чемпион! 🏆"; }
+    else if (state.correctCount>=6){ medal="🥈"; title="Здорово получилось!"; }
+    else { medal="🥉"; title="Хорошая тренировка!"; }
+
+    el("medal").textContent = medal; el("winTitle").textContent = title;
+    el("resultCorrect").textContent = state.correctCount;
+    el("resultTotal").textContent = TOTAL_QUESTIONS;
+    el("resultScore").textContent = state.score;
+    el("newLevel").textContent = (afterLevel>beforeLevel) ? ("🎉 Новый уровень "+afterLevel+"! 🎖️") : "";
+    el("diffMsg").textContent = diffMsg;
+
+    var pw = el("pieceWon");
+    if (save.pieces >= NPIECES){
+      pw.innerHTML = '<div class="big2">🧩 Все 6 кусочков собраны!</div><div>Жми «Собрать пазл», чтобы построить робота 🤖</div>';
+      el("btnBuildWin").style.display = "block";
+    } else if (gotPiece){
+      pw.innerHTML = '<div class="big2">🧩 +1 кусочек пазла!</div><div>Собрано: '+save.pieces+' из '+NPIECES+'</div>';
+      el("btnBuildWin").style.display = "none";
+    } else { pw.innerHTML = ''; el("btnBuildWin").style.display = "none"; }
+
+    showFact();
+    show("win"); soundWin(); burstConfetti(50);
+  }
+
+  // ---------- СБОРКА ПАЗЛА ----------
+  var placement = [], selected = -1;
+  function shuffledPlacement(){
+    var arr=[]; for (var i=0;i<NPIECES;i++) arr.push(i);
+    var solved;
+    do {
+      for (var i2=arr.length-1;i2>0;i2--){ var j=rnd(i2+1),t=arr[i2]; arr[i2]=arr[j]; arr[j]=t; }
+      solved = arr.every(function(v,k){ return v===k; });
+    } while (solved);
+    return arr;
+  }
+  function openPuzzle(){
+    placement = shuffledPlacement(); selected = -1;
+    el("puzzleStatus").textContent = ""; renderBoard(); show("puzzle");
+  }
+  function renderBoard(){
+    var svg = currentSVG();
+    var board = el("board"); board.innerHTML = "";
+    placement.forEach(function(pieceIdx, slot){
+      var cell = document.createElement("div"); cell.className = "pcell";
+      applyPieceBg(cell, svg, pieceIdx, 100);
+      if (pieceIdx === slot) cell.classList.add("locked");
+      if (slot === selected) cell.classList.add("sel");
+      cell.addEventListener("click", function(){ onCellClick(slot); });
+      board.appendChild(cell);
+    });
+  }
+  function onCellClick(slot){
+    soundClick();
+    if (selected === -1){ selected = slot; renderBoard(); return; }
+    if (selected === slot){ selected = -1; renderBoard(); return; }
+    var t = placement[selected]; placement[selected] = placement[slot]; placement[slot] = t;
+    selected = -1; renderBoard();
+    if (placement.every(function(v,k){ return v===k; })) puzzleSolved();
+  }
+  function puzzleSolved(){
+    el("puzzleStatus").textContent = "🎉 Робот собран! Ты супер-инженер!";
+    soundChime(); burstConfetti(60);
+    save.gallery.push(save.robotIndex); save.robotIndex += 1; save.pieces = 0; persist();
+    setTimeout(function(){ burstConfetti(40); }, 600);
+  }
+
+  // ---------- КОНФЕТТИ ----------
+  var colors = ["#4361ee","#38ef7d","#ff9f1c","#ff6b6b","#a29bfe","#22b8cf","#feca57"];
+  function burstConfetti(n){
+    var app = el("app");
+    for (var i=0;i<n;i++){ (function(){
+      var c=document.createElement("div"); c.className="confetti";
+      c.style.left=rnd(100)+"%"; c.style.background=colors[rnd(colors.length)];
+      c.style.borderRadius = Math.random()<0.5 ? "50%" : "2px";
+      app.appendChild(c);
+      var dx=(rnd(220)-110), fall=560+rnd(520), rot=rnd(360);
+      c.animate([
+        {transform:"translate(0,0) rotate(0deg)",opacity:1},
+        {transform:"translate("+dx+"px,"+fall+"px) rotate("+rot+"deg)",opacity:0}
+      ], {duration:1200+rnd(800), easing:"ease-out"});
+      setTimeout(function(){ c.remove(); }, 2200);
+    })(); }
+  }
+
+  // ---------- МАСКОТ ----------
+  function applyMascot(){
+    var m = save.mascot || "🤖";
+    var hero = el("hero"); if (hero) hero.textContent = m;
+    el("mascot").textContent = m;
+    el("trackBot").textContent = m;
+  }
+
+  // ---------- ПОДСКАЗКИ (лайфхаки) ----------
+  function updateHintUI(){ el("hintCount").textContent = save.hints; el("homeHints").textContent = save.hints; }
+  function hintFor(q){
+    var a=q.a, b=q.b;
+    if (q.sign === "+"){
+      var big=Math.max(a,b), small=Math.min(a,b);
+      if (a<10 && b<10 && (a+b)>10){
+        var need = 10 - big;
+        return "Лайфхак «дополни до 10»: возьми число "+big+" и добавь к нему "+need+", чтобы вышло ровно 10. Эти "+need+" возьми из "+small+", а что осталось — прибавь к десятке. Так считать легко!";
+      }
+      return "Лайфхак «считай от большего»: начни с числа "+big+" и сделай "+small+" шага вперёд, прибавляя по одному. Можно загибать пальцы! 🖐️";
+    } else {
+      if (b <= 3){
+        return "Лайфхак «шагай назад»: начни с числа "+a+" и отступи назад "+b+" раз, считая по одному. Загибай пальцы! 🖐️";
+      }
+      return "Лайфхак «думай через плюс»: спроси себя — сколько нужно прибавить к "+b+", чтобы получить "+a+"? Это число и будет ответом. 🤔";
+    }
+  }
+  function useHint(){
+    if (state.solved || !state.current) return;
+    if (save.hints > 0){
+      save.hints -= 1; persist(); updateHintUI();
+      el("hintText").textContent = hintFor(state.current);
+    } else {
+      el("hintText").textContent = "Подсказки закончились! Загляни в магазин 🛒 и обменяй звёздочки на подсказки.";
+    }
+    el("hintCard").classList.add("show");
+  }
+
+  // ---------- МАГАЗИН ----------
+  function openShop(){ el("shopMsg").textContent = ""; renderShop(); show("shop"); }
+  function renderShop(){
+    el("shopWallet").textContent = save.wallet;
+    el("shopHints").textContent = save.hints;
+    var lvl = levelOf(save.total);
+    var box = el("shopMascots"); box.innerHTML = "";
+    MASCOTS.forEach(function(m){
+      var owned = save.mascots.indexOf(m.e) >= 0;
+      var equipped = save.mascot === m.e;
+      var item = document.createElement("div"); item.className = "mascot-item";
+      var emo = document.createElement("div"); emo.className = "mascot-emoji"; emo.textContent = m.e;
+      var nm  = document.createElement("div"); nm.className  = "mascot-name";
+      nm.textContent = m.name + (owned ? "" : (" · " + m.price + " ⭐"));
+      var btn = document.createElement("button");
+      if (equipped){ btn.className = "buy-btn equipped"; btn.textContent = "✓ Выбран"; btn.disabled = true; }
+      else if (owned){ btn.className = "buy-btn equip-btn"; btn.textContent = "Выбрать"; btn.addEventListener("click", function(){ equipMascot(m.e); }); }
+      else if (lvl < m.req){ btn.className = "buy-btn equipped"; btn.textContent = "🔒 ур. " + m.req; btn.disabled = true; }
+      else { btn.className = "buy-btn"; btn.textContent = "Купить"; btn.addEventListener("click", function(){ buyMascot(m); }); }
+      item.appendChild(emo); item.appendChild(nm); item.appendChild(btn);
+      box.appendChild(item);
+    });
+    var gbox = el("shopGames"); gbox.innerHTML = "";
+    GAMES.forEach(function(g){
+      var owned = save.games.indexOf(g.id) >= 0;
+      var item = document.createElement("div"); item.className = "mascot-item";
+      var emo = document.createElement("div"); emo.className = "mascot-emoji"; emo.textContent = g.e;
+      var nm  = document.createElement("div"); nm.className  = "mascot-name";
+      nm.textContent = g.name + (owned ? "" : (" · " + g.price + " ⭐"));
+      var btn = document.createElement("button");
+      if (owned){ btn.className = "buy-btn equip-btn"; btn.textContent = "Играть ▶"; btn.addEventListener("click", function(){ playGame(g.id); }); }
+      else if (lvl < g.req){ btn.className = "buy-btn equipped"; btn.textContent = "🔒 ур. " + g.req; btn.disabled = true; }
+      else { btn.className = "buy-btn"; btn.textContent = "Купить"; btn.addEventListener("click", function(){ buyGame(g); }); }
+      item.appendChild(emo); item.appendChild(nm); item.appendChild(btn);
+      gbox.appendChild(item);
+    });
+  }
+  function buyGame(g){
+    if (save.games.indexOf(g.id) >= 0){ playGame(g.id); return; }
+    if (levelOf(save.total) < g.req){ el("shopMsg").textContent = g.name + " откроется на уровне " + g.req + ". 🎖️"; return; }
+    if (save.wallet >= g.price){
+      save.wallet -= g.price; save.games.push(g.id); persist(); renderShop();
+      el("shopMsg").textContent = "Открыто: " + g.e + " " + g.name + "! Жми «Играть»."; soundChime();
+    } else { el("shopMsg").textContent = "Не хватает звёзд для " + g.name + ". ⭐"; }
+  }
+  function playGame(id){ if (id==="compare") startCompare(); else if (id==="ladder") startLadder(); }
+
+  // ---------- МИНИ-ИГРА: БОЛЬШЕ ИЛИ МЕНЬШЕ ----------
+  var cmp = { i:0, correct:0, left:0, right:0, locked:false };
+  function compareValue(){
+    var ceil = effCeiling(settings.max), r = Math.random();
+    if (r < 0.45){ var n = randRange(0, ceil); return { text:String(n), val:n }; }
+    if (r < 0.75){ var a = randRange(0, ceil), b = randRange(0, ceil-a); return { text:a+" + "+b, val:a+b }; }
+    var x = randRange(0, ceil), y = randRange(0, x); return { text:x+" − "+y, val:x-y };
+  }
+  function correctSign(l, r){ return l < r ? "<" : (l > r ? ">" : "="); }
+  function startCompare(){
+    audio(); if (actx && actx.resume) actx.resume();
+    cmp = { i:0, correct:0, left:0, right:0, locked:false };
+    el("cmpScore").textContent = "0";
+    el("cmpMascot").textContent = save.mascot; el("cmpMascot").className = "mascot";
+    show("compare"); renderCompare();
+  }
+  function renderCompare(){
+    cmp.locked = false;
+    var L = compareValue(), R = compareValue();
+    cmp.left = L.val; cmp.right = R.val;
+    el("cmpLeft").textContent = L.text; el("cmpRight").textContent = R.text;
+    el("cmpBubble").textContent = pick(["Что больше?","Сравни числа!","Какой знак поставить?"]);
+    Array.prototype.forEach.call(document.querySelectorAll(".cmp-btn"), function(b){ b.classList.remove("correct","wrong"); });
+  }
+  function onCompare(sign, btn){
+    if (cmp.locked) return; cmp.locked = true;
+    var cs = correctSign(cmp.left, cmp.right);
+    if (sign === cs){
+      btn.classList.add("correct"); cmp.correct++; el("cmpScore").textContent = cmp.correct;
+      el("cmpMascot").className = "mascot happy"; soundRight(); burstConfetti(8);
+    } else {
+      btn.classList.add("wrong"); el("cmpMascot").className = "mascot sad"; soundWrong();
+      Array.prototype.forEach.call(document.querySelectorAll(".cmp-btn"), function(b){ if (b.getAttribute("data-sign") === cs) b.classList.add("correct"); });
+    }
+    setTimeout(function(){ cmp.i++; if (cmp.i >= 10) endCompare(); else renderCompare(); }, 1100);
+  }
+  function endCompare(){
+    var reward = cmp.correct * 2;
+    save.total += reward; save.wallet += reward; persist();
+    el("cmpBubble").textContent = "Готово! Верно " + cmp.correct + " из 10. +" + reward + " ⭐";
+    el("cmpMascot").className = "mascot happy"; soundWin(); burstConfetti(40);
+    setTimeout(function(){ renderHome(); show("start"); }, 2600);
+  }
+
+  // ---------- МИНИ-ИГРА: ЛЕСЕНКА ----------
+  var lad = { height:0, locked:false, cur:null };
+  function startLadder(){
+    audio(); if (actx && actx.resume) actx.resume();
+    lad = { height:0, locked:false, cur:null };
+    el("ladHeight").textContent = "0"; el("ladBest").textContent = save.bestLadder;
+    el("ladMascot").textContent = save.mascot; el("ladMascot").className = "mascot";
+    show("ladder"); renderLadder();
+  }
+  function renderLadder(){
+    lad.locked = false;
+    lad.cur = makeQuestion();
+    el("ladQuestion").innerHTML = lad.cur.a + " <span class='q'>"+lad.cur.sign+"</span> " + lad.cur.b + " <span class='q'>=</span> ?";
+    el("ladBubble").textContent = "Высота " + lad.height + " 🪜 — реши без ошибки!";
+    var area = el("ladAnswers"); area.innerHTML = "";
+    makeOptions(lad.cur.answer).forEach(function(val){
+      var btn = document.createElement("button"); btn.className = "answer-btn"; btn.textContent = val;
+      btn.addEventListener("click", function(){ onLadder(val, btn); });
+      area.appendChild(btn);
+    });
+  }
+  function onLadder(val, btn){
+    if (lad.locked) return; lad.locked = true;
+    if (val === lad.cur.answer){
+      btn.classList.add("correct"); lad.height++; el("ladHeight").textContent = lad.height;
+      el("ladMascot").className = "mascot happy"; soundRight(); burstConfetti(8);
+      setTimeout(renderLadder, 850);
+    } else {
+      btn.classList.add("wrong"); el("ladMascot").className = "mascot sad"; soundWrong();
+      Array.prototype.forEach.call(el("ladAnswers").children, function(b){ if (parseInt(b.textContent,10) === lad.cur.answer) b.classList.add("correct"); });
+      setTimeout(endLadder, 1500);
+    }
+  }
+  function endLadder(){
+    if (lad.height > save.bestLadder) save.bestLadder = lad.height;
+    var reward = lad.height * 2;
+    save.total += reward; save.wallet += reward; persist();
+    el("ladBest").textContent = save.bestLadder;
+    el("ladBubble").textContent = "Ты забрался на " + lad.height + " 🪜! Рекорд: " + save.bestLadder + ". +" + reward + " ⭐";
+    el("ladMascot").className = "mascot happy"; soundWin(); burstConfetti(40);
+    setTimeout(function(){ renderHome(); show("start"); }, 2800);
+  }
+
+  function buyHints(count, price){
+    if (save.wallet >= price){
+      save.wallet -= price; save.hints += count; persist();
+      updateHintUI(); renderShop();
+      el("shopMsg").textContent = "Готово! +" + count + " 💡"; soundChime();
+    } else { el("shopMsg").textContent = "Не хватает звёзд. Реши ещё примеры! ⭐"; }
+  }
+  function buyMascot(m){
+    if (save.mascots.indexOf(m.e) >= 0){ equipMascot(m.e); return; }
+    if (levelOf(save.total) < m.req){ el("shopMsg").textContent = m.e + " откроется на уровне " + m.req + ". Решай примеры! 🎖️"; return; }
+    if (save.wallet >= m.price){
+      save.wallet -= m.price; save.mascots.push(m.e); save.mascot = m.e; persist();
+      applyMascot(); renderShop();
+      el("shopMsg").textContent = "Ура! Новый маскот " + m.e + " выбран!"; soundChime();
+    } else { el("shopMsg").textContent = "Не хватает звёзд для " + m.e + ". Реши ещё примеры! ⭐"; }
+  }
+  function equipMascot(e){ save.mascot = e; persist(); applyMascot(); renderShop(); el("shopMsg").textContent = "Маскот " + e + " выбран!"; }
+
+  // ---------- НАВИГАЦИЯ ----------
+  var screens = { start:el("screen-start"), game:el("screen-game"), win:el("screen-win"), puzzle:el("screen-puzzle"), shop:el("screen-shop"), compare:el("screen-compare"), ladder:el("screen-ladder") };
+  function show(name){ for (var k in screens) screens[k].classList.remove("active"); screens[name].classList.add("active"); }
+
+  function startGame(){
+    audio(); if (actx && actx.resume) actx.resume();
+    state = { qIndex:0, score:0, streak:0, correctCount:0, current:null, solved:false, mistake:false };
+    elScore.textContent="0"; elStreak.textContent="0";
+    applyMascot(); updateHintUI();
+    show("game"); renderQuestion();
+  }
+  el("btnStart").addEventListener("click", startGame);
+  el("btnAgain").addEventListener("click", function(){ renderHome(); show("start"); });
+  el("btnHome").addEventListener("click", function(){ renderHome(); show("start"); });
+  el("btnBuild").addEventListener("click", openPuzzle);
+  el("btnBuildWin").addEventListener("click", openPuzzle);
+  el("btnPuzzleHome").addEventListener("click", function(){ renderHome(); show("start"); });
+  el("btnMoreFact").addEventListener("click", showFact);
+  el("btnExport").addEventListener("click", exportSave);
+  el("btnImport").addEventListener("click", function(){ el("fileInput").click(); });
+  el("fileInput").addEventListener("change", function(e){ if (e.target.files && e.target.files[0]) importSave(e.target.files[0]); e.target.value=""; });
+  el("btnShop").addEventListener("click", openShop);
+  el("btnShopHome").addEventListener("click", function(){ renderHome(); show("start"); });
+  document.querySelectorAll(".buy-btn[data-buy]").forEach(function(b){
+    b.addEventListener("click", function(){ buyHints(parseInt(b.getAttribute("data-buy"),10), parseInt(b.getAttribute("data-price"),10)); });
+  });
+  el("btnHint").addEventListener("click", useHint);
+  el("btnHintClose").addEventListener("click", function(){ el("hintCard").classList.remove("show"); });
+  el("btnCompareHome").addEventListener("click", function(){ renderHome(); show("start"); });
+  el("btnLadderHome").addEventListener("click", function(){ renderHome(); show("start"); });
+  document.querySelectorAll(".cmp-btn").forEach(function(b){ b.addEventListener("click", function(){ onCompare(b.getAttribute("data-sign"), b); }); });
+
+  // физическая клавиатура для режима ввода
+  document.addEventListener("keydown", function(e){
+    if (!screens.game.classList.contains("active")) return;
+    if (state.solved){ if (e.key==="Enter"){ e.preventDefault(); nextQuestion(); } return; }
+    if (settings.mode !== "type") return;
+    if (e.key>="0" && e.key<="9") onKey(e.key);
+    else if (e.key==="Backspace"){ e.preventDefault(); onKey("⌫"); }
+    else if (e.key==="Enter"){ e.preventDefault(); onKey("✓"); }
+  });
+
+  buildKeypad(); loadSave(); renderHome();
+})();
+</script>
+</body>
+</html>

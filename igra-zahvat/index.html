@@ -97,8 +97,10 @@ function fail(msg){ const e=document.getElementById('err'); e.style.display='blo
 // ---------------- game constants & data ----------------
 const PROD_BASE=2.2, CAP_BASE=30, MAX_LEVEL=4, MAXLINKS=3, BOT_INTERVAL=1.45;
 const ISL_W=15, ISL_D=10, GROUNDPAD=0.84;
-const COL = { 0:0xc9ceda, 1:0x4f8bff, 2:0xff5c72 };       // ring / team colors
-const TINT= { 0:0xffffff, 1:0xd2e2ff, 2:0xffd6dc };        // gentle tower tint (kept bright)
+const COL = { 0:0xc9ceda, 1:0x4f8bff, 2:0xff5c72 };       // soldiers / accents
+const SOLID = { 0:0xc2c8d2, 1:0x3f80ee, 2:0xe8485c };      // solid team color for towers & links
+const SOLIDD= { 0:0x8b92a0, 1:0x2456b0, 2:0xb02a3c };      // darker base ring
+const TINT= { 0:0xffffff, 1:0xd2e2ff, 2:0xffd6dc };        // (unused now) gentle tower tint
 const CSS = { 0:'#7d8499', 1:'#2f6fe0', 2:'#e23b4e' };
 const STORE='g_zahvat_progress';
 
@@ -276,22 +278,22 @@ function loadMap(i){
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group); if(n.view.label) n.view.group.remove(n.view.label); }
   const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.25);
+  const teamMat=new THREE.MeshStandardMaterial({ color:SOLID[n.o], roughness:0.55, metalness:0.05 });
   const model=MODELS['lvl'+n.l].clone(true);
-  model.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true;
-    c.material=c.material.clone(); c.material.color=new THREE.Color(TINT[n.o]); c.userData.nodeId=n.id; } });
+  model.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.material=teamMat; c.userData.nodeId=n.id; } });
   group.add(model);
-  // owner ring on the ground
-  const ringMat=new THREE.MeshStandardMaterial({ color:COL[n.o], emissive:COL[n.o], emissiveIntensity:0.35, metalness:0, roughness:0.6 });
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.66,0.07,10,28).rotateX(Math.PI/2), ringMat);
-  ring.position.y=0.04; ring.receiveShadow=true; group.add(ring);
+  // darker colored base disc (grounds the tower, shows team)
+  const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.66,0.14,28),
+    new THREE.MeshStandardMaterial({ color:SOLIDD[n.o], roughness:0.7 }));
+  disc.position.y=0.03; disc.receiveShadow=true; group.add(disc);
   // invisible pick disc (easy tap target)
-  const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,1.6,12), new THREE.MeshBasicMaterial({visible:false}));
-  pick.position.y=0.8; pick.userData.nodeId=n.id; group.add(pick);
+  const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,1.8,12), new THREE.MeshBasicMaterial({visible:false}));
+  pick.position.y=0.9; pick.userData.nodeId=n.id; group.add(pick);
   // label
   const div=document.createElement('div'); div.className='tlabel';
-  const label=new CSS2DObject(div); label.position.set(0,1.7,0); group.add(label);
+  const label=new CSS2DObject(div); label.position.set(0,1.75,0); group.add(label);
   nodeGroup.add(group);
-  n.view={group, model, ringMat, ring, div, label}; n.lr=n.l; n.or=n.o;
+  n.view={group, model, div, label}; n.lr=n.l; n.or=n.o;
 }
 
 // ---------------- simulation (same rules as before) ----------------
@@ -382,9 +384,9 @@ function syncVisuals(){
   }
   // soldiers meshes
   for(const s of soldiers){ if(!s.mesh){ s.mesh=new THREE.Mesh(
-      new THREE.SphereGeometry(0.16,10,8), new THREE.MeshStandardMaterial({color:COL[s.o], emissive:COL[s.o], emissiveIntensity:0.25}));
+      new THREE.SphereGeometry(0.19,12,10), new THREE.MeshStandardMaterial({color:SOLID[s.o], roughness:0.4, emissive:SOLID[s.o], emissiveIntensity:0.15}));
       s.mesh.castShadow=true; soldierGroup.add(s.mesh); }
-    s.mesh.position.set(s.x, GROUND_TOP+0.3, s.z); }
+    s.mesh.position.set(s.x, GROUND_TOP+0.32, s.z); }
   // links — rebuild ribbon meshes when set changes
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }
@@ -393,21 +395,20 @@ function syncVisuals(){
 
 function rebuildLinks(){
   clearGroup(linkGroup);
+  const up=new THREE.Vector3(0,1,0);
   for(const L of links){ const a=nodes[L.from], b=nodes[L.to];
-    const ax=a.x,az=a.z,bx=b.x,bz=b.z; const dx=bx-ax,dz=bz-az, len=Math.hypot(dx,dz)||1;
-    const ux=dx/len, uz=dz/len, px=-uz, pz=ux, w=0.34;
-    const sx=ax+ux*0.7, sz=az+uz*0.7, ex=bx-ux*0.85, ez=bz-uz*0.85;
-    const L2=Math.hypot(ex-sx,ez-sz);
-    const y=GROUND_TOP+0.07;
-    const verts=new Float32Array([
-      sx+px*w,y,sz+pz*w,  sx-px*w,y,sz-pz*w,  ex-px*w,y,ez-pz*w,
-      sx+px*w,y,sz+pz*w,  ex-px*w,y,ez-pz*w,  ex+px*w,y,ez+pz*w ]);
-    const rep=Math.max(1,L2/0.7);
-    const uvs=new Float32Array([ 0,0, 1,0, 1,rep, 0,0, 1,rep, 0,rep ]);
-    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(verts,3));
-    g.setAttribute('uv',new THREE.BufferAttribute(uvs,2));
-    const mat=new THREE.MeshBasicMaterial({ color:COL[L.o], map:stripeTex, transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false });
-    const mesh=new THREE.Mesh(g,mat); mesh.userData.link=L; mesh.renderOrder=2; linkGroup.add(mesh);
+    const A=new THREE.Vector3(a.x,GROUND_TOP+0.22,a.z), B=new THREE.Vector3(b.x,GROUND_TOP+0.22,b.z);
+    const u=new THREE.Vector3().subVectors(B,A).normalize();
+    const start=A.clone().add(u.clone().multiplyScalar(0.75));
+    const end=B.clone().add(u.clone().multiplyScalar(-0.95));
+    const seg=new THREE.Vector3().subVectors(end,start); const L2=seg.length();
+    const mat=new THREE.MeshStandardMaterial({ color:SOLID[L.o], roughness:0.45, metalness:0.05, emissive:SOLID[L.o], emissiveIntensity:0.12 });
+    const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,L2,12), mat);
+    tube.quaternion.setFromUnitVectors(up, seg.clone().normalize());
+    tube.position.copy(start).add(end).multiplyScalar(0.5);
+    tube.userData.link=L; linkGroup.add(tube);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.5,14), mat);
+    cone.quaternion.setFromUnitVectors(up, u); cone.position.copy(end); cone.userData.link=L; linkGroup.add(cone);
   }
 }
 

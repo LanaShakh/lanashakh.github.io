@@ -426,12 +426,8 @@
       <button class="choice-btn mode1" data-voice="on">🔊 Включить</button>
       <button class="choice-btn mode2" data-voice="off">🔇 Выключить</button>
     </div>
-    <div class="voice-pick">
-      <span>Какой голос:</span>
-      <select id="voiceSelect"><option value="">Авто (лучший)</option></select>
-    </div>
-    <button class="ghost-btn" id="btnVoiceTest" style="margin-top:8px;">🔊 Проверить голос</button>
-    <div class="diff-note">На телефоне голоса приятнее, чем на ПК. Если звучит «роботом» — выбери другой голос из списка.</div>
+    <button class="ghost-btn" id="btnVoiceTest" style="margin-top:10px;">🔊 Проверить голос</button>
+    <div class="diff-note">Робот озвучен приятным голосом. Нажми «Проверить голос», чтобы послушать.</div>
 
     <button class="play-btn" id="btnSetupPlay">▶️ Поехали!</button>
     <button class="ghost-btn" id="btnSetupBack" style="margin-top:10px;">⬅️ Назад</button>
@@ -1102,6 +1098,33 @@
     speak("Сколько будет " + q.a + w + q.b + "?");
   }
 
+  // ---------- ГОТОВАЯ ОЗВУЧКА (записанный голос) ----------
+  var VOICE_BASE = "voices_pack/";
+  var vpAudio = null;
+  function vpStop(){ if (vpAudio){ try { vpAudio.pause(); } catch(e){} vpAudio = null; } }
+  function vpPlaySeq(names){
+    if (!save.voice || !names || !names.length) return;
+    vpStop();
+    var i = 0;
+    function next(){
+      if (i >= names.length) return;
+      var a = new Audio(VOICE_BASE + names[i] + ".mp3");
+      vpAudio = a;
+      a.onended = function(){ i++; next(); };
+      a.onerror = function(){ i++; next(); };
+      a.play().catch(function(){});
+    }
+    next();
+  }
+  function voiceQuestion(q){
+    if (q.a > 100 || q.b > 100){ speakQuestion(q); return; } // запас: очень больших чисел нет, но на всякий
+    vpPlaySeq(["q_skolko", "n"+q.a, (q.sign === "+" ? "op_plus" : "op_minus"), "n"+q.b]);
+  }
+  function voicePraise(){ vpPlaySeq(["praise_" + rnd(6)]); }
+  function voiceWin(correct){ vpPlaySeq([correct >= 8 ? "win_good" : "win_ok"]); }
+  function voiceHello(){ vpPlaySeq(["hello"]); }
+  function voiceGoal(){ vpPlaySeq(["goal"]); }
+
   // ---------- ГЕНЕРАЦИЯ С РОСТОМ СЛОЖНОСТИ ----------
   function effCeiling(max){
     var f = 0.35 + 0.65 * ((curSkill()-1) / (MAXSKILL-1));
@@ -1201,7 +1224,7 @@
     var pct = state.qIndex/TOTAL_QUESTIONS*100;
     elFill.style.width = pct+"%"; elBot.style.left = pct+"%";
     updatePwrBar();
-    speakQuestion(state.current);
+    voiceQuestion(state.current);
   }
 
   // ---------- ОТВЕТЫ (с дорешиванием) ----------
@@ -1243,8 +1266,9 @@
     // дневная цель
     ensureDaily();
     save.daily.solved += 1;
+    var goalJust = false;
     if (!save.daily.goalReached && save.daily.solved >= DAILY_GOAL){
-      save.daily.goalReached = true;
+      save.daily.goalReached = true; goalJust = true;
       save.total += 25; save.wallet += 25;
       msg += " · 🎯 цель дня! +25 ⭐";
     }
@@ -1255,7 +1279,7 @@
                     " <span class='q'>=</span> <span class='ans'>"+state.current.answer+"</span>";
     setMascot("happy", msg);
     soundRight(); burstConfetti(12);
-    speak(pick(["Молодец!","Верно!","Супер!","Отлично!","Класс!","Правильно!"]));
+    if (goalJust) voiceGoal(); else voicePraise();
     advanceTimer = setTimeout(nextQuestion, ADVANCE_DELAY);
   }
 
@@ -1311,7 +1335,7 @@
 
     showFact();
     show("win"); soundWin(); burstConfetti(50);
-    speak(state.correctCount >= 8 ? "Молодец! Отличный результат!" : "Хорошая тренировка! Ты справился!");
+    voiceWin(state.correctCount);
   }
 
   // ---------- СБОРКА ПАЗЛА ----------
@@ -1884,24 +1908,18 @@
     b.addEventListener("click", function(){
       save.voice = (b.getAttribute("data-voice") === "on");
       persist(); updateVoiceButtons();
-      if (save.voice) speak("Привет! Я твой робот. Давай считать вместе!");
-      else if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (save.voice) voiceHello();
+      else vpStop();
     });
   });
   updateVoiceButtons();
-  // выбор конкретного голоса
-  var vsel = el("voiceSelect");
-  if (vsel) vsel.addEventListener("change", function(){
-    save.voiceName = vsel.value || ""; persist();
-    speak("Привет! Сколько будет два плюс три?");
-  });
   var vtest = el("btnVoiceTest");
   if (vtest) vtest.addEventListener("click", function(){
     if (!save.voice){ save.voice = true; persist(); updateVoiceButtons(); }
-    speak("Привет! Я твой робот. Сколько будет два плюс три?");
+    voiceHello();
   });
   // нажатие на робота на главном — он говорит реплику
-  var heroEl = el("hero"); if (heroEl) heroEl.addEventListener("click", function(){ speak(homeGuideLine()); });
+  var heroEl = el("hero"); if (heroEl) heroEl.addEventListener("click", function(){ voiceHello(); });
   el("btnShopHome").addEventListener("click", function(){ renderHome(); show("start"); });
   document.querySelectorAll(".buy-btn[data-buy]").forEach(function(b){
     b.addEventListener("click", function(){ buyHints(parseInt(b.getAttribute("data-buy"),10), parseInt(b.getAttribute("data-price"),10)); });

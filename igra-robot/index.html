@@ -417,6 +417,14 @@
       <button class="choice-btn lvl3" data-max="100">🔥 До 100 <span class="skilltag" id="sk100"></span></button>
     </div>
     <div class="diff-note">Сложность растёт сама: за правильные ответы числа становятся больше ⬆️</div>
+
+    <div class="section-title">🔊 Голос робота</div>
+    <div class="choices">
+      <button class="choice-btn mode1" data-voice="on">🔊 Включить</button>
+      <button class="choice-btn mode2" data-voice="off">🔇 Выключить</button>
+    </div>
+    <div class="diff-note">Робот читает примеры вслух и хвалит — удобно, если ребёнок ещё не читает.</div>
+
     <button class="play-btn" id="btnSetupPlay">▶️ Поехали!</button>
     <button class="ghost-btn" id="btnSetupBack" style="margin-top:10px;">⬅️ Назад</button>
   </div>
@@ -842,7 +850,7 @@
   var save  = { total:0, wallet:0, hints:0, pieces:0, robotIndex:0, gallery:[],
                 mascot:"🤖", mascots:["🤖"], games:[], bestLadder:0, stats:{ solved:0, correct:0, wrong:0 },
                 theme:"space", themes:["space"], powerups:{ x2:0, shield:0, skip:0 },
-                daily:{ day:"", streak:0, solved:0, goalReached:false, giftClaimed:false }, storyRead:[] };
+                daily:{ day:"", streak:0, solved:0, goalReached:false, giftClaimed:false }, storyRead:[], voice:true };
   var skill = { 10:1, 20:1, 100:1 };
   function loadSave(){
     try {
@@ -865,6 +873,7 @@
       var pu=localStorage.getItem("robomath_powerups"); if(pu){ var po=JSON.parse(pu)||{}; save.powerups.x2=po.x2||0; save.powerups.shield=po.shield||0; save.powerups.skip=po.skip||0; }
       var dl=localStorage.getItem("robomath_daily"); if(dl){ var do2=JSON.parse(dl)||{}; save.daily.day=do2.day||""; save.daily.streak=do2.streak||0; save.daily.solved=do2.solved||0; save.daily.goalReached=!!do2.goalReached; save.daily.giftClaimed=!!do2.giftClaimed; }
       var sr=localStorage.getItem("robomath_story"); if(sr){ var sa=JSON.parse(sr); if(Array.isArray(sa)) save.storyRead=sa; }
+      var vo=localStorage.getItem("robomath_voice"); if(vo!==null) save.voice = (vo==="1");
     } catch(e){}
   }
   function persist(){
@@ -886,6 +895,7 @@
       localStorage.setItem("robomath_powerups", JSON.stringify(save.powerups));
       localStorage.setItem("robomath_daily", JSON.stringify(save.daily));
       localStorage.setItem("robomath_story", JSON.stringify(save.storyRead));
+      localStorage.setItem("robomath_voice", save.voice ? "1" : "0");
     } catch(e){}
   }
   function levelOf(s){ return Math.floor(s/STARS_PER_LEVEL)+1; }
@@ -908,6 +918,7 @@
       el("goalTeaser").textContent = homeTeaser();
     }
     if (el("homeBubble")) el("homeBubble").textContent = homeGuideLine();
+    updateVoiceButtons();
     el("sk10").textContent  = "· ступень "+skill[10]+"/"+MAXSKILL;
     el("sk20").textContent  = "· ступень "+skill[20]+"/"+MAXSKILL;
     el("sk100").textContent = "· ступень "+skill[100]+"/"+MAXSKILL;
@@ -983,6 +994,7 @@
                             ? { day:d.save.daily.day||"", streak:d.save.daily.streak||0, solved:d.save.daily.solved||0, goalReached:!!d.save.daily.goalReached, giftClaimed:!!d.save.daily.giftClaimed }
                             : { day:"", streak:0, solved:0, goalReached:false, giftClaimed:false };
           save.storyRead  = Array.isArray(d.save.storyRead) ? d.save.storyRead : [];
+          save.voice      = (d.save.voice !== false);
         }
         if (d && d.skill){
           skill[10]  = parseInt(d.skill[10],10)  || 1;
@@ -1022,6 +1034,36 @@
   function soundWin(){ var n=[523.25,659.25,783.99,1046.5]; n.forEach(function(f,i){ tone(f,i*0.14,0.32,0.30,"triangle"); }); tone(1046.5,0.62,0.5,0.26,"sine"); }
   function soundChime(){ tone(1318.5,0,0.5,0.22,"sine"); tone(1760,0.08,0.5,0.20,"sine"); tone(2093,0.16,0.6,0.20,"sine"); }
   function soundClick(){ tone(587.33,0,0.07,0.18,"sine"); }
+
+  // ---------- ГОЛОС РОБОТА (синтез речи) ----------
+  var ruVoice = null;
+  function pickVoice(){
+    if (!('speechSynthesis' in window)) return;
+    var vs = window.speechSynthesis.getVoices() || [];
+    for (var i=0;i<vs.length;i++){ if (/ru[-_]?/i.test(vs[i].lang)){ ruVoice = vs[i]; break; } }
+  }
+  if ('speechSynthesis' in window){
+    pickVoice();
+    window.speechSynthesis.onvoiceschanged = pickVoice;
+  }
+  function speak(text){
+    if (!save.voice || !text) return;
+    if (!('speechSynthesis' in window)) return;
+    // убираем эмодзи/символы, чтобы голос не зачитывал их
+    text = String(text).replace(/[^0-9A-Za-zА-Яа-яЁё \-,.!?]/g, " ").replace(/\s+/g, " ").trim();
+    if (!text) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = "ru-RU"; u.rate = 1.0; u.pitch = 1.15;
+      if (ruVoice) u.voice = ruVoice;
+      window.speechSynthesis.speak(u);
+    } catch(e){}
+  }
+  function speakQuestion(q){
+    var w = (q.sign === "+") ? " плюс " : " минус ";
+    speak("Сколько будет " + q.a + w + q.b + "?");
+  }
 
   // ---------- ГЕНЕРАЦИЯ С РОСТОМ СЛОЖНОСТИ ----------
   function effCeiling(max){
@@ -1122,6 +1164,7 @@
     var pct = state.qIndex/TOTAL_QUESTIONS*100;
     elFill.style.width = pct+"%"; elBot.style.left = pct+"%";
     updatePwrBar();
+    speakQuestion(state.current);
   }
 
   // ---------- ОТВЕТЫ (с дорешиванием) ----------
@@ -1175,6 +1218,7 @@
                     " <span class='q'>=</span> <span class='ans'>"+state.current.answer+"</span>";
     setMascot("happy", msg);
     soundRight(); burstConfetti(12);
+    speak(pick(["Молодец!","Верно!","Супер!","Отлично!","Класс!","Правильно!"]));
     advanceTimer = setTimeout(nextQuestion, ADVANCE_DELAY);
   }
 
@@ -1230,6 +1274,7 @@
 
     showFact();
     show("win"); soundWin(); burstConfetti(50);
+    speak(state.correctCount >= 8 ? "Молодец! Отличный результат!" : "Хорошая тренировка! Ты справился!");
   }
 
   // ---------- СБОРКА ПАЗЛА ----------
@@ -1791,6 +1836,24 @@
   el("btnSetup").addEventListener("click", function(){ show("setup"); });
   el("btnSetupPlay").addEventListener("click", startGame);
   el("btnSetupBack").addEventListener("click", function(){ show("start"); });
+
+  // переключатель голоса робота
+  function updateVoiceButtons(){
+    Array.prototype.forEach.call(document.querySelectorAll(".choice-btn[data-voice]"), function(b){
+      b.classList.toggle("selected", b.getAttribute("data-voice") === (save.voice ? "on" : "off"));
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".choice-btn[data-voice]"), function(b){
+    b.addEventListener("click", function(){
+      save.voice = (b.getAttribute("data-voice") === "on");
+      persist(); updateVoiceButtons();
+      if (save.voice) speak("Привет! Я твой робот. Давай считать вместе!");
+      else if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    });
+  });
+  updateVoiceButtons();
+  // нажатие на робота на главном — он говорит реплику
+  var heroEl = el("hero"); if (heroEl) heroEl.addEventListener("click", function(){ speak(homeGuideLine()); });
   el("btnShopHome").addEventListener("click", function(){ renderHome(); show("start"); });
   document.querySelectorAll(".buy-btn[data-buy]").forEach(function(b){
     b.addEventListener("click", function(){ buyHints(parseInt(b.getAttribute("data-buy"),10), parseInt(b.getAttribute("data-price"),10)); });

@@ -344,6 +344,10 @@
   .home-mascot .hero-img { width:160px; height:auto; display:block; margin:0 auto;
     filter:drop-shadow(0 10px 16px rgba(0,0,0,.22)); }
   .home-level, .home-stars { box-shadow:0 2px 8px rgba(0,0,0,.12); }
+
+  /* живые превью тем в магазине */
+  .theme-swatch { width:58px; height:42px; border-radius:10px; position:relative; overflow:hidden; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+  .theme-swatch span { position:absolute; font-size:14px; line-height:1; animation:floatShape 3s ease-in-out infinite; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
 </style>
 </head>
 <body>
@@ -1536,8 +1540,15 @@
       var owned = save.themes.indexOf(t.id) >= 0;
       var active = save.theme === t.id;
       var item = document.createElement("div"); item.className = "mascot-item";
-      var sw = document.createElement("div"); sw.className = "mascot-emoji";
-      sw.style.background = t.bg; sw.style.borderRadius = "8px"; sw.style.width = "40px"; sw.style.height = "40px";
+      var sw = document.createElement("div"); sw.className = "theme-swatch";
+      sw.style.background = t.bg;
+      var sh = (t.shapes || []).slice(0, 3);
+      var inner = "";
+      var pos = [[6,4],[34,6],[18,22]];
+      for (var k=0;k<sh.length;k++){
+        inner += '<span style="left:'+pos[k][0]+'px;top:'+pos[k][1]+'px;animation-delay:'+(k*0.4)+'s">'+sh[k]+'</span>';
+      }
+      sw.innerHTML = inner;
       var nm = document.createElement("div"); nm.className = "mascot-name";
       nm.textContent = t.name + (owned ? "" : (" · " + t.price + " ⭐"));
       var btn = document.createElement("button");
@@ -1757,14 +1768,7 @@
 })();
 </script>
 <script>
-  (function(){
-    if (!window.YaGames) return;
-    YaGames.init().then(function(ysdk){
-      window.ysdk = ysdk;
-      try { var lang = ysdk.environment.i18n.lang; window.gameLang=(lang==="ru")?"ru":"ru"; document.documentElement.setAttribute("lang", lang||"ru"); } catch(e){}
-      try { ysdk.features.LoadingAPI.ready(); } catch(e){}
-    }).catch(function(){});
-  })();
+  (function(){ if (!window.YaGames) return; YaGames.init().then(function(ysdk){ window.ysdk=ysdk; try{var lang=ysdk.environment.i18n.lang;window.gameLang=(lang==="ru")?"ru":"ru";document.documentElement.setAttribute("lang",lang||"ru");}catch(e){} try{ysdk.features.LoadingAPI.ready();}catch(e){} }).catch(function(){}); })();
 </script>
 </body>
 </html>

@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Считаем с Роботом! 🤖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
@@ -270,31 +273,106 @@
   .panel-art img { width:auto; height:100%; }
   .panel-say { margin-top:10px; background:#fff7e6; border:2px solid #ffd56b; border-radius:12px; padding:9px 12px; font-size:16px; color:#3a3a55; line-height:1.4; }
   .panel-say b { color:#a36a00; }
+
+  /* ===================== РЕДИЗАЙН: приложение без прокрутки ===================== */
+  body {
+    font-family:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    align-items:stretch; padding:0; height:100vh; height:100dvh;
+  }
+  .app {
+    max-width:480px; width:100%; margin:0 auto;
+    height:100vh; height:100dvh; min-height:0;
+    border-radius:0; padding:0; display:flex; flex-direction:column;
+    box-shadow:0 0 50px rgba(0,0,0,.25); overflow:hidden;
+  }
+  .content {
+    flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:16px 16px 18px;
+  }
+  .content::-webkit-scrollbar { width:0; height:0; }
+  h1 { font-weight:900; }
+
+  /* нижнее меню */
+  .bottomnav { display:flex; height:62px; flex-shrink:0; background:#ffffff; border-top:1px solid #eef0f7; box-shadow:0 -4px 18px rgba(40,40,90,.07); }
+  .navbtn { flex:1; border:none; background:none; cursor:pointer; font-family:inherit;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    color:#9aa0b5; font-size:11px; font-weight:800; padding:0; }
+  .navbtn .ic { font-size:23px; line-height:1; opacity:.55; transition:transform .15s, opacity .15s; }
+  .navbtn.active { color:#4361ee; }
+  .navbtn.active .ic { opacity:1; transform:translateY(-2px) scale(1.06); }
+
+  /* Дом */
+  #screen-start.active { display:flex; flex-direction:column; height:100%; }
+  .home-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .home-level, .home-stars { font-weight:800; border-radius:14px; padding:8px 13px; font-size:15px; }
+  .home-level { background:#eef2ff; color:#3046b5; }
+  .home-stars { background:#fff7e6; color:#a36a00; }
+  .daily-pill { margin-left:auto; border:none; background:#eef2ff; border-radius:14px; padding:7px 12px; font-size:20px; line-height:1; cursor:pointer; box-shadow:0 3px 0 #d3daf2; }
+  .daily-pill:active { transform:translateY(2px); box-shadow:0 1px 0 #d3daf2; }
+  .daily-pill.ready { background:linear-gradient(90deg,#ffd56b,#ff9f1c); box-shadow:0 3px 0 #c77f00; animation:glow 1.4s ease-in-out infinite; }
+  .home-hero { flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:0; }
+  .home-mascot { font-size:104px; line-height:1; animation:floaty 2.6s ease-in-out infinite; }
+  .home-title { font-size:27px; color:#4361ee; text-align:center; margin:0; }
+  .play-btn { width:100%; background:linear-gradient(90deg,#4361ee,#38ef7d); color:#fff; border:none; border-radius:22px; padding:18px; font-size:24px; font-family:inherit; font-weight:900; cursor:pointer; box-shadow:0 6px 0 #2a3eaa; flex-shrink:0; }
+  .play-btn:active { transform:translateY(3px); box-shadow:0 3px 0 #2a3eaa; }
+  .mode-btn { width:100%; margin-top:10px; background:#fff; color:#4361ee; border:2px solid #dbe2ff; border-radius:16px; padding:12px; font-size:15px; font-family:inherit; font-weight:800; cursor:pointer; flex-shrink:0; }
+  .mode-btn:active { transform:translateY(2px); }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
-  <!-- СТАРТ -->
+  <div class="content" id="content">
+
+  <!-- ДОМ -->
   <div class="screen active" id="screen-start">
-    <div class="hero" id="hero">🤖</div>
-    <h1>Считаем с Роботом!</h1>
-    <p class="subtitle">Решай примеры, собирай кусочки пазла и узнавай крутые факты ⚡</p>
+    <div class="home-top">
+      <div class="home-level">🎖️ ур. <span id="lvlNum">1</span></div>
+      <div class="home-stars">⭐ <span id="totalStars">0</span></div>
+      <button class="daily-pill" id="btnDaily" title="Подарок дня">🎁</button>
+    </div>
+    <div class="lvlprog"><div id="lvlProg"></div></div>
 
+    <div class="home-hero">
+      <div class="home-mascot" id="hero">🤖</div>
+      <h1 class="home-title">Считаем с Роботом!</h1>
+    </div>
+
+    <button class="play-btn" id="btnStart">▶️ Играть</button>
+    <button class="mode-btn" id="btnSetup">⚙️ Режим: <span id="modeSummary">➕➖ · до 10 · выбор</span></button>
+  </div>
+
+  <!-- НАСТРОЙКА РЕЖИМА -->
+  <div class="screen" id="screen-setup">
+    <h1 class="comic-title">⚙️ Настройки игры</h1>
+    <div class="section-title">Что будем решать?</div>
+    <div class="choices">
+      <button class="choice-btn lvl1 selected" data-op="both">➕ ➖ Сложение и вычитание</button>
+      <button class="choice-btn lvl2" data-op="add">➕ Только сложение</button>
+      <button class="choice-btn lvl3" data-op="sub">➖ Только вычитание</button>
+    </div>
+    <div class="section-title">Как отвечать?</div>
+    <div class="choices">
+      <button class="choice-btn mode1 selected" data-mode="choice">🔘 Выбрать из вариантов</button>
+      <button class="choice-btn mode2" data-mode="type">⌨️ Ввести ответ самому (сложнее)</button>
+    </div>
+    <div class="section-title">Диапазон чисел</div>
+    <div class="choices">
+      <button class="choice-btn lvl1 selected" data-max="10">🐣 До 10 <span class="skilltag" id="sk10"></span></button>
+      <button class="choice-btn lvl2" data-max="20">🚀 До 20 <span class="skilltag" id="sk20"></span></button>
+      <button class="choice-btn lvl3" data-max="100">🔥 До 100 <span class="skilltag" id="sk100"></span></button>
+    </div>
+    <div class="diff-note">Сложность растёт сама: за правильные ответы числа становятся больше ⬆️</div>
+    <button class="play-btn" id="btnSetupPlay">▶️ Поехали!</button>
+    <button class="ghost-btn" id="btnSetupBack" style="margin-top:10px;">⬅️ Назад</button>
+  </div>
+
+  <!-- ПРОФИЛЬ -->
+  <div class="screen" id="screen-profile">
+    <h1 class="comic-title">👤 Профиль</h1>
     <div class="panel">
-      <div class="row"><span>🎖️ Уровень <span class="lvlnum" id="lvlNum">1</span></span><span>⭐ Звёзды: <span class="starnum" id="totalStars">0</span></span></div>
-      <div class="lvlprog"><div id="lvlProg"></div></div>
       <div class="statsline" id="statsLine">📊 Решено: 0 · верно: 0 · с ошибкой: 0</div>
-    </div>
-
-    <div class="home-actions">
-      <button class="map-btn" id="btnMap">🗺️ Приключение</button>
-      <button class="daily-btn" id="btnDaily">🎁 Подарок дня</button>
-    </div>
-
-    <div class="shopbar">
-      <div class="hintsown">💡 Подсказок: <span id="homeHints">0</span></div>
-      <button class="shop-btn" id="btnShop">🛒 Магазин</button>
+      <div class="row" style="margin-top:8px;"><span>💡 Подсказок: <span id="homeHints">0</span></span></div>
     </div>
 
     <div class="puzzlebox">
@@ -313,30 +391,7 @@
       <button class="save-btn" id="btnImport">📂 Загрузить</button>
       <input type="file" id="fileInput" accept=".json,application/json" style="display:none;">
     </div>
-    <div class="save-note">Прогресс сохраняется сам. Кнопка «Сохранить в файл» — резервная копия на всякий случай.</div>
-
-    <div class="section-title">Что будем решать?</div>
-    <div class="choices">
-      <button class="choice-btn lvl1 selected" data-op="both">➕ ➖ Сложение и вычитание</button>
-      <button class="choice-btn lvl2" data-op="add">➕ Только сложение</button>
-      <button class="choice-btn lvl3" data-op="sub">➖ Только вычитание</button>
-    </div>
-
-    <div class="section-title">Как отвечать?</div>
-    <div class="choices">
-      <button class="choice-btn mode1 selected" data-mode="choice">🔘 Выбрать из вариантов</button>
-      <button class="choice-btn mode2" data-mode="type">⌨️ Ввести ответ самому (сложнее)</button>
-    </div>
-
-    <div class="section-title">Выбери диапазон чисел</div>
-    <div class="choices">
-      <button class="choice-btn lvl1 selected" data-max="10">🐣 До 10 <span class="skilltag" id="sk10"></span></button>
-      <button class="choice-btn lvl2" data-max="20">🚀 До 20 <span class="skilltag" id="sk20"></span></button>
-      <button class="choice-btn lvl3" data-max="100">🔥 До 100 <span class="skilltag" id="sk100"></span></button>
-    </div>
-    <div class="diff-note">Сложность примеров растёт сама: за правильные ответы числа становятся больше. ⬆️</div>
-
-    <button class="start-btn" id="btnStart">Поехали! 🚀</button>
+    <div class="save-note">Прогресс сохраняется сам. «Сохранить в файл» — резервная копия.</div>
   </div>
 
   <!-- ИГРА -->
@@ -402,10 +457,9 @@
 
   <!-- МАГАЗИН -->
   <div class="screen" id="screen-shop">
-    <div class="hero" style="font-size:54px;">🛒</div>
-    <h1>Магазин подсказок</h1>
+    <h1 class="comic-title">🛒 Магазин</h1>
     <p class="shop-balance">У тебя: <span id="shopWallet">0</span> ⭐ · Подсказок: <span id="shopHints">0</span> 💡</p>
-    <p class="puzzle-hint">Подсказка не даёт готовый ответ — она учит, КАК посчитать. Это классный лайфхак! 🧠</p>
+    <p class="puzzle-hint">Трать звёзды на подсказки, усиления, героев и темы! 🧠</p>
     <div class="shop-item">
       <div class="shop-info"><b>💡 1 подсказка</b><br>цена: 15 ⭐</div>
       <button class="buy-btn" data-buy="1" data-price="15">Купить</button>
@@ -504,6 +558,16 @@
     <div id="comicPanels"></div>
     <button class="start-btn" id="btnComicDone">Дальше ▶️</button>
   </div>
+
+  </div><!-- /content -->
+
+  <!-- НИЖНЕЕ МЕНЮ -->
+  <nav class="bottomnav" id="bottomnav">
+    <button class="navbtn" data-tab="home"><span class="ic">🏠</span>Дом</button>
+    <button class="navbtn" data-tab="shop"><span class="ic">🛒</span>Магазин</button>
+    <button class="navbtn" data-tab="map"><span class="ic">🗺️</span>Приключение</button>
+    <button class="navbtn" data-tab="profile"><span class="ic">👤</span>Профиль</button>
+  </nav>
 
   <!-- ПОДСКАЗКА -->
   <div class="hint-card" id="hintCard">
@@ -774,7 +838,7 @@
     el("lvlProg").style.width = ((save.total % STARS_PER_LEVEL)/STARS_PER_LEVEL*100)+"%";
     el("statsLine").textContent = "📊 Решено: "+save.stats.solved+" · верно: "+save.stats.correct+" · с ошибкой: "+save.stats.wrong;
     el("homeHints").textContent = save.hints;
-    applyMascot(); applyTheme(); updateDailyBtn();
+    applyMascot(); applyTheme(); updateDailyBtn(); updateModeSummary();
     el("sk10").textContent  = "· ступень "+skill[10]+"/"+MAXSKILL;
     el("sk20").textContent  = "· ступень "+skill[20]+"/"+MAXSKILL;
     el("sk100").textContent = "· ступень "+skill[100]+"/"+MAXSKILL;
@@ -807,9 +871,9 @@
       b.classList.add("selected"); onPick(b.getAttribute(attr));
     }); });
   }
-  wireGroup("data-op",   function(v){ settings.op = v; });
-  wireGroup("data-max",  function(v){ settings.max = parseInt(v,10); });
-  wireGroup("data-mode", function(v){ settings.mode = v; });
+  wireGroup("data-op",   function(v){ settings.op = v; updateModeSummary(); });
+  wireGroup("data-max",  function(v){ settings.max = parseInt(v,10); updateModeSummary(); });
+  wireGroup("data-mode", function(v){ settings.mode = v; updateModeSummary(); });
 
   // ---------- СОХРАНЕНИЕ В ФАЙЛ ----------
   function exportSave(){
@@ -1176,9 +1240,15 @@
   }
   function dailyReady(){ return save.daily.last !== dayKey(0); }
   function updateDailyBtn(){
-    var b = el("btnDaily");
-    if (dailyReady()){ b.classList.add("ready"); b.textContent = "🎁 Подарок дня!"; }
-    else { b.classList.remove("ready"); b.textContent = "🎁 Уже получено"; }
+    var b = el("btnDaily"); if (!b) return;
+    b.textContent = "🎁";
+    b.classList.toggle("ready", dailyReady());
+  }
+  function updateModeSummary(){
+    var ms = el("modeSummary"); if (!ms) return;
+    var op = settings.op === "add" ? "➕" : (settings.op === "sub" ? "➖" : "➕➖");
+    var mode = settings.mode === "type" ? "ввод" : "выбор";
+    ms.textContent = op + " · до " + settings.max + " · " + mode;
   }
   function claimDaily(){
     if (!dailyReady()){ showReward("⏳","Уже получено","Подарок дня ты уже забрал. Загляни завтра! 🎁"); return; }
@@ -1542,8 +1612,31 @@
   function equipMascot(e){ save.mascot = e; persist(); applyMascot(); renderShop(); el("shopMsg").textContent = "Маскот " + e + " выбран!"; }
 
   // ---------- НАВИГАЦИЯ ----------
-  var screens = { start:el("screen-start"), game:el("screen-game"), win:el("screen-win"), puzzle:el("screen-puzzle"), shop:el("screen-shop"), compare:el("screen-compare"), ladder:el("screen-ladder"), map:el("screen-map"), comic:el("screen-comic") };
-  function show(name){ for (var k in screens) screens[k].classList.remove("active"); screens[name].classList.add("active"); }
+  var screens = { start:el("screen-start"), setup:el("screen-setup"), profile:el("screen-profile"), game:el("screen-game"), win:el("screen-win"), puzzle:el("screen-puzzle"), shop:el("screen-shop"), compare:el("screen-compare"), ladder:el("screen-ladder"), map:el("screen-map"), comic:el("screen-comic") };
+  // какие экраны показываются с нижним меню и какой вкладке соответствуют
+  var TAB_OF = { start:"home", shop:"shop", map:"map", profile:"profile" };
+  function show(name){
+    for (var k in screens) screens[k].classList.remove("active");
+    screens[name].classList.add("active");
+    var nav = el("bottomnav"), tab = TAB_OF[name];
+    if (tab){
+      nav.style.display = "flex";
+      var btns = document.querySelectorAll(".navbtn");
+      Array.prototype.forEach.call(btns, function(b){ b.classList.toggle("active", b.getAttribute("data-tab") === tab); });
+    } else {
+      nav.style.display = "none";
+    }
+    var c = el("content"); if (c) c.scrollTop = 0;
+  }
+  function goTab(tab){
+    if (tab === "home"){ renderHome(); show("start"); }
+    else if (tab === "shop"){ openShop(); }
+    else if (tab === "map"){ openMap(); }
+    else if (tab === "profile"){ renderHome(); show("profile"); }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".navbtn"), function(b){
+    b.addEventListener("click", function(){ goTab(b.getAttribute("data-tab")); });
+  });
 
   function startGame(){
     audio(); if (actx && actx.resume) actx.resume();
@@ -1563,7 +1656,9 @@
   el("btnExport").addEventListener("click", exportSave);
   el("btnImport").addEventListener("click", function(){ el("fileInput").click(); });
   el("fileInput").addEventListener("change", function(e){ if (e.target.files && e.target.files[0]) importSave(e.target.files[0]); e.target.value=""; });
-  el("btnShop").addEventListener("click", openShop);
+  el("btnSetup").addEventListener("click", function(){ show("setup"); });
+  el("btnSetupPlay").addEventListener("click", startGame);
+  el("btnSetupBack").addEventListener("click", function(){ show("start"); });
   el("btnShopHome").addEventListener("click", function(){ renderHome(); show("start"); });
   document.querySelectorAll(".buy-btn[data-buy]").forEach(function(b){
     b.addEventListener("click", function(){ buyHints(parseInt(b.getAttribute("data-buy"),10), parseInt(b.getAttribute("data-price"),10)); });
@@ -1571,8 +1666,7 @@
   el("btnHint").addEventListener("click", useHint);
   el("btnHintClose").addEventListener("click", function(){ el("hintCard").classList.remove("show"); });
 
-  // новые кнопки: карта, комикс, подарок дня, сюрприз, усиления, окно-награда
-  el("btnMap").addEventListener("click", openMap);
+  // новые кнопки: комикс, подарок дня, сюрприз, усиления, окно-награда
   el("btnMapHome").addEventListener("click", function(){ renderHome(); show("start"); });
   el("btnMapHome2").addEventListener("click", function(){ renderHome(); show("start"); });
   el("btnComicBack").addEventListener("click", function(){ openMap(); });
@@ -1597,7 +1691,7 @@
     else if (e.key==="Enter"){ e.preventDefault(); onKey("✓"); }
   });
 
-  buildKeypad(); loadSave(); renderHome();
+  buildKeypad(); loadSave(); renderHome(); show("start");
 })();
 </script>
 </body>

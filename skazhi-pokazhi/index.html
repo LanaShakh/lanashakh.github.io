@@ -5,15 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#fef6ec">
 <title>Скажи-Покажи</title>
-<meta name="description" content="Скажи-Покажи — развивающие карточки с озвучкой для занятий с детьми. Два режима: понимание речи (покажи картинку) и развитие речи (назови картинку). Свои карточки и фото.">
+<meta name="description" content="Скажи-Покажи — развивающие карточки с озвучкой: понимание речи, называние, доска общения и визуальное расписание. Свои фото и голос, прогресс для родителя. Офлайн.">
 <style>
   :root{
     --bg1:#fef6ec; --bg2:#fde9d6; --ink:#3a2e26; --muted:#9a8a7d;
-    --card:#ffffff; --shadow:0 10px 30px rgba(120,80,40,.12);
+    --card:#ffffff; --shadow:0 10px 30px rgba(120,80,40,.12); --shadow-s:0 4px 14px rgba(120,80,40,.10);
     --green:#46c08a; --green-d:#2fa170;
     --blue:#4a9fe0; --blue-d:#2f86cb;
     --amber:#f4a94b; --amber-d:#e0913a;
-    --pink:#f47ba7;
+    --pink:#f47ba7; --pink-d:#e25c8e;
+    --teal:#3fb8b0; --teal-d:#2c948d;
+    --violet:#8b7fd6; --violet-d:#6f61c4;
+    --red:#e8746f;
     --line:rgba(120,80,40,.10);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -27,61 +30,59 @@
       linear-gradient(160deg,var(--bg1),var(--bg2));
     display:flex; flex-direction:column; height:100%;
   }
-
-  /* ---------- top bar ---------- */
   .bar{display:flex; align-items:center; gap:10px; padding:max(12px,env(safe-area-inset-top)) 16px 10px;}
-  .bar .logo{font-weight:900; font-size:19px; letter-spacing:-.3px; display:flex; align-items:center; gap:8px;}
+  .bar .logo{font-weight:900; font-size:18px; letter-spacing:-.3px; display:flex; align-items:center; gap:8px;}
   .bar .logo .em{font-size:22px;}
   .spacer{margin-left:auto;}
   .iconbtn{background:var(--card); border:1px solid var(--line); color:var(--ink);
-    min-width:44px;height:44px;border-radius:14px; font-size:18px; font-weight:800; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; gap:6px; padding:0 14px; box-shadow:var(--shadow);}
+    min-width:44px;height:44px;border-radius:14px; font-size:16px; font-weight:800; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 14px; box-shadow:var(--shadow-s);}
   .iconbtn:active{transform:translateY(2px);}
   .iconbtn.ghost{background:transparent; box-shadow:none; border-color:transparent; color:var(--muted);}
+  .iconbtn.lg{height:52px; font-size:17px; border-radius:16px;}
 
   .stage{flex:1; min-height:0; position:relative; overflow:hidden;}
-  .screen{position:absolute; inset:0; display:none; flex-direction:column; padding:8px 16px 16px; overflow-y:auto;}
+  .screen{position:absolute; inset:0; display:none; flex-direction:column; padding:6px 16px 18px; overflow-y:auto;}
   .screen.show{display:flex; animation:fade .25s ease;}
   @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
 
   /* ---------- home ---------- */
-  .hero{text-align:center; margin:18px 0 8px;}
-  .hero h1{font-size:30px; font-weight:900; letter-spacing:-.5px;}
-  .hero p{color:var(--muted); font-size:15px; margin-top:6px; max-width:340px; margin-inline:auto;}
-  .menu{display:flex; flex-direction:column; gap:14px; max-width:420px; width:100%; margin:18px auto 0;}
-  .big-btn{border:none; border-radius:24px; padding:22px 22px; font-family:inherit; font-weight:900;
-    font-size:21px; color:#fff; cursor:pointer; box-shadow:var(--shadow); display:flex; align-items:center; gap:16px;
-    text-align:left;}
+  .hero{text-align:center; margin:14px 0 6px;}
+  .hero h1{font-size:28px; font-weight:900; letter-spacing:-.5px;}
+  .hero p{color:var(--muted); font-size:14px; margin-top:5px; max-width:340px; margin-inline:auto;}
+  .menu{display:grid; grid-template-columns:1fr 1fr; gap:13px; max-width:460px; width:100%; margin:16px auto 0;}
+  .big-btn{border:none; border-radius:22px; padding:20px 16px; font-family:inherit; font-weight:900;
+    font-size:18px; color:#fff; cursor:pointer; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
+    text-align:left; min-height:118px; justify-content:space-between;}
   .big-btn .e{font-size:34px; line-height:1;}
-  .big-btn small{display:block; font-weight:700; font-size:13px; opacity:.92; margin-top:3px;}
+  .big-btn small{display:block; font-weight:700; font-size:12px; opacity:.95; margin-top:2px;}
   .big-btn:active{transform:translateY(2px);}
   .b-show{background:linear-gradient(135deg,var(--blue),var(--blue-d));}
   .b-say{background:linear-gradient(135deg,var(--amber),var(--amber-d));}
-  .b-cards{background:linear-gradient(135deg,#8b7fd6,#6f61c4);}
-  .b-sched{background:linear-gradient(135deg,#3fb8b0,#2c948d);}
-  .foot{margin-top:auto; text-align:center; color:var(--muted); font-size:12px; padding-top:18px;}
+  .b-aac{background:linear-gradient(135deg,var(--green),var(--green-d));}
+  .b-sched{background:linear-gradient(135deg,var(--teal),var(--teal-d));}
+  .parent-row{display:flex; gap:10px; max-width:460px; width:100%; margin:14px auto 0; flex-wrap:wrap;}
+  .parent-row .iconbtn{flex:1; min-width:120px;}
+  .foot{margin-top:auto; text-align:center; color:var(--muted); font-size:11.5px; padding-top:16px; line-height:1.5;}
   .foot b{color:#b89a82;}
 
-  /* ---------- screen title ---------- */
   .sub-head{display:flex; align-items:center; gap:12px; margin:4px 0 10px;}
-  .sub-head h2{font-size:20px; font-weight:900;}
+  .sub-head h2{font-size:19px; font-weight:900;}
   .sub-head .tag{margin-left:auto; font-size:13px; font-weight:800; color:#fff; background:var(--green);
     padding:6px 12px; border-radius:999px;}
+  .tag.tap{cursor:pointer;}
 
-  /* ---------- PLAY: понимание ---------- */
-  .prompt{display:flex; flex-direction:column; align-items:center; gap:12px; margin:10px 0 18px;}
+  /* ---------- понимание ---------- */
+  .prompt{display:flex; flex-direction:column; align-items:center; gap:10px; margin:8px 0 16px;}
   .speak{border:none; cursor:pointer; background:linear-gradient(135deg,var(--green),var(--green-d));
-    color:#fff; font-weight:900; font-size:19px; padding:16px 28px; border-radius:999px; box-shadow:var(--shadow);
-    display:flex; align-items:center; gap:12px;}
-  .speak .e{font-size:26px;}
+    color:#fff; font-weight:900; font-size:18px; padding:15px 26px; border-radius:999px; box-shadow:var(--shadow);
+    display:inline-flex; align-items:center; gap:11px;}
+  .speak .e{font-size:24px;}
   .speak:active{transform:translateY(2px);}
   .speak.pulse{animation:pulse 1.1s ease infinite;}
   @keyframes pulse{0%,100%{box-shadow:0 8px 22px rgba(70,192,138,.35)}50%{box-shadow:0 8px 34px rgba(70,192,138,.7)}}
-  .word-hint{color:var(--muted); font-size:14px; font-weight:700; min-height:18px;}
-
-  .grid{display:grid; gap:14px; width:100%; max-width:560px; margin:0 auto;
-    grid-template-columns:repeat(2,1fr);}
-  .grid.cols3{grid-template-columns:repeat(3,1fr);} /* unused on narrow, kept for big screens */
+  .word-hint{color:var(--muted); font-size:14px; font-weight:700; min-height:18px; text-align:center;}
+  .grid{display:grid; gap:14px; width:100%; max-width:560px; margin:0 auto; grid-template-columns:repeat(2,1fr);}
   .choice{aspect-ratio:1/1; background:var(--card); border:3px solid transparent; border-radius:24px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--shadow);
     overflow:hidden; position:relative; transition:transform .12s, border-color .15s;}
@@ -89,29 +90,106 @@
   .choice img{width:100%; height:100%; object-fit:cover;}
   .choice:active{transform:scale(.96);}
   .choice.right{border-color:var(--green); animation:pop .4s ease;}
-  .choice.wrong{border-color:#e8746f; animation:shake .4s ease;}
-  .choice.dim{opacity:.35;}
+  .choice.wrong{border-color:var(--red); animation:shake .4s ease;}
+  .choice.dim{opacity:.32;}
   @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
   @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 
-  /* ---------- PLAY: речь ---------- */
-  .say-card{background:var(--card); border-radius:30px; box-shadow:var(--shadow); width:100%; max-width:420px;
-    margin:6px auto 0; padding:24px; display:flex; flex-direction:column; align-items:center; gap:8px;}
-  .say-pic{width:min(62vw,260px); height:min(62vw,260px); border-radius:24px; display:flex; align-items:center;
+  /* ---------- назови ---------- */
+  .say-card{background:var(--card); border-radius:28px; box-shadow:var(--shadow); width:100%; max-width:420px;
+    margin:4px auto 0; padding:20px; display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .say-pic{width:min(54vw,220px); height:min(54vw,220px); border-radius:22px; display:flex; align-items:center;
     justify-content:center; overflow:hidden; background:var(--bg1);}
-  .say-pic .em{font-size:min(40vw,150px); line-height:1;}
+  .say-pic .em{font-size:min(34vw,128px); line-height:1;}
   .say-pic img{width:100%;height:100%;object-fit:cover;}
-  .say-word{font-size:30px; font-weight:900; letter-spacing:-.3px; margin-top:6px;}
-  .say-actions{display:flex; gap:12px; width:100%; max-width:420px; margin:16px auto 0;}
-  .act{flex:1; border:none; border-radius:20px; padding:18px; font-family:inherit; font-weight:900; font-size:16px;
-    color:#fff; cursor:pointer; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:center; gap:4px;}
-  .act .e{font-size:24px;}
-  .act:active{transform:translateY(2px);}
-  .act.again{background:linear-gradient(135deg,#cdbfae,#b6a690);}
-  .act.ok{background:linear-gradient(135deg,var(--green),var(--green-d));}
+  .say-word{font-size:28px; font-weight:900; letter-spacing:-.3px; margin-top:4px;}
+  .say-models{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; justify-content:center;}
+  .chip{border:2px solid var(--line); background:#fff; color:var(--ink); border-radius:999px; padding:9px 15px;
+    font-family:inherit; font-weight:800; font-size:14px; cursor:pointer; display:inline-flex; gap:7px; align-items:center;}
+  .chip:active{transform:translateY(1px);}
+  .chip.rec{border-color:var(--red); color:var(--red);}
+  .chip.rec.on{background:var(--red); color:#fff; animation:pulse 1s infinite;}
+  .chip.play{border-color:var(--blue); color:var(--blue-d);}
+  .rate-label{font-weight:800; font-size:12.5px; color:var(--muted); margin:14px auto 6px; text-align:center;}
+  .rate-row{display:flex; gap:8px; width:100%; max-width:440px; margin:0 auto;}
+  .rate{flex:1; border:none; border-radius:16px; padding:13px 6px; font-family:inherit; font-weight:800; font-size:13px;
+    color:#fff; cursor:pointer; box-shadow:var(--shadow-s); display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .rate .e{font-size:20px;}
+  .rate:active{transform:translateY(2px);}
+  .r-again{background:linear-gradient(135deg,#cdbfae,#b6a690);}
+  .r-try{background:linear-gradient(135deg,#f0b86a,#e0913a);}
+  .r-close{background:linear-gradient(135deg,#6fc3e8,#2f86cb);}
+  .r-clear{background:linear-gradient(135deg,var(--green),var(--green-d));}
+  .nav-row{display:flex; gap:10px; max-width:440px; margin:14px auto 0; width:100%;}
+  .nav-row .iconbtn{flex:1;}
 
-  .nav-row{display:flex; gap:10px; max-width:420px; margin:14px auto 0; width:100%;}
-  .nav-row .iconbtn{flex:1; justify-content:center;}
+  /* ---------- AAC доска ---------- */
+  .strip{display:flex; gap:6px; align-items:center; background:var(--card); border-radius:16px; box-shadow:var(--shadow);
+    padding:10px; min-height:78px; overflow-x:auto; margin-bottom:10px;}
+  .strip .word{flex:0 0 auto; background:var(--bg1); border-radius:12px; padding:8px 10px; text-align:center; min-width:62px;}
+  .strip .word .em{font-size:26px; display:block;}
+  .strip .word .t{font-size:11px; font-weight:800; margin-top:2px;}
+  .strip .ph{color:var(--muted); font-weight:700; font-size:13.5px; padding:0 8px;}
+  .strip-tools{display:flex; gap:8px; margin-bottom:12px;}
+  .strip-tools .iconbtn{flex:1;}
+  .strip-tools .say-it{background:linear-gradient(135deg,var(--green),var(--green-d)); color:#fff; border:none;}
+  .aac-cat{display:flex; gap:7px; overflow-x:auto; padding-bottom:8px; margin-bottom:6px;}
+  .aac-cat button{flex:0 0 auto; border:2px solid var(--line); background:#fff; border-radius:999px; padding:7px 14px;
+    font-family:inherit; font-weight:800; font-size:13px; cursor:pointer; color:var(--ink);}
+  .aac-cat button.on{border-color:var(--green); background:rgba(70,192,138,.14);}
+  .aac-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:10px;}
+  .aac-tile{background:var(--card); border-radius:16px; box-shadow:var(--shadow-s); padding:8px 6px; text-align:center; cursor:pointer;}
+  .aac-tile:active{transform:scale(.95);}
+  .aac-tile .pic{height:48px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px;}
+  .aac-tile .pic .em{font-size:34px;} .aac-tile .pic img{width:100%;height:48px;object-fit:cover;border-radius:10px;}
+  .aac-tile .t{font-weight:800; font-size:12px; margin-top:4px; word-break:break-word;}
+  .core .aac-tile{background:linear-gradient(135deg,#fff,#f4f9f6); border:1px solid rgba(70,192,138,.25);}
+
+  /* ---------- schedule ---------- */
+  .sched-strip{display:flex; gap:4px; overflow-x:auto; padding:12px 4px; min-height:128px; align-items:center;
+    background:var(--card); border-radius:18px; box-shadow:var(--shadow); margin-bottom:12px;}
+  .sched-item{flex:0 0 auto; width:90px; background:var(--bg1); border-radius:16px; padding:8px; text-align:center;
+    position:relative; border:3px solid transparent; cursor:pointer;}
+  .sched-item.current{border-color:var(--amber); animation:pulse 1.1s ease infinite;}
+  .sched-item.done{opacity:.45;}
+  .sched-item .pic{height:50px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px;}
+  .sched-item .pic .em{font-size:36px;} .sched-item .pic img{width:100%;height:50px;object-fit:cover;border-radius:10px;}
+  .sched-item .lbl{font-weight:800; font-size:12px; margin-top:4px; word-break:break-word;}
+  .sched-item .check{position:absolute; top:-8px; right:-8px; font-size:22px; display:none;}
+  .sched-item.done .check{display:block;}
+  .sched-num{position:absolute; top:-8px; left:-8px; width:22px;height:22px;border-radius:50%;background:var(--blue);
+    color:#fff;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-s);}
+  .sched-arrow{flex:0 0 auto; color:var(--muted); font-size:18px; font-weight:900;}
+  .sched-empty{color:var(--muted); font-weight:700; text-align:center; width:100%; padding:0 14px; font-size:14px;}
+  .sched-tools{display:flex; gap:10px; justify-content:center; margin-bottom:12px;}
+  .pool-label{font-weight:800; font-size:13px; color:var(--muted); margin:4px 0 8px; text-align:center;}
+
+  /* ---------- cards manager / lists ---------- */
+  .card-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(94px,1fr)); gap:12px; max-width:600px; margin:0 auto; width:100%;}
+  .cm{background:var(--card); border-radius:18px; box-shadow:var(--shadow-s); padding:10px; text-align:center; position:relative; cursor:pointer;}
+  .cm .pic{height:60px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px;}
+  .cm .pic .em{font-size:42px;} .cm .pic img{width:100%;height:60px;object-fit:cover;border-radius:12px;}
+  .cm .lbl{font-weight:800; font-size:13px; margin-top:6px; word-break:break-word;}
+  .cm .pr{font-size:11px; color:var(--muted); margin-top:2px;}
+  .cm .kindmark{position:absolute; top:6px; left:8px; font-size:13px; opacity:.8;}
+  .cm .audiomark{position:absolute; top:6px; right:8px; font-size:12px;}
+  .cm .del{position:absolute; top:-7px; right:-7px; width:24px; height:24px; border-radius:50%; border:none;
+    background:var(--red); color:#fff; font-weight:900; cursor:pointer; font-size:14px; line-height:1; box-shadow:var(--shadow-s); z-index:2;}
+  .add-cm{border:2px dashed var(--muted); background:transparent; color:var(--muted); border-radius:18px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height:108px; font-weight:800;}
+  .add-cm .e{font-size:30px;}
+
+  /* ---------- progress ---------- */
+  .stat-row{display:flex; gap:10px; max-width:560px; margin:0 auto 14px; width:100%;}
+  .stat{flex:1; background:var(--card); border-radius:18px; box-shadow:var(--shadow-s); padding:14px 10px; text-align:center;}
+  .stat .n{font-size:26px; font-weight:900;}
+  .stat .l{font-size:12px; color:var(--muted); font-weight:700; margin-top:2px;}
+  .bar-line{display:flex; align-items:center; gap:10px; background:var(--card); border-radius:14px; box-shadow:var(--shadow-s);
+    padding:10px 12px; margin-bottom:8px; max-width:560px; margin-inline:auto;}
+  .bar-line .nm{font-weight:800; font-size:14px; min-width:90px;}
+  .bar-line .track{flex:1; height:12px; border-radius:999px; background:var(--bg2); overflow:hidden;}
+  .bar-line .fill{height:100%; border-radius:999px; background:linear-gradient(90deg,var(--amber),var(--green));}
+  .bar-line .pct{font-weight:800; font-size:12px; color:var(--muted); min-width:64px; text-align:right;}
 
   /* ---------- celebration ---------- */
   .cheer{position:absolute; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:30;}
@@ -119,72 +197,45 @@
   .cheer .star{font-size:120px; animation:cheer .9s ease;}
   @keyframes cheer{0%{transform:scale(0) rotate(-30deg); opacity:0}40%{transform:scale(1.2) rotate(10deg); opacity:1}100%{transform:scale(1) rotate(0); opacity:0}}
 
-  /* ---------- cards manager ---------- */
-  .stars{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
-    border-radius:16px; padding:12px 16px; margin-bottom:12px; box-shadow:var(--shadow); font-weight:800; font-size:14px;}
-  .stars .big{font-size:22px; color:var(--amber-d);}
-  .card-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:12px; max-width:560px; margin:0 auto; width:100%;}
-  .cm{background:var(--card); border-radius:18px; box-shadow:var(--shadow); padding:10px; text-align:center; position:relative;}
-  .cm .pic{height:62px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px;}
-  .cm .pic .em{font-size:42px;} .cm .pic img{width:100%;height:62px;object-fit:cover;border-radius:12px;}
-  .cm .lbl{font-weight:800; font-size:13px; margin-top:6px; word-break:break-word;}
-  .cm .pr{font-size:11px; color:var(--muted); margin-top:2px;}
-  .cm .del{position:absolute; top:-7px; right:-7px; width:24px; height:24px; border-radius:50%; border:none;
-    background:#e8746f; color:#fff; font-weight:900; cursor:pointer; font-size:14px; line-height:1; box-shadow:var(--shadow);}
-  .add-cm{border:2px dashed var(--muted); background:transparent; color:var(--muted); border-radius:18px;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height:110px; font-weight:800;}
-  .add-cm .e{font-size:30px;}
-
-  /* ---------- schedule ---------- */
-  .sched-strip{display:flex; gap:4px; overflow-x:auto; padding:12px 4px; min-height:130px; align-items:center;
-    background:var(--card); border-radius:18px; box-shadow:var(--shadow); margin-bottom:12px;}
-  .sched-item{flex:0 0 auto; width:92px; background:var(--bg1); border-radius:16px; padding:8px; text-align:center;
-    position:relative; border:3px solid transparent; cursor:pointer;}
-  .sched-item.current{border-color:var(--amber); animation:pulse 1.1s ease infinite;}
-  .sched-item.done{opacity:.45;}
-  .sched-item .pic{height:52px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px;}
-  .sched-item .pic .em{font-size:38px;} .sched-item .pic img{width:100%;height:52px;object-fit:cover;border-radius:10px;}
-  .sched-item .lbl{font-weight:800; font-size:12px; margin-top:4px; word-break:break-word;}
-  .sched-item .check{position:absolute; top:-8px; right:-8px; font-size:22px; display:none;}
-  .sched-item.done .check{display:block;}
-  .sched-num{position:absolute; top:-8px; left:-8px; width:22px;height:22px;border-radius:50%;background:var(--blue);
-    color:#fff;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);}
-  .sched-arrow{flex:0 0 auto; color:var(--muted); font-size:18px; font-weight:900;}
-  .sched-empty{color:var(--muted); font-weight:700; text-align:center; width:100%; padding:0 14px; font-size:14px;}
-  .sched-tools{display:flex; gap:10px; justify-content:center; margin-bottom:12px;}
-  .sched-pool-label{font-weight:800; font-size:13px; color:var(--muted); margin:4px 0 8px; text-align:center;}
-
-  /* ---------- modal (add card) ---------- */
+  /* ---------- modal ---------- */
   .modal{position:absolute; inset:0; background:rgba(58,46,38,.45); display:none; align-items:center; justify-content:center;
     z-index:40; padding:18px; backdrop-filter:blur(3px);}
   .modal.show{display:flex; animation:fade .2s ease;}
   .sheet{background:var(--bg1); border-radius:26px; width:100%; max-width:440px; padding:22px; box-shadow:var(--shadow);
-    max-height:90%; overflow-y:auto;}
+    max-height:92%; overflow-y:auto;}
   .sheet h3{font-size:19px; font-weight:900; margin-bottom:14px;}
   .field{margin-bottom:14px;}
   .field label{display:block; font-weight:800; font-size:13px; color:var(--muted); margin-bottom:6px;}
   .field input[type=text]{width:100%; border:2px solid var(--line); border-radius:14px; padding:14px; font-family:inherit;
     font-size:17px; font-weight:700; color:var(--ink); background:#fff;}
   .field input:focus{outline:none; border-color:var(--blue);}
-  .emoji-pick{display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr)); gap:8px; max-height:180px; overflow-y:auto;
+  .emoji-pick{display:grid; grid-template-columns:repeat(auto-fill,minmax(44px,1fr)); gap:8px; max-height:160px; overflow-y:auto;
     background:#fff; border:2px solid var(--line); border-radius:14px; padding:10px;}
-  .ep{font-size:28px; padding:6px; border-radius:10px; cursor:pointer; text-align:center; border:2px solid transparent; background:none;}
+  .ep{font-size:26px; padding:6px; border-radius:10px; cursor:pointer; text-align:center; border:2px solid transparent; background:none;}
   .ep.sel{border-color:var(--blue); background:rgba(74,159,224,.12);}
-  .or{text-align:center; color:var(--muted); font-weight:800; font-size:12px; margin:10px 0;}
-  .upload-btn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:2px solid var(--line);
-    border-radius:14px; padding:14px; background:#fff; cursor:pointer; font-weight:800; font-size:15px; color:var(--ink);}
-  .upload-prev{width:64px;height:64px;border-radius:12px;object-fit:cover;}
-  .sheet-actions{display:flex; gap:10px; margin-top:8px;}
-  .sheet-actions .iconbtn{flex:1; justify-content:center; font-size:16px; height:50px;}
+  .seg{display:flex; gap:8px;}
+  .seg button{flex:1; border:2px solid var(--line); background:#fff; border-radius:12px; padding:11px; font-family:inherit;
+    font-weight:800; cursor:pointer; color:var(--ink); font-size:14px;}
+  .seg button.on{border-color:var(--blue); background:rgba(74,159,224,.12);}
+  .or{text-align:center; color:var(--muted); font-weight:800; font-size:12px; margin:8px 0;}
+  .media-btns{display:flex; gap:8px;}
+  .media-btns .upload-btn{flex:1; display:flex; align-items:center; justify-content:center; gap:8px; border:2px solid var(--line);
+    border-radius:14px; padding:13px; background:#fff; cursor:pointer; font-weight:800; font-size:14px; color:var(--ink); text-align:center;}
+  .upload-prev{width:54px;height:54px;border-radius:10px;object-fit:cover;}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px;}
+  .sheet-actions .iconbtn{flex:1; height:50px; font-size:16px;}
   .save-btn{background:linear-gradient(135deg,var(--green),var(--green-d)); color:#fff; border:none; box-shadow:var(--shadow);}
 
-  .empty{text-align:center; color:var(--muted); font-weight:700; margin:30px auto; max-width:300px;}
-
-  /* settings inline */
-  .seg{display:flex; gap:8px; margin:6px 0 0;}
-  .seg button{flex:1; border:2px solid var(--line); background:#fff; border-radius:12px; padding:10px; font-family:inherit;
-    font-weight:800; cursor:pointer; color:var(--ink);}
-  .seg button.on{border-color:var(--blue); background:rgba(74,159,224,.12);}
+  .empty{text-align:center; color:var(--muted); font-weight:700; margin:30px auto; max-width:300px; line-height:1.5;}
+  .setting{display:flex; align-items:center; gap:12px; background:var(--card); border-radius:16px; box-shadow:var(--shadow-s);
+    padding:14px 16px; margin-bottom:10px; max-width:520px; margin-inline:auto;}
+  .setting .nm{font-weight:800; font-size:14px;} .setting .nm small{display:block; color:var(--muted); font-weight:600; font-size:12px; margin-top:2px;}
+  .setting .ctl{margin-left:auto;}
+  input[type=range]{width:150px;}
+  .toggle{width:54px;height:30px;border-radius:999px;border:none;cursor:pointer;background:#d8cabb;position:relative;}
+  .toggle.on{background:var(--green);}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;}
+  .toggle.on::after{left:27px;}
 </style>
 </head>
 <body>
@@ -201,35 +252,25 @@
   <section class="screen show" id="scr-home">
     <div class="hero">
       <h1>Скажи-Покажи</h1>
-      <p>Развивающие карточки с озвучкой. Слушаем, узнаём картинку и учимся называть.</p>
+      <p>Слушаем, узнаём, называем и общаемся — по одному маленькому шагу.</p>
     </div>
     <div class="menu">
-      <button class="big-btn b-show" data-go="show">
-        <span class="e">👀</span>
-        <span>Покажи<small>Слушаем слово — находим картинку</small></span>
-      </button>
-      <button class="big-btn b-say" data-go="say">
-        <span class="e">💬</span>
-        <span>Скажи<small>Смотрим картинку — называем сами</small></span>
-      </button>
-      <button class="big-btn b-sched" data-go="sched">
-        <span class="e">📅</span>
-        <span>Расписание<small>Что сейчас, что потом — по порядку</small></span>
-      </button>
-      <button class="big-btn b-cards" data-go="cards">
-        <span class="e">🗂️</span>
-        <span>Карточки<small>Для взрослого: добавить слова, фото, действия</small></span>
-      </button>
+      <button class="big-btn b-show" data-go="show"><span class="e">👀</span><span>Покажи<small>Слушаем слово — находим картинку</small></span></button>
+      <button class="big-btn b-say" data-go="say"><span class="e">💬</span><span>Назови<small>Смотрим картинку — говорим сами</small></span></button>
+      <button class="big-btn b-aac" data-go="aac"><span class="e">🗣️</span><span>Общение<small>Нажимай — собирай фразу</small></span></button>
+      <button class="big-btn b-sched" data-go="sched"><span class="e">📅</span><span>Расписание<small>Что сейчас, что потом</small></span></button>
     </div>
-    <div class="foot">Всё работает <b>офлайн</b> в браузере. Карточки хранятся на этом устройстве.</div>
+    <div class="parent-row">
+      <button class="iconbtn lg" data-go="cards">🗂️ Карточки</button>
+      <button class="iconbtn lg" data-go="progress">📊 Прогресс</button>
+      <button class="iconbtn lg" data-go="settings">⚙️ Настройки</button>
+    </div>
+    <div class="foot">Всё работает <b>офлайн</b>, данные хранятся на этом устройстве.<br>Это развивающий инструмент, он не заменяет занятия со специалистом.</div>
   </section>
 
-  <!-- ===================== PLAY: SHOW (понимание) ===================== -->
+  <!-- ===================== ПОКАЖИ ===================== -->
   <section class="screen" id="scr-show">
-    <div class="sub-head">
-      <h2>👀 Покажи картинку</h2>
-      <span class="tag" id="showScore">⭐ 0</span>
-    </div>
+    <div class="sub-head"><h2>👀 Покажи картинку</h2><span class="tag" id="showScore">⭐ 0</span></div>
     <div class="prompt">
       <button class="speak pulse" id="speakBtn"><span class="e">🔊</span> Послушать</button>
       <div class="word-hint" id="showHint"></div>
@@ -237,20 +278,25 @@
     <div class="grid" id="showGrid"></div>
   </section>
 
-  <!-- ===================== PLAY: SAY (речь) ===================== -->
+  <!-- ===================== НАЗОВИ ===================== -->
   <section class="screen" id="scr-say">
-    <div class="sub-head">
-      <h2>💬 Назови картинку</h2>
-      <span class="tag" id="sayScore">⭐ 0</span>
-    </div>
+    <div class="sub-head"><h2>💬 Назови картинку</h2><span class="tag" id="sayScore">⭐ 0</span></div>
     <div class="say-card">
       <div class="say-pic" id="sayPic"></div>
       <div class="say-word" id="sayWord"></div>
-      <button class="speak" id="sampleBtn" style="margin-top:6px"><span class="e">🔊</span> Образец</button>
+      <div class="say-models">
+        <button class="chip" id="mFull"><span>🔊</span> Образец</button>
+        <button class="chip" id="mSyl"><span>🐢</span> По слогам</button>
+        <button class="chip rec" id="mRec"><span>🎙️</span> Записать</button>
+        <button class="chip play" id="mPlay" style="display:none"><span>▶️</span> Моя речь</button>
+      </div>
     </div>
-    <div class="say-actions">
-      <button class="act again" id="sayAgain"><span class="e">🔁</span> Ещё разок</button>
-      <button class="act ok" id="sayOk"><span class="e">✅</span> Сказал!</button>
+    <div class="rate-label">Взрослый отмечает, как получилось (планку выбираете сами):</div>
+    <div class="rate-row">
+      <button class="rate r-again" id="rAgain"><span class="e">🔁</span>Ещё</button>
+      <button class="rate r-try" id="rTry"><span class="e">🙂</span>Попытка</button>
+      <button class="rate r-close" id="rClose"><span class="e">👍</span>Похоже</button>
+      <button class="rate r-clear" id="rClear"><span class="e">⭐</span>Чётко</button>
     </div>
     <div class="nav-row">
       <button class="iconbtn" id="sayPrev">← Назад</button>
@@ -258,69 +304,81 @@
     </div>
   </section>
 
-  <!-- ===================== SCHEDULE ===================== -->
-  <section class="screen" id="scr-sched">
-    <div class="sub-head">
-      <h2>📅 Расписание</h2>
-      <span class="tag" id="schedMode" style="background:var(--pink); cursor:pointer">🧩 Составляем</span>
+  <!-- ===================== ОБЩЕНИЕ (AAC) ===================== -->
+  <section class="screen" id="scr-aac">
+    <div class="sub-head"><h2>🗣️ Общение</h2></div>
+    <div class="strip" id="aacStrip"></div>
+    <div class="strip-tools">
+      <button class="iconbtn say-it" id="aacSay">🔊 Сказать фразу</button>
+      <button class="iconbtn" id="aacBack">⌫</button>
+      <button class="iconbtn" id="aacClear">✖ Очистить</button>
     </div>
+    <div class="aac-cat" id="aacCat"></div>
+    <div class="aac-grid" id="aacGrid"></div>
+  </section>
+
+  <!-- ===================== РАСПИСАНИЕ ===================== -->
+  <section class="screen" id="scr-sched">
+    <div class="sub-head"><h2>📅 Расписание</h2><span class="tag tap" id="schedMode" style="background:var(--pink)">🧩 Составляем</span></div>
     <div class="sched-strip" id="schedStrip"></div>
     <div class="sched-tools">
       <button class="iconbtn" id="schedNow" style="display:none"><span>📣</span> Что сейчас?</button>
       <button class="iconbtn" id="schedReset">🔄 Заново</button>
     </div>
     <div id="schedPoolWrap">
-      <div class="sched-pool-label">Нажми карточку — добавится в расписание. Нажми карточку в ленте — уберётся.</div>
+      <div class="pool-label">Нажми карточку — добавится. Нажми в ленте — уберётся.</div>
       <div class="card-list" id="schedPool"></div>
     </div>
   </section>
 
-  <!-- ===================== CARDS MANAGER ===================== -->
+  <!-- ===================== КАРТОЧКИ ===================== -->
   <section class="screen" id="scr-cards">
-    <div class="sub-head">
-      <h2>🗂️ Карточки</h2>
-      <span class="tag" id="cardCount" style="background:var(--blue)">0 шт.</span>
-    </div>
-    <div class="stars" id="starBar"><span class="big">⭐</span> <span id="starText">Звёзд за успехи: 0</span></div>
-    <div class="seg" style="margin-bottom:14px">
-      <span style="align-self:center;font-weight:800;font-size:13px;color:var(--muted);margin-right:6px">Сложность «Покажи»:</span>
-    </div>
-    <div class="seg" id="diffSeg" style="margin-bottom:16px">
-      <button data-diff="2">2 картинки</button>
-      <button data-diff="3">3 картинки</button>
-      <button data-diff="4">4 картинки</button>
-    </div>
+    <div class="sub-head"><h2>🗂️ Карточки</h2><span class="tag" id="cardCount" style="background:var(--blue)">0</span></div>
+    <div class="aac-cat" id="cardsFilter"></div>
     <div class="card-list" id="cardList"></div>
-    <div class="foot" style="margin-top:20px">Совет: фото знакомых ребёнку предметов узнаются лучше готовых картинок.</div>
+    <div class="foot" style="margin-top:18px">Совет: фото знакомых ребёнку предметов и <b>ваш записанный голос</b> узнаются лучше всего.</div>
   </section>
 
-  <!-- celebration overlay -->
+  <!-- ===================== ПРОГРЕСС ===================== -->
+  <section class="screen" id="scr-progress">
+    <div class="sub-head"><h2>📊 Прогресс</h2></div>
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="stMastered">0</div><div class="l">освоено слов</div></div>
+      <div class="stat"><div class="n" id="stLearning">0</div><div class="l">в работе</div></div>
+      <div class="stat"><div class="n" id="stStars">0</div><div class="l">звёзд</div></div>
+    </div>
+    <div class="pool-label">Слова, над которыми идёт работа (точность ответов):</div>
+    <div id="progressList"></div>
+    <div class="nav-row" style="max-width:560px"><button class="iconbtn" id="resetProgress">🔄 Сбросить прогресс</button></div>
+  </section>
+
+  <!-- ===================== НАСТРОЙКИ ===================== -->
+  <section class="screen" id="scr-settings">
+    <div class="sub-head"><h2>⚙️ Настройки</h2></div>
+    <div class="setting"><div class="nm">Темп речи<small>Медленнее — понятнее</small></div><div class="ctl"><input type="range" id="setRate" min="50" max="110" step="5"></div></div>
+    <div class="setting"><div class="nm">Картинок в «Покажи»<small>Авто подстраивается под ребёнка</small></div><div class="ctl"><div class="seg" id="setChoices" style="width:200px"><button data-c="auto">Авто</button><button data-c="2">2</button><button data-c="3">3</button><button data-c="4">4</button></div></div></div>
+    <div class="setting"><div class="nm">Похвала голосом<small>«Молодец!» после успеха</small></div><div class="ctl"><button class="toggle" id="setPraise"></button></div></div>
+    <div class="setting"><div class="nm">Звуки<small>Сигналы верно/неверно</small></div><div class="ctl"><button class="toggle" id="setSounds"></button></div></div>
+    <div class="foot" style="margin-top:14px">Голос озвучки берётся из браузера. Для своих карточек можно записать <b>собственный голос</b> — он понятнее ребёнку.</div>
+  </section>
+
   <div class="cheer" id="cheer"><div class="star" id="cheerEmoji">⭐</div></div>
 
-  <!-- add-card modal -->
+  <!-- add/edit card modal -->
   <div class="modal" id="modal">
     <div class="sheet">
       <h3 id="modalTitle">Новая карточка</h3>
-      <div class="field">
-        <label>Слово (что озвучивать)</label>
-        <input type="text" id="wordInput" placeholder="например: мяч" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Тип карточки</label>
-        <div class="seg" id="kindSeg">
-          <button data-kind="object" class="on" type="button">🧸 Предмет</button>
-          <button data-kind="action" type="button">🏃 Действие</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>Выбери картинку</label>
-        <div class="emoji-pick" id="emojiPick"></div>
-      </div>
-      <div class="or">— или —</div>
-      <div class="field">
-        <label for="fileInput" class="upload-btn" id="uploadLabel">📷 Загрузить своё фото</label>
-        <input type="file" id="fileInput" accept="image/*" style="display:none">
-      </div>
+      <div class="field"><label>Слово (что озвучивать)</label><input type="text" id="wordInput" placeholder="например: мяч" autocomplete="off"></div>
+      <div class="field"><label>Тип карточки</label><div class="seg" id="kindSeg">
+        <button data-kind="object" class="on" type="button">🧸 Предмет</button>
+        <button data-kind="action" type="button">🏃 Действие</button>
+      </div></div>
+      <div class="field"><label>Картинка</label><div class="emoji-pick" id="emojiPick"></div></div>
+      <div class="or">— или своё —</div>
+      <div class="field"><div class="media-btns">
+        <label for="fileInput" class="upload-btn" id="uploadLabel">📷 Фото</label>
+        <button type="button" class="upload-btn" id="recVoiceBtn">🎙️ Записать голос</button>
+      </div><input type="file" id="fileInput" accept="image/*" style="display:none"></div>
       <div class="sheet-actions">
         <button class="iconbtn" id="cancelBtn">Отмена</button>
         <button class="iconbtn save-btn" id="saveBtn">Сохранить</button>
@@ -333,424 +391,404 @@
 <script>
 "use strict";
 /* ============================================================
-   Скажи-Покажи — прототип развивающих карточек с озвучкой
-   Хранилище: localStorage (офлайн, на устройстве)
+   Скажи-Покажи — развивающие карточки с озвучкой
+   Принципы из исследования: активное припоминание (retrieval),
+   интервальное повторение (Лейтнер), безошибочный старт,
+   модель+имитация, доска общения (AAC), визуальное расписание,
+   родитель-соавтор (свои фото и голос). Хранение офлайн.
    ============================================================ */
 
-const LS_KEY = 'skazhi-pokazhi-v1';
-
-/* стартовый набор. третий элемент — тип: 'object' (предмет) или 'action' (действие/жест) */
+/* ---------- стартовые карточки: [слово, эмодзи, тип] ---------- */
 const STARTER = [
-  // предметы
   ['мама','👩','object'],['папа','👨','object'],['баба','👵','object'],['дом','🏠','object'],['кот','🐱','object'],
   ['собака','🐶','object'],['мяч','⚽','object'],['машина','🚗','object'],['яблоко','🍎','object'],['банан','🍌','object'],
   ['молоко','🥛','object'],['вода','💧','object'],['рыба','🐟','object'],['солнце','☀️','object'],['ложка','🥄','object'],
   ['чашка','☕','object'],['мишка','🧸','object'],['кукла','🪆','object'],['цветок','🌸','object'],['рука','✋','object'],
-  // действия и режимные моменты (для жестов и расписания)
   ['кушать','🍽️','action'],['спать','😴','action'],['мыть руки','🧼','action'],['гулять','🌳','action'],['играть','🧸','action'],
   ['чистить зубы','🪥','action'],['одеваться','👕','action'],['читать','📖','action'],['рисовать','🎨','action'],['занятие','✏️','action'],
   ['туалет','🚽','action'],['музыка','🎵','action'],['купаться','🛁','action'],['пить','🥤','action'],['привет','👋','action'],
 ];
 
-/* палитра эмодзи для выбора картинки */
+/* ядро частотных слов для доски общения (core vocabulary) */
+const CORE = [
+  ['я','🙋'],['хочу','🤲'],['ещё','➕'],['дай','👐'],['да','✅'],['нет','🚫'],['стоп','✋'],['всё','🏁'],
+  ['нравится','❤️'],['не нравится','💔'],['помоги','🆘'],['туда','👉'],['это','👆'],['больно','🤕'],['устал','😪'],['туалет','🚽'],
+];
+
 const EMOJI_BANK = ('👩 👨 👵 👴 👶 🧒 🐱 🐶 🐰 🐻 🐭 🐸 🐮 🐷 🐔 🐥 🐟 🐢 🦋 🐝 '
   +'🍎 🍌 🍓 🍇 🍊 🍉 🥕 🥦 🍞 🧀 🥚 🥛 🍪 🍰 🍭 🍫 🥄 🍴 🥤 ☕ '
   +'🏠 🚗 🚌 🚂 ✈️ 🚲 ⚽ 🏀 🎈 🎂 🧸 🪆 🚀 ⛵ 🪀 🎨 ✏️ 📚 🔑 ⏰ '
   +'☀️ 🌙 ⭐ ☁️ 🌧️ 🌈 🌸 🌳 🍄 🌻 ✋ 👁️ 👂 👃 👄 🦷 🦶 👕 👟 🧦 '
-  +'🍽️ 😴 🧼 🪥 🛁 🚽 🎵 🏃 🧩 📅 👋 🧹 🛏️ 🪑 🚿 📖 ✏️').split(' ');
+  +'🍽️ 😴 🧼 🪥 🛁 🚽 🎵 🏃 🧩 📅 👋 🧹 🛏️ 🪑 🚿 📖 🎒 🪥 🧴 🍲').split(' ').filter(Boolean);
 
+/* ---------- IndexedDB для медиа (фото/аудио) ---------- */
+const DB_NAME='sp-media', STORE='m';
+let _db=null;
+function idb(){ return _db ? Promise.resolve(_db) : new Promise((res,rej)=>{
+  const r=indexedDB.open(DB_NAME,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>{ _db=r.result; res(_db); };
+  r.onerror=()=>rej(r.error);
+});}
+async function mediaSet(id,val){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(val,id); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }
+async function mediaDel(id){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(id); tx.oncomplete=res; tx.onerror=res; }); }
+const mediaCache = {};   // id -> {img, audio}
+async function mediaLoadAll(){
+  try{
+    const db=await idb();
+    await new Promise((res)=>{ const tx=db.transaction(STORE,'readonly'); const cur=tx.objectStore(STORE).openCursor();
+      cur.onsuccess=e=>{ const c=e.target.result; if(c){ mediaCache[c.key]=c.value; c.continue(); } else res(); };
+      cur.onerror=res; });
+  }catch(e){}
+}
+function mImg(id){ return mediaCache[id] && mediaCache[id].img; }
+function mAudio(id){ return mediaCache[id] && mediaCache[id].audio; }
+
+/* ---------- состояние (localStorage) ---------- */
+const LS_KEY='skazhi-pokazhi-v2';
 let state = load();
-let editId = null;        // id карточки при редактировании (пока только добавление)
-let pickedEmoji = null;
-let pickedImage = null;   // dataURL
-let pickedKind = 'object';
-
 function load(){
   try{
-    const raw = localStorage.getItem(LS_KEY);
-    if(raw){
-      const s = JSON.parse(raw);
-      s.cards ||= []; s.stars ||= 0; s.diff ||= 3; s.sched ||= []; s.schedDone ||= [];
-      if(!s.ver || s.ver < 2){
-        // дозаливаем карточки-действия, появившиеся в новой версии
-        const have = new Set(s.cards.map(c=>c.word));
-        STARTER.filter(c=>c[2]==='action' && !have.has(c[0])).forEach((c,i)=>{
-          s.cards.push({id:'a'+Date.now()+i, word:c[0], emoji:c[1], img:null, kind:'action', seen:0, ok:0});
-        });
-        s.cards.forEach(c=>{ if(!c.kind) c.kind='object'; });   // старым карточкам — тип «предмет»
-        s.ver = 2;
-      }
-      return s;
-    }
+    const raw=localStorage.getItem(LS_KEY);
+    if(raw){ const s=JSON.parse(raw); return normalize(s); }
+    // миграция со старой версии v1, если была
+    const old=localStorage.getItem('skazhi-pokazhi-v1');
+    if(old){ const s=JSON.parse(old); return normalize(s); }
   }catch(e){}
-  // первый запуск — заполняем стартовым набором
-  return {
-    cards: STARTER.map((c,i)=>({id:'s'+i, word:c[0], emoji:c[1], img:null, kind:c[2]||'object', seen:0, ok:0})),
-    stars: 0, diff: 3, sched: [], schedDone: [], ver: 2
-  };
+  return normalize(null);
+}
+function normalize(s){
+  s = s || {};
+  s.cards ||= STARTER.map((c,i)=>({id:'s'+i, word:c[0], emoji:c[1], kind:c[2], box:0, seen:0, ok:0, last:0}));
+  s.stars = s.stars||0;
+  s.sched ||= []; s.schedDone ||= [];
+  s.settings ||= {};
+  s.settings.rate = s.settings.rate || 80;
+  s.settings.choices = s.settings.choices || 'auto';
+  s.settings.praise = s.settings.praise!==false;
+  s.settings.sounds = s.settings.sounds!==false;
+  // дозаливаем стартовые действия, если их нет (миграция v1->v2)
+  const have=new Set(s.cards.map(c=>c.word));
+  STARTER.filter(c=>c[2]==='action' && !have.has(c[0])).forEach((c,i)=>{
+    s.cards.push({id:'a'+Date.now()+i, word:c[0], emoji:c[1], kind:'action', box:0, seen:0, ok:0, last:0});
+  });
+  s.cards.forEach(c=>{ c.kind ||= 'object'; c.box ||= 0; c.seen ||= 0; c.ok ||= 0; c.last ||= 0; });
+  return s;
 }
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+function getCard(id){ return state.cards.find(c=>c.id===id); }
 
-/* -------------------- озвучка -------------------- */
-let ruVoice = null;
-function pickVoice(){
-  const vs = speechSynthesis.getVoices();
-  ruVoice = vs.find(v=>/ru[-_]RU/i.test(v.lang)) || vs.find(v=>/^ru/i.test(v.lang)) || null;
-}
-if('speechSynthesis' in window){
-  pickVoice();
-  speechSynthesis.onvoiceschanged = pickVoice;
-}
-function speak(text){
+/* ---------- озвучка ---------- */
+let ruVoice=null;
+function pickVoice(){ const vs=speechSynthesis.getVoices(); ruVoice=vs.find(v=>/ru[-_]RU/i.test(v.lang))||vs.find(v=>/^ru/i.test(v.lang))||null; }
+if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function speakText(text, rateMul=1){
   if(!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ru-RU';
-  if(ruVoice) u.voice = ruVoice;
-  u.rate = 0.85;   // помедленнее — лучше для понимания
-  u.pitch = 1.05;
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='ru-RU'; if(ruVoice) u.voice=ruVoice;
+  u.rate=Math.max(0.4,(state.settings.rate/100)*rateMul); u.pitch=1.05;
   speechSynthesis.speak(u);
 }
-
-/* -------------------- простые звуки -------------------- */
-let actx = null;
-function tone(freq, dur, type='sine', when=0){
-  try{
-    actx ||= new (window.AudioContext||window.webkitAudioContext)();
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = type; o.frequency.value = freq;
-    o.connect(g); g.connect(actx.destination);
-    const t = actx.currentTime + when;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.25, t+0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-    o.start(t); o.stop(t+dur+0.02);
-  }catch(e){}
+let curAudio=null;
+function playCard(card){
+  const a=mAudio(card.id);
+  if(a){ try{ if(curAudio){curAudio.pause();} curAudio=new Audio(a); curAudio.play(); return; }catch(e){} }
+  speakText(card.word);
 }
+/* грубое деление на слоги по гласным — для режима «по слогам» */
+function syllables(word){
+  const V='аеёиоуыэюяАЕЁИОУЫЭЮЯ'; const w=word.replace(/\s+/g,''); let out=[], cur='';
+  for(let i=0;i<w.length;i++){ cur+=w[i]; if(V.includes(w[i])){ // закрываем слог после гласной (+ возможная следующая согласная остаётся к следующему)
+      out.push(cur); cur=''; } }
+  if(cur){ if(out.length) out[out.length-1]+=cur; else out.push(cur); }
+  return out.length?out:[word];
+}
+function speakSyllables(word){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  syllables(word).forEach(syl=>{ const u=new SpeechSynthesisUtterance(syl); u.lang='ru-RU'; if(ruVoice)u.voice=ruVoice; u.rate=0.55; u.pitch=1.05; speechSynthesis.speak(u); });
+}
+
+/* ---------- звуки ---------- */
+let actx=null;
+function tone(f,d,t='sine',w=0){ if(!state.settings.sounds) return; try{ actx ||= new (window.AudioContext||window.webkitAudioContext)();
+  const o=actx.createOscillator(),g=actx.createGain(); o.type=t; o.frequency.value=f; o.connect(g); g.connect(actx.destination);
+  const s=actx.currentTime+w; g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.25,s+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,s+d); o.start(s); o.stop(s+d+0.02);}catch(e){} }
 function sndRight(){ tone(660,0.12,'triangle',0); tone(880,0.18,'triangle',0.1); tone(1175,0.22,'triangle',0.22); }
 function sndWrong(){ tone(220,0.18,'sine',0); }
 
-/* -------------------- навигация по экранам -------------------- */
-const screens = {
-  home:  document.getElementById('scr-home'),
-  show:  document.getElementById('scr-show'),
-  say:   document.getElementById('scr-say'),
-  sched: document.getElementById('scr-sched'),
-  cards: document.getElementById('scr-cards'),
-};
-const homeBtn = document.getElementById('homeBtn');
+/* ---------- навигация ---------- */
+const screens={}; ['home','show','say','aac','sched','cards','progress','settings'].forEach(n=>screens[n]=document.getElementById('scr-'+n));
+const homeBtn=document.getElementById('homeBtn');
 function go(name){
   Object.values(screens).forEach(s=>s.classList.remove('show'));
   screens[name].classList.add('show');
-  homeBtn.style.display = name==='home' ? 'none' : '';
-  if(name==='show') startShow();
-  if(name==='say')  startSay();
-  if(name==='sched') startSched();
-  if(name==='cards') renderCards();
+  homeBtn.style.display = name==='home'?'none':'';
+  speechSynthesis.cancel?.();
+  ({show:startShow, say:startSay, aac:startAac, sched:startSched, cards:renderCards, progress:renderProgress, settings:renderSettings}[name]||function(){})();
 }
-function getCard(id){ return state.cards.find(c=>c.id===id); }
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{ if(actx) actx.resume(); go(b.dataset.go); });
-homeBtn.onclick = ()=>{ speechSynthesis.cancel?.(); go('home'); };
+homeBtn.onclick=()=>go('home');
 
-/* -------------------- helpers -------------------- */
-function picHTML(card){
-  return card.img
-    ? `<img src="${card.img}" alt="">`
-    : `<span class="em">${card.emoji||'❓'}</span>`;
-}
-function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
-function pickWeighted(){
-  // чаще показываем слова, которые освоены хуже
-  const cards = state.cards;
-  const weights = cards.map(c=>{ const rate = c.seen? c.ok/c.seen : 0; return 1 + (1-rate)*2; });
-  const sum = weights.reduce((a,b)=>a+b,0);
-  let r = Math.random()*sum;
-  for(let i=0;i<cards.length;i++){ r-=weights[i]; if(r<=0) return cards[i]; }
-  return cards[cards.length-1];
-}
-function addStar(n=1){ state.stars += n; save(); }
+/* ---------- helpers ---------- */
+function picHTML(card){ const img=mImg(card.id); return img?`<img src="${img}" alt="">`:`<span class="em">${card.emoji||'❓'}</span>`; }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
+function addStar(n=1){ state.stars+=n; save(); }
+function cheer(em='⭐'){ const el=document.getElementById('cheer'); document.getElementById('cheerEmoji').textContent=em; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),850); }
+function praise(){ if(state.settings.praise){ const ph=['Молодец!','Отлично!','Супер!','Ура!','Хорошо!']; setTimeout(()=>speakText(ph[Math.random()*ph.length|0]),420); } }
 
-function cheer(emoji='⭐'){
-  const el = document.getElementById('cheer');
-  document.getElementById('cheerEmoji').textContent = emoji;
-  el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'), 850);
+/* ==================== ПОКАЖИ (понимание + интервальное повторение) ==================== */
+const showGrid=document.getElementById('showGrid'), showHint=document.getElementById('showHint'), speakBtn=document.getElementById('speakBtn');
+let curShow=null, showLock=false, showScore=0;
+function startShow(){ if(state.cards.length<2){ showGrid.innerHTML='<div class="empty">Нужно хотя бы 2 карточки.<br>Зайди в «🗂️ Карточки».</div>'; showHint.textContent=''; return; } showScore=0; updShowScore(); nextShow(); }
+function updShowScore(){ document.getElementById('showScore').textContent='⭐ '+showScore; }
+function chooseTarget(){
+  // вес: ниже box и давно не виделись — выше шанс. освоённые (box>=5) показываем реже
+  const cs=state.cards, now=Date.now();
+  const w=cs.map(c=>{ let base=(c.box>=5)?0.4:(6-c.box); const ageDays=(now-(c.last||0))/86400000; return base*(1+Math.min(ageDays,7)/3); });
+  let sum=w.reduce((a,b)=>a+b,0), r=Math.random()*sum;
+  for(let i=0;i<cs.length;i++){ r-=w[i]; if(r<=0) return cs[i]; } return cs[cs.length-1];
 }
-
-/* ==================== ПОКАЗИ (понимание) ==================== */
-const showGrid = document.getElementById('showGrid');
-const showHint = document.getElementById('showHint');
-const speakBtn = document.getElementById('speakBtn');
-let curShow = null, showLock = false, showScore = 0;
-
-function startShow(){
-  if(state.cards.length < 2){ showGrid.innerHTML = needMore(); showHint.textContent=''; return; }
-  showScore = 0; updateShowScore();
-  nextShow();
+function choicesCount(target){
+  const set=state.settings.choices;
+  if(set!=='auto') return Math.min(+set, state.cards.length);
+  // безошибочное затухание: новые слова — 2 картинки, по мере освоения — больше
+  const n = target.box<=1?2 : target.box<=3?3 : 4;
+  return Math.min(n, state.cards.length);
 }
-function needMore(){
-  return `<div class="empty">Нужно хотя бы 2 карточки.<br>Зайди в «🗂️ Карточки» и добавь.</div>`;
-}
-function updateShowScore(){ document.getElementById('showScore').textContent = '⭐ '+showScore; }
-
 function nextShow(){
-  showLock = false;
-  showHint.textContent = '';
-  const target = pickWeighted();
-  curShow = target;
-  const n = Math.min(state.diff, state.cards.length);
-  const distract = shuffle(state.cards.filter(c=>c.id!==target.id)).slice(0, n-1);
-  const opts = shuffle([target, ...distract]);
-
-  showGrid.innerHTML = '';
-  showGrid.style.gridTemplateColumns = (opts.length>=3 && window.innerWidth>520)
-      ? 'repeat(3,1fr)' : 'repeat(2,1fr)';
-  opts.forEach(c=>{
-    const d = document.createElement('div');
-    d.className = 'choice';
-    d.innerHTML = picHTML(c);
-    d.onclick = ()=>chooseShow(c, d, target);
-    showGrid.appendChild(d);
-  });
-  setTimeout(()=>speak(target.word), 250);
-  speakBtn.classList.add('pulse');
+  showLock=false; showHint.textContent='';
+  const target=chooseTarget(); curShow=target;
+  const n=choicesCount(target);
+  const distract=shuffle(state.cards.filter(c=>c.id!==target.id)).slice(0,n-1);
+  const opts=shuffle([target,...distract]);
+  showGrid.style.gridTemplateColumns=(opts.length>=3 && window.innerWidth>520)?'repeat(3,1fr)':'repeat(2,1fr)';
+  showGrid.innerHTML='';
+  opts.forEach(c=>{ const d=document.createElement('div'); d.className='choice'; d.innerHTML=picHTML(c); d.onclick=()=>chooseShow(c,d,target); showGrid.appendChild(d); });
+  setTimeout(()=>playCard(target),250); speakBtn.classList.add('pulse');
 }
-
-function chooseShow(card, el, target){
+function chooseShow(card,el,target){
   if(showLock) return;
-  // фиксируем попытку
-  target.seen = (target.seen||0)+1;
-  if(card.id === target.id){
-    showLock = true;
-    target.ok = (target.ok||0)+1;
-    save();
-    el.classList.add('right');
-    [...showGrid.children].forEach(c=>{ if(c!==el) c.classList.add('dim'); });
-    sndRight(); addStar(1); showScore++; updateShowScore();
-    cheer('🌟');
-    setTimeout(()=>speak('Молодец!'), 400);
-    setTimeout(nextShow, 1500);
+  target.seen++; target.last=Date.now();
+  if(card.id===target.id){
+    showLock=true; target.ok++; target.box=Math.min(5,target.box+1); save();
+    el.classList.add('right'); [...showGrid.children].forEach(c=>{ if(c!==el && c.classList.contains('choice')) c.classList.add('dim'); });
+    sndRight(); addStar(1); showScore++; updShowScore(); cheer(target.box>=5?'🏆':'🌟'); praise();
+    setTimeout(nextShow,1500);
   }else{
-    save();
-    el.classList.add('wrong');
-    sndWrong();
-    showHint.textContent = '🔊 Послушай ещё раз';
-    setTimeout(()=>{ el.classList.remove('wrong'); }, 500);
-    setTimeout(()=>speak(target.word), 550);
+    target.box=Math.max(0,target.box-1); save();
+    el.classList.add('wrong'); sndWrong(); showHint.textContent='🔊 Послушай ещё раз';
+    setTimeout(()=>el.classList.remove('wrong'),500); setTimeout(()=>playCard(target),550);
   }
 }
-speakBtn.onclick = ()=>{ if(curShow){ speakBtn.classList.remove('pulse'); speak(curShow.word); } };
+speakBtn.onclick=()=>{ if(curShow){ speakBtn.classList.remove('pulse'); playCard(curShow); } };
 
-/* ==================== СКАЖИ (речь) ==================== */
-const sayPic = document.getElementById('sayPic');
-const sayWord = document.getElementById('sayWord');
-let sayOrder = [], sayIdx = 0, sayScore = 0;
-
-function startSay(){
-  if(state.cards.length < 1){ sayPic.innerHTML='<span class="em">🗂️</span>'; sayWord.textContent='Добавь карточки'; return; }
-  sayOrder = shuffle(state.cards);
-  sayIdx = 0; sayScore = 0; updateSayScore();
-  renderSay();
-}
-function updateSayScore(){ document.getElementById('sayScore').textContent = '⭐ '+sayScore; }
-function renderSay(){
-  const c = sayOrder[sayIdx];
-  if(!c) return;
-  sayPic.innerHTML = picHTML(c);
-  sayWord.textContent = c.word;
-  setTimeout(()=>speak(c.word), 250);
-}
-document.getElementById('sampleBtn').onclick = ()=>speak(sayOrder[sayIdx]?.word||'');
-document.getElementById('sayNext').onclick = ()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); };
-document.getElementById('sayPrev').onclick = ()=>{ sayIdx=(sayIdx-1+sayOrder.length)%sayOrder.length; renderSay(); };
-document.getElementById('sayAgain').onclick = ()=>speak(sayOrder[sayIdx]?.word||'');
-document.getElementById('sayOk').onclick = ()=>{
-  const c = sayOrder[sayIdx];
-  if(c){ c.seen=(c.seen||0)+1; c.ok=(c.ok||0)+1; save(); }
-  sndRight(); addStar(1); sayScore++; updateSayScore(); cheer('🎉');
-  setTimeout(()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); }, 900);
+/* ==================== НАЗОВИ (модель + имитация + запись) ==================== */
+const sayPic=document.getElementById('sayPic'), sayWord=document.getElementById('sayWord');
+let sayOrder=[], sayIdx=0, sayScore=0, attemptUrl=null;
+function startSay(){ if(!state.cards.length){ sayPic.innerHTML='<span class="em">🗂️</span>'; sayWord.textContent='Добавь карточки'; return; } sayOrder=shuffle(state.cards); sayIdx=0; sayScore=0; updSayScore(); renderSay(); }
+function updSayScore(){ document.getElementById('sayScore').textContent='⭐ '+sayScore; }
+function renderSay(){ const c=sayOrder[sayIdx]; if(!c) return; sayPic.innerHTML=picHTML(c); sayWord.textContent=c.word;
+  attemptUrl=null; document.getElementById('mPlay').style.display='none'; stopRec(); setTimeout(()=>playCard(c),250); }
+document.getElementById('mFull').onclick=()=>playCard(sayOrder[sayIdx]);
+document.getElementById('mSyl').onclick=()=>speakSyllables(sayOrder[sayIdx].word);
+document.getElementById('sayNext').onclick=()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); };
+document.getElementById('sayPrev').onclick=()=>{ sayIdx=(sayIdx-1+sayOrder.length)%sayOrder.length; renderSay(); };
+function rateSay(weight, em){ const c=sayOrder[sayIdx]; if(c){ c.seen++; c.last=Date.now(); if(weight>0){ c.ok++; if(weight>=2) c.box=Math.min(5,c.box+1); } save(); }
+  if(weight>0){ sndRight(); addStar(weight); sayScore+=weight; updSayScore(); cheer(em); }
+  setTimeout(()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); }, 700); }
+document.getElementById('rAgain').onclick=()=>playCard(sayOrder[sayIdx]);
+document.getElementById('rTry').onclick=()=>rateSay(1,'🙂');
+document.getElementById('rClose').onclick=()=>rateSay(1,'👍');
+document.getElementById('rClear').onclick=()=>rateSay(2,'⭐');
+/* запись голоса ребёнка для сравнения (не сохраняется, только послушать) */
+let mediaRec=null, recChunks=[], recBtn=document.getElementById('mRec');
+function stopRec(){ if(mediaRec && mediaRec.state!=='inactive'){ try{mediaRec.stop();}catch(e){} } recBtn.classList.remove('on'); }
+recBtn.onclick=async()=>{
+  if(mediaRec && mediaRec.state==='recording'){ stopRec(); return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRec=new MediaRecorder(stream); recChunks=[];
+    mediaRec.ondataavailable=e=>recChunks.push(e.data);
+    mediaRec.onstop=()=>{ const blob=new Blob(recChunks,{type:recChunks[0]?.type||'audio/webm'}); attemptUrl=URL.createObjectURL(blob);
+      document.getElementById('mPlay').style.display=''; stream.getTracks().forEach(t=>t.stop()); recBtn.classList.remove('on'); };
+    mediaRec.start(); recBtn.classList.add('on');
+    setTimeout(()=>{ if(mediaRec && mediaRec.state==='recording') stopRec(); }, 4000); // авто-стоп 4 сек
+  }catch(e){ alert('Не получилось включить микрофон. Разреши доступ в браузере.'); }
 };
+document.getElementById('mPlay').onclick=()=>{ if(attemptUrl){ try{ new Audio(attemptUrl).play(); }catch(e){} } };
+
+/* ==================== ОБЩЕНИЕ (AAC доска) ==================== */
+const aacStrip=document.getElementById('aacStrip'), aacGrid=document.getElementById('aacGrid'), aacCat=document.getElementById('aacCat');
+let aacSentence=[]; // [{word,emoji}]
+let aacCatCur='core';
+function startAac(){ renderAacCat(); renderAacGrid(); renderStrip(); }
+function renderAacCat(){
+  const cats=[['core','⭐ Главное'],['action','🏃 Действия'],['object','🧸 Предметы']];
+  aacCat.innerHTML='';
+  cats.forEach(([k,l])=>{ const b=document.createElement('button'); b.textContent=l; b.className=k===aacCatCur?'on':''; b.onclick=()=>{ aacCatCur=k; renderAacCat(); renderAacGrid(); }; aacCat.appendChild(b); });
+}
+function renderAacGrid(){
+  aacGrid.className='aac-grid'+(aacCatCur==='core'?' core':'');
+  aacGrid.innerHTML='';
+  let items;
+  if(aacCatCur==='core'){ items=CORE.map(c=>({word:c[0],emoji:c[1],id:null})); }
+  else { items=state.cards.filter(c=>c.kind===aacCatCur); }
+  items.forEach(c=>{ const t=document.createElement('div'); t.className='aac-tile';
+    t.innerHTML=`<div class="pic">${c.id?picHTML(c):`<span class="em">${c.emoji}</span>`}</div><div class="t">${c.word}</div>`;
+    t.onclick=()=>{ aacSentence.push({word:c.word, emoji:c.emoji, id:c.id||null}); if(c.id) playCard(c); else speakText(c.word); renderStrip(); };
+    aacGrid.appendChild(t); });
+}
+function renderStrip(){
+  aacStrip.innerHTML='';
+  if(!aacSentence.length){ aacStrip.innerHTML='<div class="ph">Нажимай карточки — здесь соберётся фраза 🙂</div>'; return; }
+  aacSentence.forEach(w=>{ const d=document.createElement('div'); d.className='word';
+    d.innerHTML=`<span class="em">${w.id&&mImg(w.id)?'🖼️':(w.emoji||'❓')}</span><span class="t">${w.word}</span>`; aacStrip.appendChild(d); });
+}
+document.getElementById('aacSay').onclick=()=>{ if(aacSentence.length) speakText(aacSentence.map(w=>w.word).join(' ')); };
+document.getElementById('aacBack').onclick=()=>{ aacSentence.pop(); renderStrip(); };
+document.getElementById('aacClear').onclick=()=>{ aacSentence=[]; renderStrip(); };
 
 /* ==================== РАСПИСАНИЕ ==================== */
-let schedBuilding = true;   // true = составляем, false = выполняем
-const schedStrip = document.getElementById('schedStrip');
-const schedPool  = document.getElementById('schedPool');
-
+let schedBuilding=true;
+const schedStrip=document.getElementById('schedStrip'), schedPool=document.getElementById('schedPool');
 function startSched(){ renderSched(); }
 function renderSched(){
-  document.getElementById('schedMode').textContent = schedBuilding ? '🧩 Составляем' : '✅ Выполняем';
-  document.getElementById('schedPoolWrap').style.display = schedBuilding ? '' : 'none';
-  document.getElementById('schedNow').style.display = schedBuilding ? 'none' : '';
-  renderSchedStrip();
-  if(schedBuilding) renderSchedPool();
+  document.getElementById('schedMode').textContent=schedBuilding?'🧩 Составляем':'✅ Выполняем';
+  document.getElementById('schedPoolWrap').style.display=schedBuilding?'':'none';
+  document.getElementById('schedNow').style.display=schedBuilding?'none':'';
+  renderSchedStrip(); if(schedBuilding) renderSchedPool();
 }
 function renderSchedStrip(){
-  schedStrip.innerHTML = '';
-  if(!state.sched.length){
-    schedStrip.innerHTML = '<div class="sched-empty">Пусто 🙂 Нажми карточки ниже, чтобы составить порядок дел.</div>';
-    return;
-  }
-  const firstNotDone = state.sched.find(id=>!state.schedDone.includes(id));
-  state.sched.forEach((id,idx)=>{
-    const c = getCard(id); if(!c) return;
-    const done = state.schedDone.includes(id);
-    const item = document.createElement('div');
-    item.className = 'sched-item' + (done?' done':'') + (!schedBuilding && id===firstNotDone?' current':'');
-    item.innerHTML = `<div class="sched-num">${idx+1}</div><div class="check">✅</div>
-      <div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div>`;
-    item.onclick = ()=>{
-      if(schedBuilding){
-        state.sched.splice(idx,1); save(); renderSchedStrip();
-      }else{
-        if(done){ state.schedDone = state.schedDone.filter(x=>x!==id); }
-        else { state.schedDone.push(id); sndRight(); cheer('✅'); speak(c.word); }
-        save(); renderSchedStrip();
-      }
-    };
-    schedStrip.appendChild(item);
-    if(idx < state.sched.length-1){
-      const a = document.createElement('div'); a.className='sched-arrow'; a.textContent='→'; schedStrip.appendChild(a);
-    }
+  schedStrip.innerHTML='';
+  if(!state.sched.length){ schedStrip.innerHTML='<div class="sched-empty">Пусто 🙂 Нажми карточки ниже, чтобы составить порядок дел.</div>'; return; }
+  const firstNotDone=state.sched.find(id=>!state.schedDone.includes(id));
+  state.sched.forEach((id,idx)=>{ const c=getCard(id); if(!c) return; const done=state.schedDone.includes(id);
+    const it=document.createElement('div'); it.className='sched-item'+(done?' done':'')+(!schedBuilding&&id===firstNotDone?' current':'');
+    it.innerHTML=`<div class="sched-num">${idx+1}</div><div class="check">✅</div><div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div>`;
+    it.onclick=()=>{ if(schedBuilding){ state.sched.splice(idx,1); save(); renderSchedStrip(); }
+      else { if(done) state.schedDone=state.schedDone.filter(x=>x!==id); else { state.schedDone.push(id); sndRight(); cheer('✅'); playCard(c); } save(); renderSchedStrip(); } };
+    schedStrip.appendChild(it);
+    if(idx<state.sched.length-1){ const a=document.createElement('div'); a.className='sched-arrow'; a.textContent='→'; schedStrip.appendChild(a); }
   });
 }
 function renderSchedPool(){
-  schedPool.innerHTML = '';
-  // действия выводим первыми — из них чаще строят расписание
-  const sorted = [...state.cards].sort((a,b)=>(a.kind==='action'?0:1)-(b.kind==='action'?0:1));
-  sorted.forEach(c=>{
-    const el = document.createElement('div'); el.className='cm';
-    el.innerHTML = `<div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div>`;
-    el.onclick = ()=>{ state.sched.push(c.id); save(); speak(c.word); renderSchedStrip(); };
-    schedPool.appendChild(el);
-  });
+  schedPool.innerHTML='';
+  const sorted=[...state.cards].sort((a,b)=>(a.kind==='action'?0:1)-(b.kind==='action'?0:1));
+  sorted.forEach(c=>{ const el=document.createElement('div'); el.className='cm'; el.innerHTML=`<div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div>`;
+    el.onclick=()=>{ state.sched.push(c.id); save(); playCard(c); renderSchedStrip(); }; schedPool.appendChild(el); });
 }
-document.getElementById('schedMode').onclick = ()=>{ schedBuilding = !schedBuilding; renderSched(); };
-document.getElementById('schedReset').onclick = ()=>{
-  if(schedBuilding){
-    if(state.sched.length && confirm('Очистить всё расписание?')){ state.sched=[]; state.schedDone=[]; save(); renderSchedStrip(); }
-  }else{
-    state.schedDone=[]; save(); renderSchedStrip();   // в режиме «выполняем» — просто начать заново
-  }
-};
-document.getElementById('schedNow').onclick = ()=>{
-  const id = state.sched.find(x=>!state.schedDone.includes(x));
-  if(id){ speak('Сейчас — ' + getCard(id).word); }
-  else { speak('Всё готово! Молодец!'); cheer('🎉'); }
-};
+document.getElementById('schedMode').onclick=()=>{ schedBuilding=!schedBuilding; renderSched(); };
+document.getElementById('schedReset').onclick=()=>{ if(schedBuilding){ if(state.sched.length&&confirm('Очистить всё расписание?')){ state.sched=[]; state.schedDone=[]; save(); renderSchedStrip(); } } else { state.schedDone=[]; save(); renderSchedStrip(); } };
+document.getElementById('schedNow').onclick=()=>{ const id=state.sched.find(x=>!state.schedDone.includes(x)); if(id) speakText('Сейчас — '+getCard(id).word); else { speakText('Всё готово! Молодец!'); cheer('🎉'); } };
 
 /* ==================== КАРТОЧКИ (родитель) ==================== */
-const cardList = document.getElementById('cardList');
+const cardList=document.getElementById('cardList'), cardsFilter=document.getElementById('cardsFilter');
+let cardsFilterCur='all';
 function renderCards(){
-  document.getElementById('cardCount').textContent = state.cards.length+' шт.';
-  document.getElementById('starText').textContent = 'Звёзд за успехи: '+state.stars;
-  // сложность
-  document.querySelectorAll('#diffSeg button').forEach(b=>{
-    b.classList.toggle('on', +b.dataset.diff===state.diff);
-  });
-  cardList.innerHTML = '';
-  state.cards.forEach(c=>{
-    const rate = c.seen ? Math.round(c.ok/c.seen*100) : 0;
-    const el = document.createElement('div');
-    el.className = 'cm';
-    el.innerHTML = `
-      <button class="del" title="Удалить">×</button>
-      <div class="pic">${picHTML(c)}</div>
-      <div class="lbl">${c.word}</div>
-      <div class="pr">${c.seen? rate+'% · '+c.ok+'/'+c.seen : 'новое'}</div>`;
-    el.querySelector('.del').onclick = ()=>{
-      if(confirm('Удалить карточку «'+c.word+'»?')){
-        state.cards = state.cards.filter(x=>x.id!==c.id); save(); renderCards();
-      }
-    };
+  document.getElementById('cardCount').textContent=state.cards.length;
+  const cats=[['all','Все'],['object','🧸 Предметы'],['action','🏃 Действия']];
+  cardsFilter.innerHTML=''; cats.forEach(([k,l])=>{ const b=document.createElement('button'); b.textContent=l; b.className=k===cardsFilterCur?'on':''; b.onclick=()=>{ cardsFilterCur=k; renderCards(); }; cardsFilter.appendChild(b); });
+  cardList.innerHTML='';
+  const list=state.cards.filter(c=>cardsFilterCur==='all'||c.kind===cardsFilterCur);
+  list.forEach(c=>{ const rate=c.seen?Math.round(c.ok/c.seen*100):0; const el=document.createElement('div'); el.className='cm';
+    el.innerHTML=`<button class="del">×</button><div class="kindmark">${c.kind==='action'?'🏃':'🧸'}</div>${mAudio(c.id)?'<div class="audiomark">🎙️</div>':''}
+      <div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div><div class="pr">${c.box>=5?'✅ освоено':(c.seen?rate+'%':'новое')}</div>`;
+    el.querySelector('.del').onclick=(e)=>{ e.stopPropagation(); if(confirm('Удалить «'+c.word+'»?')){ state.cards=state.cards.filter(x=>x.id!==c.id); state.sched=state.sched.filter(x=>x!==c.id); mediaDel(c.id); delete mediaCache[c.id]; save(); renderCards(); } };
+    el.onclick=()=>openModal(c);
     cardList.appendChild(el);
   });
-  const add = document.createElement('button');
-  add.className = 'add-cm';
-  add.innerHTML = '<span class="e">➕</span> Добавить';
-  add.onclick = openModal;
-  cardList.appendChild(add);
+  const add=document.createElement('button'); add.className='add-cm'; add.innerHTML='<span class="e">➕</span> Добавить'; add.onclick=()=>openModal(null); cardList.appendChild(add);
 }
-document.querySelectorAll('#diffSeg button').forEach(b=>{
-  b.onclick = ()=>{ state.diff = +b.dataset.diff; save(); renderCards(); };
-});
 
-/* ---------- modal: добавление карточки ---------- */
-const modal = document.getElementById('modal');
-const wordInput = document.getElementById('wordInput');
-const emojiPick = document.getElementById('emojiPick');
-const fileInput = document.getElementById('fileInput');
-const uploadLabel = document.getElementById('uploadLabel');
-
-function buildEmojiBank(){
-  emojiPick.innerHTML = '';
-  EMOJI_BANK.forEach(e=>{
-    const b = document.createElement('button');
-    b.className='ep'; b.textContent=e; b.type='button';
-    b.onclick = ()=>{
-      pickedEmoji = e; pickedImage = null;
-      uploadLabel.innerHTML = '📷 Загрузить своё фото';
-      [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
-      b.classList.add('sel');
-    };
-    emojiPick.appendChild(b);
-  });
+/* ---------- модалка добавления/редактирования ---------- */
+const modal=document.getElementById('modal'), wordInput=document.getElementById('wordInput'),
+  emojiPick=document.getElementById('emojiPick'), fileInput=document.getElementById('fileInput'),
+  uploadLabel=document.getElementById('uploadLabel'), recVoiceBtn=document.getElementById('recVoiceBtn');
+let editing=null, pickedEmoji=null, pickedImage=null, pickedKind='object', pickedAudio=null;
+(function buildBank(){ EMOJI_BANK.forEach(e=>{ const b=document.createElement('button'); b.className='ep'; b.textContent=e; b.type='button';
+  b.onclick=()=>{ pickedEmoji=e; pickedImage=null; uploadLabel.innerHTML='📷 Фото'; [...emojiPick.children].forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); }; emojiPick.appendChild(b); }); })();
+document.querySelectorAll('#kindSeg button').forEach(b=>b.onclick=()=>{ pickedKind=b.dataset.kind; document.querySelectorAll('#kindSeg button').forEach(x=>x.classList.toggle('on',x===b)); });
+function openModal(card){
+  editing=card; pickedEmoji=card?card.emoji:null; pickedImage=null; pickedKind=card?card.kind:'object'; pickedAudio=null;
+  document.getElementById('modalTitle').textContent=card?'Карточка':'Новая карточка';
+  wordInput.value=card?card.word:''; wordInput.style.borderColor='';
+  uploadLabel.innerHTML='📷 Фото'; recVoiceBtn.innerHTML=(card&&mAudio(card.id))?'🎙️ Голос есть ✓':'🎙️ Записать голос'; recVoiceBtn.classList.remove('on');
+  [...emojiPick.children].forEach(x=>x.classList.toggle('sel', card && !mImg(card.id) && x.textContent===card.emoji));
+  document.querySelectorAll('#kindSeg button').forEach(x=>x.classList.toggle('on',x.dataset.kind===pickedKind));
+  modal.classList.add('show'); if(!card) setTimeout(()=>wordInput.focus(),100);
 }
-buildEmojiBank();
-
-document.querySelectorAll('#kindSeg button').forEach(b=>{
-  b.onclick = ()=>{
-    pickedKind = b.dataset.kind;
-    document.querySelectorAll('#kindSeg button').forEach(x=>x.classList.toggle('on', x===b));
-  };
-});
-
-function openModal(){
-  editId = null; pickedEmoji = null; pickedImage = null; pickedKind = 'object';
-  wordInput.value = '';
-  uploadLabel.innerHTML = '📷 Загрузить своё фото';
-  [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
-  document.querySelectorAll('#kindSeg button').forEach(x=>x.classList.toggle('on', x.dataset.kind==='object'));
-  modal.classList.add('show');
-  setTimeout(()=>wordInput.focus(), 100);
-}
-function closeModal(){ modal.classList.remove('show'); }
-document.getElementById('cancelBtn').onclick = closeModal;
-modal.onclick = (e)=>{ if(e.target===modal) closeModal(); };
-
-/* загрузка и сжатие фото до ~512px, чтобы беречь localStorage */
-fileInput.onchange = ()=>{
-  const f = fileInput.files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = ()=>{
-    const img = new Image();
-    img.onload = ()=>{
-      const max = 512, scale = Math.min(1, max/Math.max(img.width,img.height));
-      const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
-      const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
-      cv.getContext('2d').drawImage(img,0,0,w,h);
-      pickedImage = cv.toDataURL('image/jpeg', 0.8);
-      pickedEmoji = null;
-      [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
-      uploadLabel.innerHTML = `<img class="upload-prev" src="${pickedImage}"> Фото выбрано — нажми «Сохранить»`;
-    };
-    img.src = r.result;
-  };
-  r.readAsDataURL(f);
+function closeModal(){ modal.classList.remove('show'); stopVoiceRec(); }
+document.getElementById('cancelBtn').onclick=closeModal;
+modal.onclick=e=>{ if(e.target===modal) closeModal(); };
+fileInput.onchange=()=>{ const f=fileInput.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{
+  const max=512, s=Math.min(1,max/Math.max(img.width,img.height)), w=Math.round(img.width*s), h=Math.round(img.height*s);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h);
+  pickedImage=cv.toDataURL('image/jpeg',0.8); pickedEmoji=null; [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
+  uploadLabel.innerHTML=`<img class="upload-prev" src="${pickedImage}">`; }; img.src=r.result; }; r.readAsDataURL(f); };
+/* запись своего голоса для карточки */
+let voiceRec=null, voiceChunks=[];
+function stopVoiceRec(){ if(voiceRec && voiceRec.state==='recording'){ try{voiceRec.stop();}catch(e){} } recVoiceBtn.classList.remove('on'); }
+recVoiceBtn.onclick=async()=>{
+  if(voiceRec && voiceRec.state==='recording'){ stopVoiceRec(); return; }
+  try{ const stream=await navigator.mediaDevices.getUserMedia({audio:true}); voiceRec=new MediaRecorder(stream); voiceChunks=[];
+    voiceRec.ondataavailable=e=>voiceChunks.push(e.data);
+    voiceRec.onstop=()=>{ const blob=new Blob(voiceChunks,{type:voiceChunks[0]?.type||'audio/webm'}); const fr=new FileReader();
+      fr.onload=()=>{ pickedAudio=fr.result; recVoiceBtn.innerHTML='🎙️ Записано ✓'; }; fr.readAsDataURL(blob);
+      stream.getTracks().forEach(t=>t.stop()); recVoiceBtn.classList.remove('on'); };
+    voiceRec.start(); recVoiceBtn.classList.add('on'); recVoiceBtn.innerHTML='⏺️ Идёт запись… (стоп)';
+    setTimeout(()=>{ if(voiceRec&&voiceRec.state==='recording') stopVoiceRec(); }, 4000);
+  }catch(e){ alert('Не получилось включить микрофон. Разреши доступ в браузере.'); }
 };
-
-document.getElementById('saveBtn').onclick = ()=>{
-  const word = wordInput.value.trim();
-  if(!word){ wordInput.focus(); wordInput.style.borderColor='#e8746f'; return; }
-  if(!pickedEmoji && !pickedImage){ alert('Выбери картинку или загрузи фото'); return; }
-  state.cards.push({
-    id: 'c'+Date.now(),
-    word, emoji: pickedEmoji, img: pickedImage, kind: pickedKind,
-    seen:0, ok:0
-  });
+document.getElementById('saveBtn').onclick=async()=>{
+  const word=wordInput.value.trim();
+  if(!word){ wordInput.focus(); wordInput.style.borderColor='var(--red)'; return; }
+  if(editing){
+    editing.word=word; editing.kind=pickedKind; if(pickedEmoji){ editing.emoji=pickedEmoji; }
+  } else {
+    editing={id:'c'+Date.now(), word, emoji:pickedEmoji||'❓', kind:pickedKind, box:0, seen:0, ok:0, last:0};
+    state.cards.push(editing);
+  }
+  // медиа
+  if(pickedImage || pickedAudio){
+    const cur=mediaCache[editing.id]||{}; const val={img: pickedImage||cur.img||null, audio: pickedAudio||cur.audio||null};
+    mediaCache[editing.id]=val; try{ await mediaSet(editing.id,val); }catch(e){ alert('Не удалось сохранить фото/голос (мало места).'); }
+  }
   save(); closeModal(); renderCards();
 };
 
-/* первый рендер сложности и т.п. произойдёт при заходе на экран */
+/* ==================== ПРОГРЕСС ==================== */
+function renderProgress(){
+  const mastered=state.cards.filter(c=>c.box>=5).length;
+  const learning=state.cards.filter(c=>c.seen>0 && c.box<5).length;
+  document.getElementById('stMastered').textContent=mastered;
+  document.getElementById('stLearning').textContent=learning;
+  document.getElementById('stStars').textContent=state.stars;
+  const list=document.getElementById('progressList'); list.innerHTML='';
+  const inwork=state.cards.filter(c=>c.seen>0).sort((a,b)=>(a.ok/a.seen)-(b.ok/b.seen));
+  if(!inwork.length){ list.innerHTML='<div class="empty">Пока нет данных. Поиграйте в «Покажи» или «Назови» — здесь появится прогресс по словам.</div>'; return; }
+  inwork.forEach(c=>{ const pct=Math.round(c.ok/c.seen*100); const row=document.createElement('div'); row.className='bar-line';
+    row.innerHTML=`<div class="nm">${c.box>=5?'✅ ':''}${c.word}</div><div class="track"><div class="fill" style="width:${pct}%"></div></div><div class="pct">${pct}% · ${c.ok}/${c.seen}</div>`; list.appendChild(row); });
+}
+document.getElementById('resetProgress').onclick=()=>{ if(confirm('Сбросить весь прогресс и звёзды? Карточки останутся.')){ state.cards.forEach(c=>{c.box=0;c.seen=0;c.ok=0;c.last=0;}); state.stars=0; save(); renderProgress(); } };
+
+/* ==================== НАСТРОЙКИ ==================== */
+function renderSettings(){
+  document.getElementById('setRate').value=state.settings.rate;
+  document.querySelectorAll('#setChoices button').forEach(b=>b.classList.toggle('on', String(state.settings.choices)===b.dataset.c));
+  document.getElementById('setPraise').classList.toggle('on', state.settings.praise);
+  document.getElementById('setSounds').classList.toggle('on', state.settings.sounds);
+}
+document.getElementById('setRate').oninput=e=>{ state.settings.rate=+e.target.value; save(); };
+document.getElementById('setRate').onchange=()=>speakText('Вот так звучит');
+document.querySelectorAll('#setChoices button').forEach(b=>b.onclick=()=>{ state.settings.choices=b.dataset.c; save(); renderSettings(); });
+document.getElementById('setPraise').onclick=function(){ state.settings.praise=!state.settings.praise; save(); this.classList.toggle('on',state.settings.praise); };
+document.getElementById('setSounds').onclick=function(){ state.settings.sounds=!state.settings.sounds; save(); this.classList.toggle('on',state.settings.sounds); };
+
+/* ---------- старт ---------- */
+mediaLoadAll().then(()=>{ /* медиа подгружены, экраны рендерятся при заходе */ });
 </script>
 </body>
 </html>

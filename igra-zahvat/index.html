@@ -102,7 +102,7 @@ const COL = { 0:0xc9ceda, 1:0x4f8bff, 2:0xff5c72 };       // soldiers / accents
 const SOLID = { 0:0x94a3b8, 1:0x3b82f6, 2:0xef4444 };      // solid team color for towers & links
 const SOLIDD= { 0:0x64748b, 1:0x1d4ed8, 2:0xb91c1c };      // darker base ring
 const TINT= { 0:0xffffff, 1:0xd2e2ff, 2:0xffd6dc };        // (unused now) gentle tower tint
-const CSS = { 0:'#7d8499', 1:'#2f6fe0', 2:'#e23b4e' };
+const CSS = { 0:'#64748b', 1:'#3b82f6', 2:'#ef4444' };
 const STORE='g_zahvat_progress';
 
 const MAPS = [
@@ -137,6 +137,8 @@ let drag=null, dragLine=null, linkSig='';
 const pointer=new THREE.Vector2();
 
 const cap=n=>CAP_BASE*n.l, prod=n=>PROD_BASE*n.l;
+function linkCap(n){ return n.l>=3 ? 4 : n.l; }   // L1=1, L2=2, L3=4, L4=4 outgoing links
+function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
 function camViewSize(){ const aspect=innerWidth/innerHeight;
   const halfW=(ISL_W+ISL_D)*0.5*0.62, halfH=(ISL_W+ISL_D)*0.5*0.40;
@@ -183,8 +185,8 @@ async function init(){
 
   // load models
   const loader = new GLTFLoader();
-  const names = { tile:'tile.glb', lvl1:'lvl1.glb', lvl2:'lvl2.glb', lvl3:'lvl3.glb', lvl4:'lvl4.glb',
-                  tree:'tree.glb', treeL:'tree-large.glb', rocks:'rocks.glb' };
+  const names = { base:'c-base.glb', mid:'c-mid.glb', top:'c-top.glb', flag:'c-flag.glb',
+                  tree:'c-tree.glb', tree2:'c-tree2.glb', rock:'c-rock.glb', rock2:'c-rock2.glb' };
   const entries = await Promise.all(Object.entries(names).map(async ([k,f])=>{
     const g = await loader.loadAsync('models/'+f); return [k, g.scene];
   }));
@@ -236,11 +238,15 @@ function findMesh(root){ let found=null; root.traverse(o=>{ if(!found && o.isMes
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[]; let tries=0;
-  while(out.length<42 && tries<2500){ tries++;
-    const x=(rng()*2-1)*15.5, z=(rng()*2-1)*10.5; let ok=true;
-    for(const n of nodes){ if(Math.hypot(x-n.x, z-n.z)<2.4){ ok=false; break; } }
-    if(ok) for(const d of out){ if(Math.hypot(x-d.x, z-d.z)<1.1){ ok=false; break; } }
-    if(ok){ const r=rng(); out.push({ x, z, type: r<0.5?'tree': r<0.8?'treeL':'rocks', rot:rng()*6.28, s:1.05+rng()*0.65 }); }
+  // dense forest/rock frame around the edges, central glade kept mostly clear
+  while(out.length<60 && tries<5000){ tries++;
+    const x=(rng()*2-1)*16, z=(rng()*2-1)*11;
+    if(Math.abs(x)<7.5 && Math.abs(z)<5 && rng()<0.85) continue;   // keep the glade open
+    let ok=true;
+    for(const n of nodes){ if(Math.hypot(x-n.x, z-n.z)<2.6){ ok=false; break; } }
+    if(ok) for(const d of out){ if(Math.hypot(x-d.x, z-d.z)<0.85){ ok=false; break; } }
+    if(ok){ const r=rng(); const type = r<0.46?'tree': r<0.72?'tree2': r<0.88?'rock2':'rock';
+      out.push({ x, z, type, rot:rng()*6.28, s:(type[0]==='t'?0.7:0.8)+rng()*0.45 }); }
   }
   return out;
 }
@@ -276,25 +282,45 @@ function loadMap(i){
   for(const n of nodes) buildTower(n);
 }
 
+const SEG=1.01; // height of a castle base/mid segment
 function buildTower(n){
-  if(n.view){ nodeGroup.remove(n.view.group); if(n.view.label) n.view.group.remove(n.view.label); }
-  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(0.85);
-  const teamMat=new THREE.MeshStandardMaterial({ color:SOLID[n.o], roughness:0.55, metalness:0.05 });
-  const model=MODELS['lvl'+n.l].clone(true);
-  model.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.material=teamMat; c.userData.nodeId=n.id; } });
-  group.add(model);
-  // darker colored base disc (grounds the tower, shows team)
-  const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.66,0.14,28),
-    new THREE.MeshStandardMaterial({ color:SOLIDD[n.o], roughness:0.7 }));
-  disc.position.y=0.03; disc.receiveShadow=true; group.add(disc);
-  // invisible pick disc (easy tap target)
-  const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,1.8,12), new THREE.MeshBasicMaterial({visible:false}));
-  pick.position.y=0.9; pick.userData.nodeId=n.id; group.add(pick);
-  // label
+  if(n.view){ nodeGroup.remove(n.view.group); }
+  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(0.82);
+  // round grass platform + team ring (ownership)
+  const plat=new THREE.Mesh(new THREE.CylinderGeometry(1.55,1.72,0.4,36),
+    new THREE.MeshStandardMaterial({ color:0x6bb04c, roughness:1 }));
+  plat.position.y=-0.2; plat.receiveShadow=true; group.add(plat);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.1,12,44).rotateX(Math.PI/2),
+    new THREE.MeshStandardMaterial({ color:SOLID[n.o], emissive:SOLID[n.o], emissiveIntensity:0.35, roughness:0.5 }));
+  ring.position.y=0.04; group.add(ring);
+  // castle stack: base + (level-1) mids + crenellated top  (grows with level)
+  const mids=Math.max(0,n.l-1); let y=0;
+  const addPiece=src=>{ const p=src.clone(true);
+    p.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
+    p.position.y=y; group.add(p); };
+  addPiece(MODELS.base); y+=SEG;
+  for(let i=0;i<mids;i++){ addPiece(MODELS.mid); y+=SEG; }
+  addPiece(MODELS.top);
+  const crown=y+0.3;
+  // flags = link capacity, team-colored
+  const fc=linkCap(n), fr=0.34;
+  for(let i=0;i<fc;i++){ const fl=MODELS.flag.clone(true);
+    fl.traverse(c=>{ if(c.isMesh){ c.material=c.material.clone(); c.material.color=new THREE.Color(SOLID[n.o]); c.castShadow=true; } });
+    const ang=(i/Math.max(1,fc))*Math.PI*2 + 0.4;
+    fl.position.set(Math.cos(ang)*fr, y-0.02, Math.sin(ang)*fr); fl.rotation.y=Math.PI/2-ang; fl.scale.setScalar(0.8);
+    group.add(fl); }
+  // L4 synergy glow
+  if(synergyOn(n)){ const halo=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.07,10,28).rotateX(Math.PI/2),
+      new THREE.MeshStandardMaterial({ color:0xffe08a, emissive:0xffd166, emissiveIntensity:1.0, roughness:0.4 }));
+    halo.position.y=crown+0.2; group.add(halo); }
+  // invisible easy-tap target
+  const pick=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,crown+0.8,12), new THREE.MeshBasicMaterial({visible:false}));
+  pick.position.y=(crown+0.8)/2; pick.userData.nodeId=n.id; group.add(pick);
+  // number label
   const div=document.createElement('div'); div.className='tlabel';
-  const label=new CSS2DObject(div); label.position.set(0,1.75,0); group.add(label);
+  const label=new CSS2DObject(div); label.position.set(0, crown+0.7, 0); group.add(label);
   nodeGroup.add(group);
-  n.view={group, model, div, label}; n.lr=n.l; n.or=n.o;
+  n.view={group, div, label}; n.lr=n.l; n.or=n.o;
 }
 
 // ---------------- simulation (same rules as before) ----------------
@@ -303,7 +329,7 @@ function removeLink(L){ const i=links.indexOf(L); if(i>=0) links.splice(i,1); }
 function removeLinksFrom(id){ links.filter(L=>L.from===id).forEach(removeLink); }
 function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   const ex=findLink(from,to); if(ex){ removeLink(ex); return; }
-  const out=links.filter(L=>L.from===from); if(out.length>=MAXLINKS) removeLink(out[0]);
+  const out=links.filter(L=>L.from===from); if(out.length>=linkCap(src)) removeLink(out[0]);
   links.push({from,to,o:src.o,accum:0}); }
 
 function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null }); }
@@ -340,7 +366,7 @@ function botThink(){
   const sorted=[...mine].sort((a,b)=>b.t-a.t);
   for(const src of sorted){
     if(src.t<10) continue;
-    if(links.filter(L=>L.from===src.id).length>=MAXLINKS) continue;
+    if(links.filter(L=>L.from===src.id).length>=linkCap(src)) continue;
     if(Math.random()>aggro+0.25) continue;
     let best=null,bs=Infinity;
     for(const n of nodes){ if(n.o===2) continue; if(findLink(src.id,n.id)) continue;

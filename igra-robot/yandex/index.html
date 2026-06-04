@@ -1130,6 +1130,7 @@
   function voiceWin(correct){ vpPlaySeq([correct >= 8 ? "win_good" : "win_ok"]); }
   function voiceHello(){ vpPlaySeq(["hello"]); }
   function voiceGoal(){ vpPlaySeq(["goal"]); }
+  function voiceWrong(){ vpPlaySeq(["wrong_" + rnd(4)]); }
 
   // ---------- ГЕНЕРАЦИЯ С РОСТОМ СЛОЖНОСТИ ----------
   function effCeiling(max){
@@ -1203,7 +1204,7 @@
       if (state.shield && !state.shieldUsed){
         state.shieldUsed = true; setMascot("", "🛡️ Щит спас огонёк! Попробуй ещё разок"); soundClick();
       } else {
-        state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+        state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong(); voiceWrong();
       }
       typed = ""; setTimeout(updateTypedDisplay, 650);
     }
@@ -1245,7 +1246,7 @@
       if (state.shield && !state.shieldUsed){
         state.shieldUsed = true; setMascot("", "🛡️ Щит спас огонёк! Попробуй ещё разок"); soundClick();
       } else {
-        state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong();
+        state.mistake = true; setMascot("sad", pick(WRONG_MSGS)); soundWrong(); voiceWrong();
       }
     }
   }

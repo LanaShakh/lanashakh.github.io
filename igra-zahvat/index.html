@@ -14,7 +14,9 @@
     color:var(--ink); user-select:none; background:#9fd0e8; height:100%; }
   #app{position:fixed; inset:0;}
   canvas{display:block; touch-action:none;}
-  .labels{position:fixed; inset:0; pointer-events:none; overflow:hidden;}
+  .labels{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:6;}
+  .vignette{position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(125% 90% at 50% 42%, rgba(0,0,0,0) 55%, rgba(8,18,28,0.30) 100%);}
   .tlabel{ background:#fff; border:2.5px solid #888; border-radius:999px; color:#333;
     font-weight:800; font-size:14px; padding:1px 9px; transform:translate(-50%,-50%);
     box-shadow:0 3px 8px rgba(0,0,0,.25); white-space:nowrap; }
@@ -61,6 +63,7 @@
 </head>
 <body>
   <div id="app"></div>
+  <div class="vignette"></div>
   <div class="labels" id="labels"></div>
 
   <div class="hud">
@@ -90,6 +93,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
 const $ = id => document.getElementById(id);
 function fail(msg){ const e=document.getElementById('err'); e.style.display='block';
@@ -130,6 +139,7 @@ const MAPS = [
 
 // ---------------- three.js setup ----------------
 let renderer, labelRenderer, scene, camera, raycaster, groundPlane;
+let composer=null, bloomPass=null, gtaoPass=null;
 let MODELS={}, GROUND_TOP=0, stripeTex;
 let nodes=[], links=[], soldiers=[], decor=[];
 let mapIndex=0, running=true, ended=false, speed=1, botTimer=0, progress=+(localStorage.getItem(STORE)||0);
@@ -174,6 +184,9 @@ async function init(){
   sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera; sc.left=-18; sc.right=18; sc.top=13; sc.bottom=-13; sc.near=1; sc.far=80;
   sun.shadow.bias=-0.0004; sun.shadow.radius=4; scene.add(sun);
+  // cool fill (softens shadow side) + bright rim from behind (edge highlight = premium silhouette)
+  const fill=new THREE.DirectionalLight(0xbcd2ff, 0.5); fill.position.set(-14,9,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff, 1.2); rim.position.set(-7,7,-15); scene.add(rim);
 
   raycaster = new THREE.Raycaster();
   groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(200,200).rotateX(-Math.PI/2),
@@ -202,7 +215,22 @@ async function init(){
 
   bindInput();
   loadMap(0);
+  setupPost();
   renderer.setAnimationLoop(frame);
+}
+
+function setupPost(){
+  try{
+    const rt=new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type:THREE.HalfFloatType });
+    composer=new EffectComposer(renderer, rt);
+    composer.addPass(new RenderPass(scene,camera));
+    try{ gtaoPass=new GTAOPass(scene,camera,innerWidth,innerHeight); composer.addPass(gtaoPass); }
+    catch(e){ console.warn('AO off',e); gtaoPass=null; }
+    bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.3, 0.7, 0.88);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+    try{ composer.addPass(new SMAAPass(innerWidth, innerHeight)); }catch(e){}
+  }catch(e){ console.warn('post off',e); composer=null; }
 }
 
 function makeSky(){ const c=document.createElement('canvas'); c.width=4; c.height=256; const x=c.getContext('2d');
@@ -478,7 +506,9 @@ function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHT
 
 function onResize(){ const aspect=innerWidth/innerHeight, vs=camViewSize();
   camera.left=-vs*aspect; camera.right=vs*aspect; camera.top=vs; camera.bottom=-vs; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight); }
+  renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight);
+  if(composer){ composer.setSize(innerWidth,innerHeight); if(bloomPass) bloomPass.setSize(innerWidth,innerHeight);
+    if(gtaoPass) gtaoPass.setSize(innerWidth,innerHeight); } }
 
 // ---------------- loop ----------------
 let last=performance.now();
@@ -487,7 +517,8 @@ function frame(){
   if(running && !ended) step(dt*speed);
   stripeTex.offset.y = (stripeTex.offset.y - dt*0.9) % 1;
   syncVisuals();
-  renderer.render(scene,camera); labelRenderer.render(scene,camera);
+  if(composer) composer.render(); else renderer.render(scene,camera);
+  labelRenderer.render(scene,camera);
 }
 
 init().catch(err=>{ console.error(err); document.querySelector('#loading .spinner').style.display='none';

@@ -363,6 +363,8 @@
     50%     { box-shadow:0 6px 0 #2a3eaa, 0 0 0 13px rgba(67,97,238,0); }
   }
   .play-btn:active { animation:none; }
+  .voice-pick { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:14px; font-weight:700; color:#4a4a6a; }
+  .voice-pick select { flex:1; font-family:inherit; font-size:14px; font-weight:700; color:#3046b5; background:#eef2ff; border:2px solid #b9c5ff; border-radius:12px; padding:8px 10px; }
 </style>
 </head>
 <body>
@@ -424,7 +426,12 @@
       <button class="choice-btn mode1" data-voice="on">🔊 Включить</button>
       <button class="choice-btn mode2" data-voice="off">🔇 Выключить</button>
     </div>
-    <div class="diff-note">Робот читает примеры вслух и хвалит — удобно, если ребёнок ещё не читает.</div>
+    <div class="voice-pick">
+      <span>Какой голос:</span>
+      <select id="voiceSelect"><option value="">Авто (лучший)</option></select>
+    </div>
+    <button class="ghost-btn" id="btnVoiceTest" style="margin-top:8px;">🔊 Проверить голос</button>
+    <div class="diff-note">На телефоне голоса приятнее, чем на ПК. Если звучит «роботом» — выбери другой голос из списка.</div>
 
     <button class="play-btn" id="btnSetupPlay">▶️ Поехали!</button>
     <button class="ghost-btn" id="btnSetupBack" style="margin-top:10px;">⬅️ Назад</button>
@@ -851,7 +858,7 @@
   var save  = { total:0, wallet:0, hints:0, pieces:0, robotIndex:0, gallery:[],
                 mascot:"🤖", mascots:["🤖"], games:[], bestLadder:0, stats:{ solved:0, correct:0, wrong:0 },
                 theme:"space", themes:["space"], powerups:{ x2:0, shield:0, skip:0 },
-                daily:{ day:"", streak:0, solved:0, goalReached:false, giftClaimed:false }, storyRead:[], voice:true };
+                daily:{ day:"", streak:0, solved:0, goalReached:false, giftClaimed:false }, storyRead:[], voice:true, voiceName:"" };
   var skill = { 10:1, 20:1, 100:1 };
   function loadSave(){
     try {
@@ -875,6 +882,7 @@
       var dl=localStorage.getItem("robomath_daily"); if(dl){ var do2=JSON.parse(dl)||{}; save.daily.day=do2.day||""; save.daily.streak=do2.streak||0; save.daily.solved=do2.solved||0; save.daily.goalReached=!!do2.goalReached; save.daily.giftClaimed=!!do2.giftClaimed; }
       var sr=localStorage.getItem("robomath_story"); if(sr){ var sa=JSON.parse(sr); if(Array.isArray(sa)) save.storyRead=sa; }
       var vo=localStorage.getItem("robomath_voice"); if(vo!==null) save.voice = (vo==="1");
+      var vn=localStorage.getItem("robomath_voicename"); if(vn!==null) save.voiceName = vn;
     } catch(e){}
   }
   function persist(){
@@ -897,6 +905,7 @@
       localStorage.setItem("robomath_daily", JSON.stringify(save.daily));
       localStorage.setItem("robomath_story", JSON.stringify(save.storyRead));
       localStorage.setItem("robomath_voice", save.voice ? "1" : "0");
+      localStorage.setItem("robomath_voicename", save.voiceName || "");
     } catch(e){}
   }
   function levelOf(s){ return Math.floor(s/STARS_PER_LEVEL)+1; }
@@ -919,7 +928,7 @@
       el("goalTeaser").textContent = homeTeaser();
     }
     if (el("homeBubble")) el("homeBubble").textContent = homeGuideLine();
-    updateVoiceButtons();
+    updateVoiceButtons(); populateVoiceSelect();
     el("sk10").textContent  = "· ступень "+skill[10]+"/"+MAXSKILL;
     el("sk20").textContent  = "· ступень "+skill[20]+"/"+MAXSKILL;
     el("sk100").textContent = "· ступень "+skill[100]+"/"+MAXSKILL;
@@ -996,6 +1005,7 @@
                             : { day:"", streak:0, solved:0, goalReached:false, giftClaimed:false };
           save.storyRead  = Array.isArray(d.save.storyRead) ? d.save.storyRead : [];
           save.voice      = (d.save.voice !== false);
+          save.voiceName  = d.save.voiceName || "";
         }
         if (d && d.skill){
           skill[10]  = parseInt(d.skill[10],10)  || 1;
@@ -1037,29 +1047,55 @@
   function soundClick(){ tone(587.33,0,0.07,0.18,"sine"); }
 
   // ---------- ГОЛОС РОБОТА (синтез речи) ----------
-  var ruVoice = null;
-  function pickVoice(){
+  var ruVoice = null, allVoices = [], ruVoices = [];
+  function rankVoice(v){
+    var n = (v.name || "").toLowerCase(); var s = 0;
+    if (/natural|neural/.test(n)) s += 100;   // нейросетевые — самые приятные
+    if (/google/.test(n)) s += 80;            // Google-голоса — хорошие
+    if (/(milena|alena|alyona|svetlana|tatyana|tatiana|katja|dariya|maxim|yuri|pavel|alice|алис)/.test(n)) s += 40;
+    if (/irina|microsoft/.test(n)) s += 5;    // старые системные — в последнюю очередь
+    if (v.localService === false) s += 8;      // онлайн-голоса обычно лучше
+    return s;
+  }
+  function refreshVoices(){
     if (!('speechSynthesis' in window)) return;
-    var vs = window.speechSynthesis.getVoices() || [];
-    for (var i=0;i<vs.length;i++){ if (/ru[-_]?/i.test(vs[i].lang)){ ruVoice = vs[i]; break; } }
+    allVoices = window.speechSynthesis.getVoices() || [];
+    ruVoices = allVoices.filter(function(v){ return /^ru/i.test(v.lang); });
+    ruVoices.sort(function(a,b){ return rankVoice(b) - rankVoice(a); });
+    ruVoice = ruVoices[0] || null;
+    populateVoiceSelect();
   }
   if ('speechSynthesis' in window){
-    pickVoice();
-    window.speechSynthesis.onvoiceschanged = pickVoice;
+    refreshVoices();
+    window.speechSynthesis.onvoiceschanged = refreshVoices;
+  }
+  function chosenVoice(){
+    if (save.voiceName){
+      for (var i=0;i<allVoices.length;i++){ if (allVoices[i].name === save.voiceName) return allVoices[i]; }
+    }
+    return ruVoice;
   }
   function speak(text){
     if (!save.voice || !text) return;
     if (!('speechSynthesis' in window)) return;
-    // убираем эмодзи/символы, чтобы голос не зачитывал их
     text = String(text).replace(/[^0-9A-Za-zА-Яа-яЁё \-,.!?]/g, " ").replace(/\s+/g, " ").trim();
     if (!text) return;
     try {
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
-      u.lang = "ru-RU"; u.rate = 1.0; u.pitch = 1.15;
-      if (ruVoice) u.voice = ruVoice;
+      u.lang = "ru-RU"; u.rate = 0.95; u.pitch = 1.0;
+      var v = chosenVoice(); if (v) u.voice = v;
       window.speechSynthesis.speak(u);
     } catch(e){}
+  }
+  function populateVoiceSelect(){
+    var sel = el("voiceSelect"); if (!sel) return;
+    var cur = save.voiceName || "";
+    var html = '<option value="">Авто (лучший)</option>';
+    ruVoices.forEach(function(v){
+      html += '<option value="'+v.name.replace(/"/g,'')+'"'+(v.name===cur?' selected':'')+'>'+v.name+'</option>';
+    });
+    sel.innerHTML = html;
   }
   function speakQuestion(q){
     var w = (q.sign === "+") ? " плюс " : " минус ";
@@ -1853,6 +1889,17 @@
     });
   });
   updateVoiceButtons();
+  // выбор конкретного голоса
+  var vsel = el("voiceSelect");
+  if (vsel) vsel.addEventListener("change", function(){
+    save.voiceName = vsel.value || ""; persist();
+    speak("Привет! Сколько будет два плюс три?");
+  });
+  var vtest = el("btnVoiceTest");
+  if (vtest) vtest.addEventListener("click", function(){
+    if (!save.voice){ save.voice = true; persist(); updateVoiceButtons(); }
+    speak("Привет! Я твой робот. Сколько будет два плюс три?");
+  });
   // нажатие на робота на главном — он говорит реплику
   var heroEl = el("hero"); if (heroEl) heroEl.addEventListener("click", function(){ speak(homeGuideLine()); });
   el("btnShopHome").addEventListener("click", function(){ renderHome(); show("start"); });

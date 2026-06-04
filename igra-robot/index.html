@@ -424,7 +424,7 @@
     <div class="question" id="question"></div>
 
     <div class="pwrbar" id="pwrbar">
-      <button class="pwr" id="pwrX2" title="Удвоить звёзды за раунд">✖️2 <span class="cnt" id="cntX2">0</span></button>
+      <button class="pwr" id="pwrX2" title="Удвоить звёзды за раунд">×2 <span class="cnt" id="cntX2">0</span></button>
       <button class="pwr" id="pwrShield" title="Щит: одна ошибка не собьёт серию">🛡️ <span class="cnt" id="cntShield">0</span></button>
       <button class="pwr" id="pwrSkip" title="Пропустить этот пример">⏭️ <span class="cnt" id="cntSkip">0</span></button>
     </div>
@@ -756,7 +756,7 @@
 
   // ---------- УСИЛЕНИЯ (пауэр-апы) ----------
   var POWERUPS = [
-    {id:"x2",     e:"✖️2", name:"Удвоение звёзд", desc:"Весь раунд звёзды ×2",            price:40},
+    {id:"x2",     e:"×2", name:"Удвоение звёзд", desc:"Весь раунд звёзды ×2",            price:40},
     {id:"shield", e:"🛡️",  name:"Щит серии",      desc:"Одна ошибка не собьёт огонёк 🔥",  price:30},
     {id:"skip",   e:"⏭️",  name:"Пропуск",        desc:"Пропустить трудный пример",        price:20}
   ];
@@ -1098,7 +1098,7 @@
       msg = "Ура, получилось!";
     }
     if (state.x2) gain *= 2;
-    msg += " +" + gain + " ⭐" + (state.x2 ? " ✖️2" : "");
+    msg += " +" + gain + " ⭐" + (state.x2 ? " ×2" : "");
     state.score += gain;
     save.stats.solved += 1;
     if (state.mistake) save.stats.wrong += 1; else save.stats.correct += 1;
@@ -1315,7 +1315,7 @@
   function activateX2(){
     if (state.x2 || save.powerups.x2 <= 0) return;
     save.powerups.x2 -= 1; state.x2 = true; persist(); updatePwrBar();
-    setMascot("", "✖️2 включено! Звёзды за раунд удвоятся");
+    setMascot("", "×2 включено! Звёзды за раунд удвоятся");
   }
   function activateShield(){
     if (state.shield || save.powerups.shield <= 0) return;

@@ -153,7 +153,7 @@ async function init(){
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x9fd0e8);
-  scene.fog = new THREE.Fog(0x9fd0e8, 38, 70);
+  scene.fog = new THREE.Fog(0x9fd0e8, 70, 170);
 
   // camera: isometric orthographic
   const aspect = innerWidth/innerHeight; const vs = camViewSize();
@@ -207,39 +207,30 @@ function makeStripeTexture(){
 }
 
 function buildGround(){
-  const tileMesh = findMesh(MODELS.tile);
-  tileMesh.geometry.computeBoundingBox();
-  const bb=tileMesh.geometry.boundingBox; GROUND_TOP = bb.max.y; const tileBottom=bb.min.y;
-  const geo=tileMesh.geometry, mat=tileMesh.material.clone(); mat.metalness=0; mat.roughness=0.9;
-  const cols=Math.ceil(ISL_W)+2, rows=Math.ceil(ISL_D)+2;
-  // green tiles with small gaps (reads as a tiled world)
-  const inst=new THREE.InstancedMesh(geo, mat, cols*rows);
-  inst.receiveShadow=true; inst.castShadow=true;
-  const m=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new THREE.Vector3(0.93,1,0.93), p=new THREE.Vector3(); let i=0;
-  for(let cx=0;cx<cols;cx++) for(let cz=0;cz<rows;cz++){
-    p.set((cx-(cols-1)/2), 0, (cz-(rows-1)/2)); m.compose(p,q,s); inst.setMatrixAt(i++, m);
+  GROUND_TOP = 0;
+  // one continuous world, fills the screen (no grid)
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x6cbb57, roughness:1, metalness:0}));
+  g.position.y=0; g.receiveShadow=true; scene.add(g);
+  // soft mottled patches for depth (deterministic, no grid)
+  const rng=mulberry32(98765);
+  for(let i=0;i<28;i++){ const col=i%2? 0x5fae4e:0x7cca64; const r=3+rng()*6.5;
+    const patch=new THREE.Mesh(new THREE.CircleGeometry(r,20).rotateX(-Math.PI/2),
+      new THREE.MeshStandardMaterial({color:col, roughness:1, transparent:true, opacity:0.5, depthWrite:false}));
+    patch.position.set((rng()*2-1)*24, 0.01+i*0.0006, (rng()*2-1)*17); scene.add(patch);
   }
-  inst.instanceMatrix.needsUpdate=true; scene.add(inst);
-  // brown island base -> gives the land thickness & cliffs
-  const base=new THREE.Mesh(new THREE.BoxGeometry(cols-0.5, 2.2, rows-0.5),
-    new THREE.MeshStandardMaterial({color:0x7c5a34, roughness:1, metalness:0}));
-  base.position.set(0, tileBottom-1.1, 0); base.receiveShadow=true; base.castShadow=true; scene.add(base);
-  // darker soil band just under the grass
-  const soil=new THREE.Mesh(new THREE.BoxGeometry(cols-0.18, 0.22, rows-0.18),
-    new THREE.MeshStandardMaterial({color:0x5a8a3a, roughness:1}));
-  soil.position.set(0, tileBottom-0.02, 0); soil.receiveShadow=true; scene.add(soil);
 }
 function findMesh(root){ let found=null; root.traverse(o=>{ if(!found && o.isMesh) found=o; }); return found; }
 
 // ---------------- map / nodes ----------------
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function genDecor(seed){ const rng=mulberry32(seed*977+13), out=[]; let tries=0;
-  while(out.length<26 && tries<800){ tries++;
-    const nx=0.04+rng()*0.92, ny=0.05+rng()*0.9; let ok=true;
-    for(const n of MAPS[seed].nodes){ if(Math.hypot(nx-n.x, ny-n.y)<0.12){ ok=false; break; } }
-    if(ok) for(const d of out){ if(Math.hypot(nx-d.nx, ny-d.ny)<0.07){ ok=false; break; } }
-    if(ok){ const r=rng(); out.push({ nx, ny, type: r<0.5?'tree': r<0.78?'treeL':'rocks', rot:rng()*6.28, s:0.8+rng()*0.5 }); }
+function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[]; let tries=0;
+  while(out.length<42 && tries<2500){ tries++;
+    const x=(rng()*2-1)*15.5, z=(rng()*2-1)*10.5; let ok=true;
+    for(const n of nodes){ if(Math.hypot(x-n.x, z-n.z)<2.4){ ok=false; break; } }
+    if(ok) for(const d of out){ if(Math.hypot(x-d.x, z-d.z)<1.1){ ok=false; break; } }
+    if(ok){ const r=rng(); out.push({ x, z, type: r<0.5?'tree': r<0.8?'treeL':'rocks', rot:rng()*6.28, s:1.05+rng()*0.65 }); }
   }
   return out;
 }
@@ -269,7 +260,7 @@ function loadMap(i){
   decor=genDecor(i);
   for(const d of decor){ const src=MODELS[d.type]; const o=src.clone(true);
     o.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
-    const p=worldPos(d.nx,d.ny); o.position.set(p.x,GROUND_TOP,p.z); o.rotation.y=d.rot; o.scale.setScalar(d.s);
+    o.position.set(d.x,GROUND_TOP,d.z); o.rotation.y=d.rot; o.scale.setScalar(d.s);
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
@@ -277,7 +268,7 @@ function loadMap(i){
 
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group); if(n.view.label) n.view.group.remove(n.view.label); }
-  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.25);
+  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(0.85);
   const teamMat=new THREE.MeshStandardMaterial({ color:SOLID[n.o], roughness:0.55, metalness:0.05 });
   const model=MODELS['lvl'+n.l].clone(true);
   model.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.material=teamMat; c.userData.nodeId=n.id; } });

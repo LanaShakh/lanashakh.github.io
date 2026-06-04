@@ -1099,6 +1099,7 @@
 
   // ---------- ГОТОВАЯ ОЗВУЧКА (записанный голос) ----------
   var VOICE_BASE = "voices_pack/";
+  var VOICE_VER = "x1";  // меняем при смене голоса, чтобы браузер скачал свежие файлы
   var vpAudio = null;
   function vpStop(){ if (vpAudio){ try { vpAudio.pause(); } catch(e){} vpAudio = null; } }
   function vpPlaySeq(names){
@@ -1107,7 +1108,7 @@
     var i = 0;
     function next(){
       if (i >= names.length) return;
-      var a = new Audio(VOICE_BASE + names[i] + ".mp3");
+      var a = new Audio(VOICE_BASE + names[i] + ".mp3?v=" + VOICE_VER);
       vpAudio = a;
       a.onended = function(){ i++; next(); };
       a.onerror = function(){ i++; next(); };

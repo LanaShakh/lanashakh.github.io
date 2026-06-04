@@ -298,7 +298,7 @@
     }
   }
   .content {
-    flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
     padding:16px 16px 18px;
   }
   .content::-webkit-scrollbar { width:0; height:0; }
@@ -324,11 +324,25 @@
   .daily-pill.ready { background:linear-gradient(90deg,#ffd56b,#ff9f1c); box-shadow:0 3px 0 #c77f00; animation:glow 1.4s ease-in-out infinite; }
   .home-hero { flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:0; }
   .home-mascot { font-size:104px; line-height:1; animation:floaty 2.6s ease-in-out infinite; }
-  .home-title { font-size:27px; color:#4361ee; text-align:center; margin:0; }
+  .home-title { font-size:27px; color:#ffffff; text-align:center; margin:0; text-shadow:0 2px 10px rgba(0,0,0,.28); }
   .play-btn { width:100%; background:linear-gradient(90deg,#4361ee,#38ef7d); color:#fff; border:none; border-radius:22px; padding:18px; font-size:24px; font-family:inherit; font-weight:900; cursor:pointer; box-shadow:0 6px 0 #2a3eaa; flex-shrink:0; }
   .play-btn:active { transform:translateY(3px); box-shadow:0 3px 0 #2a3eaa; }
   .mode-btn { width:100%; margin-top:10px; background:#fff; color:#4361ee; border:2px solid #dbe2ff; border-radius:16px; padding:12px; font-size:15px; font-family:inherit; font-weight:800; cursor:pointer; flex-shrink:0; }
   .mode-btn:active { transform:translateY(2px); }
+
+  /* ===== Живой фон главного экрана + улыбающийся робот ===== */
+  #screen-start { position:relative; }
+  #screen-start > *:not(.home-bg) { position:relative; z-index:1; }
+  .home-bg { position:absolute; left:-18px; right:-18px; top:-18px; bottom:-22px; z-index:0; overflow:hidden; }
+  .home-blob { position:absolute; width:220px; height:220px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.40), rgba(255,255,255,0) 70%); }
+  .home-shape { position:absolute; line-height:1; opacity:.9; pointer-events:none;
+    animation-name:floatShape; animation-iteration-count:infinite; animation-timing-function:ease-in-out; will-change:transform;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.15)); }
+  @keyframes floatShape { 0%,100%{ transform:translateY(0) rotate(-5deg) } 50%{ transform:translateY(-12px) rotate(5deg) } }
+  .home-mascot .hero-img { width:160px; height:auto; display:block; margin:0 auto;
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,.22)); }
+  .home-level, .home-stars { box-shadow:0 2px 8px rgba(0,0,0,.12); }
 </style>
 </head>
 <body>
@@ -338,6 +352,7 @@
 
   <!-- ДОМ -->
   <div class="screen active" id="screen-start">
+    <div class="home-bg" id="homeBg"></div>
     <div class="home-top">
       <div class="home-level">🎖️ ур. <span id="lvlNum">1</span></div>
       <div class="home-stars">⭐ <span id="totalStars">0</span></div>
@@ -688,14 +703,17 @@
     {body:"#ff922b", accent:"#74c0fc", bg:"#fff4e6"},
     {body:"#22b8cf", accent:"#ffd43b", bg:"#e3fafc"}
   ];
-  function buildRobotSVG(c){
+  function buildRobotSVG(c, bare){
     var d="#2b2b4a";
+    var bg = bare ? '' :
+      '<rect width="300" height="200" rx="16" fill="'+c.bg+'"/>'+
+      '<g fill="'+c.accent+'" opacity="0.28">'+
+        '<circle cx="28" cy="30" r="13"/><circle cx="272" cy="34" r="9"/>'+
+        '<circle cx="34" cy="172" r="11"/><circle cx="266" cy="170" r="15"/></g>';
+    var belt = bare ? '#ffffff' : c.bg;
     var svg =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">'+
-    '<rect width="300" height="200" rx="16" fill="'+c.bg+'"/>'+
-    '<g fill="'+c.accent+'" opacity="0.28">'+
-      '<circle cx="28" cy="30" r="13"/><circle cx="272" cy="34" r="9"/>'+
-      '<circle cx="34" cy="172" r="11"/><circle cx="266" cy="170" r="15"/></g>'+
+    bg+
     '<line x1="150" y1="30" x2="150" y2="12" stroke="'+d+'" stroke-width="4"/>'+
     '<circle cx="150" cy="9" r="6" fill="'+c.accent+'" stroke="'+d+'" stroke-width="2"/>'+
     '<rect x="74" y="98" width="18" height="50" rx="9" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
@@ -707,12 +725,14 @@
     '<circle cx="132" cy="54" r="5" fill="'+d+'"/>'+
     '<circle cx="168" cy="54" r="11" fill="#fff" stroke="'+d+'" stroke-width="2"/>'+
     '<circle cx="168" cy="54" r="5" fill="'+d+'"/>'+
-    '<rect x="134" y="70" width="32" height="7" rx="3.5" fill="'+d+'"/>'+
+    '<circle cx="119" cy="65" r="5" fill="#ff8fa3" opacity="0.75"/>'+
+    '<circle cx="181" cy="65" r="5" fill="#ff8fa3" opacity="0.75"/>'+
+    '<path d="M133 68 Q150 84 167 68" fill="none" stroke="'+d+'" stroke-width="5" stroke-linecap="round"/>'+
     '<rect x="100" y="86" width="100" height="76" rx="16" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
     '<circle cx="150" cy="120" r="17" fill="'+c.accent+'" stroke="'+d+'" stroke-width="3"/>'+
     '<circle cx="150" cy="120" r="6" fill="'+d+'"/>'+
     '<circle cx="116" cy="98" r="4" fill="'+d+'"/><circle cx="184" cy="98" r="4" fill="'+d+'"/>'+
-    '<rect x="126" y="140" width="48" height="10" rx="5" fill="'+c.bg+'" stroke="'+d+'" stroke-width="2"/>'+
+    '<rect x="126" y="140" width="48" height="10" rx="5" fill="'+belt+'" stroke="'+d+'" stroke-width="2"/>'+
     '<rect x="118" y="162" width="20" height="26" rx="7" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
     '<rect x="162" y="162" width="20" height="26" rx="7" fill="'+c.body+'" stroke="'+d+'" stroke-width="3"/>'+
     '</svg>';
@@ -736,7 +756,7 @@
     {e:"🐲", name:"Дракончик",      price:3000,  req:9},
     {e:"🦄", name:"Единорог",       price:5000,  req:12},
     {e:"🚀", name:"Ракета",         price:8000,  req:16},
-    {e:"👑", name:"Золотой робот",  price:15000, req:22}
+    {e:"🦖", name:"Динозаврик",     price:15000, req:22}
   ];
   var GAMES = [
     {id:"compare", e:"⚖️", name:"Больше или меньше", price:300, req:3},
@@ -745,12 +765,12 @@
 
   // ---------- ТЕМЫ ОФОРМЛЕНИЯ (фоны) ----------
   var THEMES = [
-    {id:"space",  name:"Космос",   price:0,    req:1, bg:"linear-gradient(160deg,#3a1c71 0%,#5f72be 45%,#38ef7d 100%)"},
-    {id:"sea",    name:"Море",     price:150,  req:1, bg:"linear-gradient(160deg,#2b5876 0%,#4e4376 50%,#42a5f5 100%)"},
-    {id:"candy",  name:"Конфетка", price:300,  req:2, bg:"linear-gradient(160deg,#ff9a9e 0%,#fad0c4 50%,#fbc2eb 100%)"},
-    {id:"forest", name:"Лес",      price:500,  req:3, bg:"linear-gradient(160deg,#0ba360 0%,#3cba92 100%)"},
-    {id:"sunset", name:"Закат",    price:800,  req:4, bg:"linear-gradient(160deg,#ff512f 0%,#dd2476 60%,#ff8a00 100%)"},
-    {id:"night",  name:"Ночь",     price:1200, req:5, bg:"linear-gradient(160deg,#0f2027 0%,#203a43 50%,#2c5364 100%)"}
+    {id:"space",  name:"Космос",   price:0,    req:1, bg:"linear-gradient(160deg,#3a1c71 0%,#5f72be 45%,#38ef7d 100%)", shapes:["⭐","🪐","✨","🌟","☄️","💫"]},
+    {id:"sea",    name:"Море",     price:150,  req:1, bg:"linear-gradient(160deg,#2b5876 0%,#4e4376 50%,#42a5f5 100%)", shapes:["🫧","🐟","🐚","🐠","🫧","⭐"]},
+    {id:"candy",  name:"Конфетка", price:300,  req:2, bg:"linear-gradient(160deg,#ff9a9e 0%,#fad0c4 50%,#fbc2eb 100%)", shapes:["🍬","🍭","🧁","🍩","🍫","⭐"]},
+    {id:"forest", name:"Лес",      price:500,  req:3, bg:"linear-gradient(160deg,#0ba360 0%,#3cba92 100%)", shapes:["🍃","🦋","🌿","🐞","🌸","🍄"]},
+    {id:"sunset", name:"Закат",    price:800,  req:4, bg:"linear-gradient(160deg,#ff512f 0%,#dd2476 60%,#ff8a00 100%)", shapes:["☁️","🌤️","✨","🐦","⭐","🎈"]},
+    {id:"night",  name:"Ночь",     price:1200, req:5, bg:"linear-gradient(160deg,#0f2027 0%,#203a43 50%,#2c5364 100%)", shapes:["⭐","🌙","✨","💫","🌟","🦉"]}
   ];
   function themeById(id){ for (var i=0;i<THEMES.length;i++) if (THEMES[i].id===id) return THEMES[i]; return THEMES[0]; }
 
@@ -1229,13 +1249,42 @@
   // ---------- МАСКОТ ----------
   function applyMascot(){
     var m = save.mascot || "🤖";
-    var hero = el("hero"); if (hero) hero.textContent = m;
+    var hero = el("hero");
+    if (hero){
+      if (m === "🤖"){
+        // стартовый робот — улыбающийся, на прозрачном фоне
+        hero.innerHTML = '<img class="hero-img" alt="робот" src="' + buildRobotSVG(SCHEMES[0], true) + '">';
+      } else {
+        hero.textContent = m;
+      }
+    }
     el("mascot").textContent = m;
     el("trackBot").textContent = m;
   }
 
-  // ---------- ТЕМА ОФОРМЛЕНИЯ ----------
-  function applyTheme(){ document.body.style.background = themeById(save.theme).bg; }
+  // ---------- ТЕМА ОФОРМЛЕНИЯ (живой фон главного экрана) ----------
+  function applyTheme(){
+    var t = themeById(save.theme);
+    document.body.style.background = t.bg;
+    var hb = el("homeBg");
+    if (hb){
+      hb.style.background = t.bg;
+      renderHomeShapes(t);
+    }
+  }
+  function renderHomeShapes(t){
+    var hb = el("homeBg"); if (!hb) return;
+    var sh = (t.shapes && t.shapes.length) ? t.shapes : ["⭐","✨"];
+    var spots = [[8,10],[82,14],[18,38],[88,44],[10,70],[80,74],[48,20],[40,82]];
+    var html = '<div class="home-blob" style="left:-12%;top:4%"></div>' +
+               '<div class="home-blob" style="right:-16%;bottom:2%"></div>';
+    for (var i=0;i<spots.length;i++){
+      html += '<div class="home-shape" style="left:'+spots[i][0]+'%;top:'+spots[i][1]+'%;' +
+              'font-size:'+(18+(i%3)*9)+'px;animation-duration:'+(3+(i%4))+'s;animation-delay:'+(i*0.3)+'s">' +
+              sh[i % sh.length] + '</div>';
+    }
+    hb.innerHTML = html;
+  }
 
   // ---------- УНИВЕРСАЛЬНОЕ ОКНО-НАГРАДА ----------
   function showReward(emoji, title, html){

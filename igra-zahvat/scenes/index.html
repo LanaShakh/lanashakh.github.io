@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Захват — генератор сцен</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:#bfe0ef;font-family:'Inter',system-ui,sans-serif;}
+  #app{position:fixed;inset:0;} canvas{display:block;}
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(135% 100% at 50% 42%, rgba(0,0,0,0) 54%, rgba(8,18,28,0.30) 100%);}
+  .bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:10;display:flex;gap:7px;flex-wrap:wrap;justify-content:center;
+    max-width:96%;background:rgba(15,18,38,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:8px;}
+  .bar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#eaf0ff;font-family:inherit;font-weight:700;
+    font-size:13px;padding:8px 11px;border-radius:10px;cursor:pointer;}
+  .bar button.on{background:linear-gradient(120deg,#7c5cff,#a17bff);border-color:transparent;}
+  .bar button:active{transform:translateY(1px);}
+  .tag{position:fixed;left:14px;top:12px;z-index:10;color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 6px rgba(0,0,0,.5);}
+  .tag small{display:block;font-weight:600;font-size:12px;opacity:.9;}
+  #loading{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0f1226,#171a3a);color:#cfe0ff;font-weight:700;}
+  #err{position:fixed;inset:0;z-index:41;display:none;align-items:center;justify-content:center;text-align:center;background:#1a1020;color:#ffd3da;padding:24px;font-size:14px;}
+</style>
+</head>
+<body>
+  <div id="app"></div><div class="vignette"></div>
+  <div class="tag" id="tag">Генератор сцен 🌍<small>один движок → много локаций</small></div>
+  <div class="bar" id="bar"></div>
+  <div id="loading">Загрузка…</div><div id="err"></div>
+<script type="importmap">
+{ "imports": { "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+const TAU=Math.PI*2, TEAM={p:0x3b82f6,e:0xef4444,n:0x9aa3b2};
+let renderer,scene,camera,controls,composer,ground,M={},world,rng,seed=1;
+
+// ---- biome presets: one engine, many locations ----
+const PRE={
+  meadow:{ name:'🌿 Луга', ground:0x77c24e, sky:['#bfe9f8','#a6dcf0','#8cc9e3'], fog:0x9fd0e6,
+    trees:['toak','tdef','tfat'], autumn:0.1, groves:12, bush:34, grass:130, flower:16, rock:5, mush:4, log:6, village:true },
+  autumn:{ name:'🍂 Осень', ground:0x86a83e, sky:['#f0e3c4','#e7d3a8','#d8c08a'], fog:0xe3d3a8,
+    trees:['toak','tdef','tfat'], autumn:0.85, groves:18, bush:30, grass:90, flower:8, rock:6, mush:6, log:8, village:true },
+  pine:{ name:'🌲 Бор', ground:0x4f9a47, sky:['#bfe0ef','#a3d2e6','#86c2db'], fog:0x9cc8dd,
+    trees:['tpRA','tpRC','tpDA'], autumn:0.0, groves:22, bush:24, grass:80, flower:5, rock:8, mush:8, log:9, village:false },
+  deep:{ name:'🌳 Чаща', ground:0x3f7f3a, sky:['#9fc6d6','#86b6c8','#6fa6ba'], fog:0x84b2c2,
+    trees:['toak','tdef','tfat','tpRA','tpRC'], autumn:0.2, groves:30, bush:40, grass:70, flower:4, rock:6, mush:12, log:12, village:false },
+  sparse:{ name:'⛰ Редколесье', ground:0x7fbf57, sky:['#cdeefb','#b4e2f3','#99d2e8'], fog:0xb4e2f3,
+    trees:['toak','tdef','tpDA'], autumn:0.15, groves:7, bush:18, grass:90, flower:10, rock:16, mush:3, log:5, village:true },
+};
+const ORDER=['meadow','autumn','pine','deep','sparse'];
+const greensKeys=['toak','tdef','tfat','tpRA','tpRC','tpDA'], fallsKeys=['toakF','tdefF','tfatF'];
+
+function mulberry(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+function pick(a){ return a[Math.floor(mulberry()*a.length)]; }
+function makeSky(c){ const cv=document.createElement('canvas'); cv.width=4;cv.height=256; const x=cv.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256); g.addColorStop(0,c[0]); g.addColorStop(.55,c[1]); g.addColorStop(1,c[2]);
+  x.fillStyle=g; x.fillRect(0,0,4,256); const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
+function clearGroup(g){ while(g.children.length){ const c=g.children.pop(); g.remove(c); } }
+
+async function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.NoToneMapping;
+  document.getElementById('app').appendChild(renderer.domElement);
+  scene=new THREE.Scene(); scene.fog=new THREE.Fog(0x9fd0e6,26,72);
+  try{ const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture; }catch(e){}
+  camera=new THREE.PerspectiveCamera(33,innerWidth/innerHeight,0.1,400); camera.position.set(15,11,17);
+  controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,0.8,0); controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.autoRotate=true; controls.autoRotateSpeed=0.34; controls.minDistance=9; controls.maxDistance=46; controls.maxPolarAngle=Math.PI*0.49;
+  scene.add(new THREE.HemisphereLight(0xdfeeff,0x5c7a42,0.5));
+  const sun=new THREE.DirectionalLight(0xfff1d6,1.55); sun.position.set(12,20,8); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048); const sc=sun.shadow.camera; sc.left=-26;sc.right=26;sc.top=22;sc.bottom=-22;sc.near=1;sc.far=90;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fl=new THREE.DirectionalLight(0xbcd2ff,0.32); fl.position.set(-15,9,-4); scene.add(fl);
+  const rm=new THREE.DirectionalLight(0xffffff,0.7); rm.position.set(-8,8,-16); scene.add(rm);
+
+  ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260).rotateX(-Math.PI/2), new THREE.MeshStandardMaterial({color:0x6fb24a,roughness:1}));
+  ground.receiveShadow=true; scene.add(ground);
+  world=new THREE.Group(); scene.add(world);
+
+  const loader=new GLTFLoader();
+  const load=async f=>{ const g=await loader.loadAsync('../look3/models/'+f);
+    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; if(c.material){ c.material.metalness=0; c.material.envMapIntensity=0.5; } } }); return g.scene; };
+  const N={ toak:'nat/tree_oak.glb',tdef:'nat/tree_default.glb',tfat:'nat/tree_fat.glb',tpRA:'nat/tree_pineRoundA.glb',tpRC:'nat/tree_pineRoundC.glb',tpDA:'nat/tree_pineDefaultA.glb',
+    toakF:'nat/tree_oak_fall.glb',tdefF:'nat/tree_default_fall.glb',tfatF:'nat/tree_fat_fall.glb',
+    bush:'nat/plant_bush.glb',bushL:'nat/plant_bushLarge.glb',bushD:'nat/plant_bushDetailed.glb',bushS:'nat/plant_bushSmall.glb',
+    grass:'nat/grass.glb',grassL:'nat/grass_large.glb',grassLf:'nat/grass_leafs.glb',
+    fR_A:'nat/flower_redA.glb',fR_B:'nat/flower_redB.glb',fY_A:'nat/flower_yellowA.glb',fY_B:'nat/flower_yellowB.glb',fP_B:'nat/flower_purpleB.glb',
+    mR:'nat/mushroom_redGroup.glb',mT:'nat/mushroom_tanGroup.glb',
+    rkSB:'nat/rock_smallB.glb',rkSD:'nat/rock_smallD.glb',rkLB:'nat/rock_largeB.glb',rkLD:'nat/rock_largeD.glb',
+    fence:'nat/fence_simple.glb',fenceP:'nat/fence_planks.glb',fenceG:'nat/fence_gate.glb',
+    log:'nat/log.glb',logL:'nat/log_large.glb',logS:'nat/log_stack.glb',stump:'nat/stump_old.glb',sign:'nat/sign.glb',camp:'nat/campfire_logs.glb',campS:'nat/campfire_stones.glb',vlg:'nat/villager.glb',
+    tb:'td/tower-round-build-b.glb',tc:'td/tower-round-build-c.glb',td:'td/tower-round-build-d.glb',tf:'td/tower-round-build-f.glb' };
+  await Promise.all(Object.entries(N).map(async([k,f])=>{ M[k]=await load(f); }));
+
+  try{ const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:8});
+    composer=new EffectComposer(renderer,rt); composer.addPass(new RenderPass(scene,camera));
+    try{ composer.addPass(new GTAOPass(scene,camera,innerWidth,innerHeight)); }catch(e){}
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.12,0.6,0.96));
+    composer.addPass(new OutputPass()); try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
+  }catch(e){ composer=null; }
+  addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight); if(composer) composer.setSize(innerWidth,innerHeight); });
+
+  // build switcher UI
+  const bar=document.getElementById('bar');
+  ORDER.forEach(k=>{ const b=document.createElement('button'); b.textContent=PRE[k].name; b.dataset.k=k;
+    b.onclick=()=>{ seed=(Math.random()*1e9)|0; generate(k); setOn(k); }; bar.appendChild(b); });
+  const dice=document.createElement('button'); dice.textContent='🎲'; dice.title='Новый seed';
+  dice.onclick=()=>{ seed=(Math.random()*1e9)|0; generate(cur); }; bar.appendChild(dice);
+
+  document.getElementById('loading').style.display='none';
+  generate('meadow'); setOn('meadow');
+  renderer.setAnimationLoop(()=>{ controls.update(); if(composer) composer.render(); else renderer.render(scene,camera); });
+}
+let cur='meadow';
+function setOn(k){ cur=k; document.querySelectorAll('#bar button').forEach(b=>b.classList.toggle('on', b.dataset.k===k));
+  document.getElementById('tag').firstChild.textContent=PRE[k].name+' '; }
+
+// ---------------- the generator ----------------
+function generate(key){
+  const p=PRE[key]; clearGroup(world);
+  ground.material.color.set(p.ground); scene.background=makeSky(p.sky); scene.fog.color.set(p.fog);
+
+  const placed=[]; const fits=(x,z,r)=>placed.every(q=>Math.hypot(x-q.x,z-q.z)>=r+q.r);
+  const rad=(x,z)=>Math.hypot(x,z*1.22); const CLEAR=6.5;
+  const drop=(m,x,z,ry,s,r)=>{ const o=m.clone(true); o.position.set(x,0,z); o.rotation.y=ry; o.scale.setScalar(s); world.add(o); placed.push({x,z,r}); };
+
+  // towers (heroes)
+  const heroes=[{m:M.tb,x:-2.4,z:-1.2,t:'p',s:1.0},{m:M.tc,x:2.2,z:1.0,t:'e',s:1.06},{m:M.td,x:0,z:3.0,t:'n',s:1.12},{m:M.tc,x:-3.2,z:2.4,t:'p',s:1.06},{m:M.tf,x:3.4,z:-2.4,t:'e',s:1.2}];
+  for(const h of heroes){ const o=h.m.clone(true); o.position.set(h.x,0,h.z); o.scale.setScalar(h.s); world.add(o);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.52,0.075,12,40).rotateX(Math.PI/2), new THREE.MeshStandardMaterial({color:TEAM[h.t],emissive:TEAM[h.t],emissiveIntensity:0.5,roughness:0.5}));
+    ring.position.set(h.x,0.05,h.z); ring.scale.setScalar(h.s); world.add(ring); placed.push({x:h.x,z:h.z,r:1.6}); }
+
+  const greens=p.trees.map(k=>M[k]), falls=fallsKeys.map(k=>M[k]);
+  for(let g=0;g<p.groves;g++){ const a=mulberry()*TAU, gr=CLEAR+2+mulberry()*13; const gx=Math.cos(a)*gr, gz=Math.sin(a)*gr*0.82;
+    const species = mulberry()<p.autumn ? falls : greens; const n=3+Math.floor(mulberry()*5);
+    for(let i=0;i<n;i++){ const x=gx+(mulberry()-0.5)*4.5, z=gz+(mulberry()-0.5)*4.5; if(rad(x,z)<CLEAR) continue;
+      const s=1.0+mulberry()*0.7, r=0.85*s; if(!fits(x,z,r)) continue; drop(pick(species),x,z,mulberry()*TAU,s,r);
+      if(mulberry()<0.4){ const bx=x+(mulberry()-0.5)*1.6,bz=z+(mulberry()-0.5)*1.6; if(fits(bx,bz,0.3)) drop(mulberry()<0.5?M.mR:M.bushS,bx,bz,mulberry()*TAU,0.6+mulberry()*0.4,0.3); } } }
+  for(let i=0;i<p.bush;i++){ const a=mulberry()*TAU,gr=CLEAR-1+mulberry()*15; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82; if(rad(x,z)<CLEAR-1||!fits(x,z,0.5))continue; drop(pick([M.bush,M.bushL,M.bushD,M.bushS]),x,z,mulberry()*TAU,0.7+mulberry()*0.5,0.5); }
+  const pal=[[M.fR_A,M.fR_B],[M.fY_A,M.fY_B],[M.fP_B]];
+  for(let q=0;q<Math.round(p.flower/6)+1;q++){ const a=mulberry()*TAU,gr=4+mulberry()*14; const cx=Math.cos(a)*gr,cz=Math.sin(a)*gr*0.82; const set=pick(pal);
+    for(let i=0;i<6;i++){ const x=cx+(mulberry()-0.5)*2.6,z=cz+(mulberry()-0.5)*2.6; if(!fits(x,z,0.28))continue; drop(pick(set),x,z,mulberry()*TAU,0.7+mulberry()*0.4,0.28); } }
+  for(let i=0;i<p.grass;i++){ const a=mulberry()*TAU,gr=3+mulberry()*18; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82; if(!fits(x,z,0.22))continue; drop(pick([M.grass,M.grassL,M.grassLf]),x,z,mulberry()*TAU,0.7+mulberry()*0.6,0.22); }
+  for(let q=0;q<Math.round(p.rock/3)+1;q++){ const a=mulberry()*TAU,gr=CLEAR+mulberry()*14; const cx=Math.cos(a)*gr,cz=Math.sin(a)*gr*0.82;
+    for(let i=0;i<3;i++){ const x=cx+(mulberry()-0.5)*1.8,z=cz+(mulberry()-0.5)*1.8; if(!fits(x,z,0.45))continue; drop(pick([M.rkSB,M.rkSD,M.rkLB,M.rkLD]),x,z,mulberry()*TAU,0.7+mulberry()*0.5,0.45); } }
+  for(let i=0;i<p.log;i++){ const a=mulberry()*TAU,gr=CLEAR+1+mulberry()*14; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82; if(rad(x,z)<CLEAR||!fits(x,z,0.5))continue; drop(pick([M.log,M.logL,M.stump]),x,z,mulberry()*TAU,0.8+mulberry()*0.4,0.5); }
+
+  // road + stream
+  const roadCurve=new THREE.CatmullRomCurve3([[-26,9],[-13,7],[-2,9],[9,7],[24,9]].map(c=>new THREE.Vector3(c[0],0.03,c[1])));
+  const streamCurve=new THREE.CatmullRomCurve3([[-26,-11],[-12,-9],[2,-11],[15,-9],[26,-12]].map(c=>new THREE.Vector3(c[0],0.03,c[1])));
+  const ribbon=(curve,w,col,flat)=>{ const geo=new THREE.TubeGeometry(curve,64,w,10,false); const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,roughness:1})); mesh.scale.y=flat; mesh.position.y=0.02; mesh.receiveShadow=true; world.add(mesh); };
+  ribbon(roadCurve,1.25,0x9c7b4a,0.05); ribbon(streamCurve,1.6,0x49a9d8,0.05);
+
+  if(p.village){
+    const onRoad=t=>{ const pt=roadCurve.getPointAt(t),tan=roadCurve.getTangentAt(t).normalize(); return {p:pt,tan,perp:new THREE.Vector3(-tan.z,0,tan.x)}; };
+    const N2=Math.max(10,Math.round(roadCurve.getLength()/1.0)), off=1.95;
+    for(let i=0;i<=N2;i++){ const t=i/N2; const {p:pt,tan,perp}=onRoad(t); const x=pt.x+perp.x*off,z=pt.z+perp.z*off,yaw=Math.atan2(-tan.z,tan.x);
+      if(Math.abs(t-0.5)<0.04){ const g=M.fenceG.clone(true); g.position.set(x,0,z); g.rotation.y=yaw; g.scale.setScalar(0.95); world.add(g); continue; }
+      const o=((i%6===0)?M.fenceP:M.fence).clone(true); o.position.set(x,0,z); o.rotation.y=yaw; o.scale.setScalar(0.95); world.add(o); }
+    const hmods=[M.h1,M.h2,M.h3,M.h4,M.h5,M.h6].filter(Boolean);
+    [0.30,0.38,0.46,0.54,0.62,0.70].forEach((t,i)=>{ if(!hmods[i]) return; const {p:pt,perp}=onRoad(t); const x=pt.x+perp.x*4.4,z=pt.z+perp.z*4.4;
+      const o=hmods[i].clone(true); o.position.set(x,0,z); o.rotation.y=Math.atan2(-perp.x,-perp.z); o.scale.setScalar(1.4); world.add(o); placed.push({x,z,r:2.4}); });
+    { const c=onRoad(0.5); const x=c.p.x+c.perp.x*2.8,z=c.p.z+c.perp.z*2.8; const a=M.campS.clone(true); a.position.set(x,0,z); a.scale.setScalar(0.6); world.add(a); const b=M.camp.clone(true); b.position.set(x,0,z); b.scale.setScalar(0.5); world.add(b); }
+    { const c=onRoad(0.03); const s=M.sign.clone(true); s.position.set(c.p.x+c.perp.x*0.95,0,c.p.z+c.perp.z*0.95); s.rotation.y=Math.atan2(-c.perp.x,-c.perp.z); s.scale.setScalar(0.9); world.add(s); }
+    [0.32,0.5,0.7].forEach(t=>{ const c=onRoad(t); addChar(M.vlg,c.p.x+c.perp.x*1.5,c.p.z+c.perp.z*1.5,1.6,mulberry()*TAU); });
+  }
+}
+function addChar(model,x,z,h,ry){ const m=model.clone(true); let box=new THREE.Box3().setFromObject(m); const sz=new THREE.Vector3(); box.getSize(sz);
+  if(sz.y<Math.max(sz.x,sz.z)*0.6){ m.rotation.x=-Math.PI/2; box=new THREE.Box3().setFromObject(m); box.getSize(sz); }
+  m.scale.multiplyScalar(h/Math.max(1e-4,sz.y)); box=new THREE.Box3().setFromObject(m); m.position.set(x,-box.min.y,z); m.rotation.y=ry;
+  m.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } }); world.add(m); }
+
+// houses live in look3/models/vil — load them too (optional)
+const extra={ h1:'vil/house1.glb',h2:'vil/house2.glb',h3:'vil/house3.glb',h4:'vil/house4.glb',h5:'vil/house5.glb',h6:'vil/house6.glb' };
+
+init().then(async()=>{ const loader=new GLTFLoader();
+  for(const [k,f] of Object.entries(extra)){ try{ const g=await loader.loadAsync('../look3/models/'+f);
+    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; if(c.material) c.material.metalness=0; } }); M[k]=g.scene; }catch(e){} }
+  generate(cur);
+}).catch(e=>{ console.error(e); document.getElementById('loading').style.display='none';
+  const el=document.getElementById('err'); el.style.display='flex'; el.textContent='Ошибка: '+(e&&e.message?e.message:e); });
+</script>
+</body>
+</html>

@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Захват — образец (Tower Defense Kit)</title>
+<title>Захват — локация (генератор)</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{height:100%;overflow:hidden;background:#bfe0ef;}
   body{font-family:'Inter',system-ui,sans-serif;}
   #app{position:fixed;inset:0;} canvas{display:block;}
   .vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
-    background:radial-gradient(130% 95% at 50% 40%, rgba(0,0,0,0) 52%, rgba(8,18,28,0.32) 100%);}
+    background:radial-gradient(135% 100% at 50% 42%, rgba(0,0,0,0) 54%, rgba(8,18,28,0.32) 100%);}
   .tag{position:fixed;left:14px;top:12px;z-index:10;color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 6px rgba(0,0,0,.5);}
   .tag small{display:block;font-weight:600;font-size:12px;opacity:.9;}
   .hint{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:10;
@@ -24,9 +24,9 @@
 <body>
   <div id="app"></div>
   <div class="vignette"></div>
-  <div class="tag">Образец: Tower Defense Kit 🗼<small>башни-герои + остров-диорама</small></div>
-  <div class="hint">Башни в фокусе. Покрути пальцем/мышью.</div>
-  <div id="loading">Сборка локации…</div>
+  <div class="tag">Локация (генератор) 🌲<small>поляна + лес кольцом + тропа/ручей — правилами</small></div>
+  <div class="hint">Башни на поляне. Покрути пальцем/мышью.</div>
+  <div id="loading">Генерация локации…</div>
   <div id="err"></div>
 
 <script type="importmap">
@@ -48,102 +48,119 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
 let renderer, scene, camera, controls, composer;
-const TEAM={p:0x3b82f6,e:0xef4444,n:0x9aa3b2};
+const TAU=Math.PI*2, TEAM={p:0x3b82f6,e:0xef4444,n:0x9aa3b2};
 function sky(){ const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
   const g=x.createLinearGradient(0,0,0,256); g.addColorStop(0,'#a9dcf2'); g.addColorStop(.55,'#8ccbe6'); g.addColorStop(1,'#74b8d8');
   x.fillStyle=g; x.fillRect(0,0,4,256); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
-function findMesh(root){ let f=null; root.traverse(o=>{ if(!f&&o.isMesh) f=o; }); return f; }
 
 async function init(){
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.NoToneMapping;   // keep the kit's vibrant baked colors
+  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.NoToneMapping;
   document.getElementById('app').appendChild(renderer.domElement);
 
-  scene=new THREE.Scene(); scene.background=sky(); scene.fog=new THREE.Fog(0x9fd0e6, 34, 85);
-  let env=null; try{ const pm=new THREE.PMREMGenerator(renderer); env=pm.fromScene(new RoomEnvironment(),0.04).texture; scene.environment=env; }catch(e){}
+  scene=new THREE.Scene(); scene.background=sky(); scene.fog=new THREE.Fog(0x9fd0e6, 26, 70);
+  try{ const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture; }catch(e){}
 
   camera=new THREE.PerspectiveCamera(33, innerWidth/innerHeight, 0.1, 400);
-  camera.position.set(14,11,16);
+  camera.position.set(15,11,17);
   controls=new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0,1.0,0); controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.target.set(0,0.8,0); controls.enableDamping=true; controls.dampingFactor=0.08;
   controls.autoRotate=true; controls.autoRotateSpeed=0.34; controls.minDistance=9; controls.maxDistance=46; controls.maxPolarAngle=Math.PI*0.49;
 
-  // softer, balanced light (no blow-out -> colors stay saturated)
   scene.add(new THREE.HemisphereLight(0xdfeeff,0x5c7a42,0.5));
   const sun=new THREE.DirectionalLight(0xfff1d6,1.55); sun.position.set(12,20,8); sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048); const sc=sun.shadow.camera;
-  sc.left=-22;sc.right=22;sc.top=18;sc.bottom=-18;sc.near=1;sc.far=85; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  sc.left=-26;sc.right=26;sc.top=22;sc.bottom=-22;sc.near=1;sc.far=90; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
   const fill=new THREE.DirectionalLight(0xbcd2ff,0.32); fill.position.set(-15,9,-4); scene.add(fill);
   const rim=new THREE.DirectionalLight(0xffffff,0.7); rim.position.set(-8,8,-16); scene.add(rim);
 
   const loader=new GLTFLoader();
-  const load=async f=>{ const g=await loader.loadAsync('models/'+f);
-    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true;
-      if(c.material){ c.material.metalness=0; c.material.envMapIntensity=0.55; } } }); return g.scene; };
-  const N={ tile:'tile.glb', dirt:'tile-dirt.glb', hill:'tile-hill.glb',
-    tree:'detail-tree.glb', treeL:'detail-tree-large.glb', rocks:'detail-rocks.glb', crystal:'detail-crystal.glb',
-    structure:'wood-structure-high.glb', tb:'tower-round-build-b.glb', tc:'tower-round-build-c.glb', td:'tower-round-build-d.glb', tf:'tower-round-build-f.glb' };
-  const M={}; await Promise.all(Object.entries(N).map(async([k,f])=>{ M[k]=await load(f); }));
-  const tmesh=findMesh(M.tile); tmesh.geometry.computeBoundingBox(); const bb=tmesh.geometry.boundingBox;
-  const TOP=bb.max.y, TH=bb.max.y-bb.min.y;   // tile top, tile height (for stacking elevation)
+  const load=async f=>{ const g=await loader.loadAsync(f);
+    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; if(c.material){ c.material.metalness=0; c.material.envMapIntensity=0.5; } } }); return g.scene; };
+  const N={
+    toak:'nat/tree_oak.glb', tdef:'nat/tree_default.glb', tfat:'nat/tree_fat.glb',
+    tpRA:'nat/tree_pineRoundA.glb', tpRC:'nat/tree_pineRoundC.glb', tpDA:'nat/tree_pineDefaultA.glb',
+    toakF:'nat/tree_oak_fall.glb', tdefF:'nat/tree_default_fall.glb', tfatF:'nat/tree_fat_fall.glb',
+    bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb', bushD:'nat/plant_bushDetailed.glb', bushS:'nat/plant_bushSmall.glb',
+    grass:'nat/grass.glb', grassL:'nat/grass_large.glb', grassLf:'nat/grass_leafs.glb',
+    fR_A:'nat/flower_redA.glb', fR_B:'nat/flower_redB.glb', fY_A:'nat/flower_yellowA.glb', fY_B:'nat/flower_yellowB.glb', fP_B:'nat/flower_purpleB.glb',
+    mR:'nat/mushroom_redGroup.glb', mT:'nat/mushroom_tanGroup.glb',
+    rkSB:'nat/rock_smallB.glb', rkSD:'nat/rock_smallD.glb', rkLB:'nat/rock_largeB.glb', rkLD:'nat/rock_largeD.glb',
+    bridge:'nat/bridge_wood.glb',
+    tb:'td/tower-round-build-b.glb', tc:'td/tower-round-build-c.glb', td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb' };
+  const M={}; await Promise.all(Object.entries(N).map(async([k,f])=>{ M[k]=await load('models/'+f); }));
 
-  let s=20240604; const rng=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  // continuous ground (no tiles), fills the screen
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x6fb24a, roughness:1}));
+  ground.receiveShadow=true; scene.add(ground);
+  // gentle large color patches for ground variation
+  { let s=7; const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+    for(let i=0;i<22;i++){ const col=i%2?0x649f43:0x7cbf57; const rad=4+r()*8;
+      const p=new THREE.Mesh(new THREE.CircleGeometry(rad,18).rotateX(-Math.PI/2),
+        new THREE.MeshStandardMaterial({color:col,roughness:1,transparent:true,opacity:0.5,depthWrite:false}));
+      p.position.set((r()*2-1)*30,0.01+i*0.0005,(r()*2-1)*22); scene.add(p);} }
 
-  // ---------- island as an irregular blob (in the sea) ----------
-  const COLS=14, ROWS=11, ox=(COLS-1)/2, oz=(ROWS-1)/2;
-  const land={}, isLand=(cx,cz)=>land[cx+','+cz];
-  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
-    const dx=(cx-ox)/(COLS*0.46), dz=(cz-oz)/(ROWS*0.46);
-    if(dx*dx+dz*dz < 0.85 + (rng()-0.5)*0.18) land[cx+','+cz]=true;
-  }
-  const put=(m,cx,cz,y,ry=0,sc=1)=>{ const o=m.clone(true); o.position.set(cx-ox,y,cz-oz); o.rotation.y=ry; o.scale.setScalar(sc); scene.add(o); return o; };
+  // ---------------- LOGICAL LOCATION GENERATOR ----------------
+  let seed=20240604; const rng=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+  const pick=a=>a[Math.floor(rng()*a.length)];
+  const placed=[]; // {x,z,r} occupancy for spacing
+  const fits=(x,z,r)=>placed.every(p=>Math.hypot(x-p.x,z-p.z)>=r+p.r);
+  const drop=(m,x,z,ry,s,r)=>{ const o=m.clone(true); o.position.set(x,0,z); o.rotation.y=ry; o.scale.setScalar(s); scene.add(o); placed.push({x,z,r}); };
 
-  // winding dirt path
-  const onPath=(cx,cz)=> cx===Math.round(ox + 2.4*Math.sin(cz*0.6));
-  // raised plateau region (a corner cluster)
-  const onPlateau=(cx,cz)=> isLand(cx,cz) && cx>=COLS-5 && cz<=4;
+  const CLEAR=6.5;                      // open gameplay clearing radius
+  const rad=(x,z)=>Math.hypot(x,z*1.22);
 
-  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
-    if(!isLand(cx,cz)) continue;
-    const base = onPath(cx,cz)? M.dirt : M.tile;
-    put(base,cx,cz,0);
-    if(onPlateau(cx,cz)) put(M.tile,cx,cz,TOP);   // second layer -> cliff/plateau
-  }
-  const groundY=(cx,cz)=> onPlateau(cx,cz)? TOP+TH : TOP;
-
-  // sea
-  const sea=new THREE.Mesh(new THREE.PlaneGeometry(300,300).rotateX(-Math.PI/2),
-    new THREE.MeshStandardMaterial({color:0x3aa0d6, roughness:0.35, metalness:0.0}));
-  sea.position.y=TOP*0.45; scene.add(sea);
-
-  // ---------- TOWERS = heroes (level growth b->c->d->f), team rings ----------
-  const used=new Set();
-  const heroes=[ {m:M.tb,cx:4,cz:7,t:'p',s:1.0}, {m:M.tc,cx:6,cz:8,t:'p',s:1.06},
-                 {m:M.td,cx:5,cz:5,t:'n',s:1.12},
-                 {m:M.tf,cx:COLS-3,cz:2,t:'e',s:1.2} /* on plateau */, {m:M.tc,cx:COLS-2,cz:4,t:'e',s:1.06} ];
-  for(const h of heroes){ if(!isLand(h.cx,h.cz)) continue; used.add(h.cx+','+h.cz);
-    const gy=groundY(h.cx,h.cz);
-    put(h.m,h.cx,h.cz,gy,0,h.s);
+  // 1) TOWERS = heroes in the clearing (reserve their spots)
+  const heroes=[ {m:M.tb,x:-2.4,z:-1.2,t:'p',s:1.0}, {m:M.tc,x:2.2,z:1.0,t:'e',s:1.06},
+                 {m:M.td,x:0,z:3.0,t:'n',s:1.12}, {m:M.tc,x:-3.2,z:2.4,t:'p',s:1.06}, {m:M.tf,x:3.4,z:-2.4,t:'e',s:1.2} ];
+  for(const h of heroes){ const o=h.m.clone(true); o.position.set(h.x,0,h.z); o.scale.setScalar(h.s); scene.add(o);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(0.52,0.075,12,40).rotateX(Math.PI/2),
-      new THREE.MeshStandardMaterial({color:TEAM[h.t], emissive:TEAM[h.t], emissiveIntensity:0.5, roughness:0.5}));
-    ring.position.set(h.cx-ox, gy+0.05, h.cz-oz); ring.scale.setScalar(h.s); scene.add(ring);
+      new THREE.MeshStandardMaterial({color:TEAM[h.t],emissive:TEAM[h.t],emissiveIntensity:0.5,roughness:0.5}));
+    ring.position.set(h.x,0.05,h.z); ring.scale.setScalar(h.s); scene.add(ring); placed.push({x:h.x,z:h.z,r:1.6}); }
+
+  // 2) FOREST as groves (clusters of one species), denser toward the edge
+  const greens=[M.toak,M.tdef,M.tfat,M.tpRA,M.tpRC,M.tpDA], falls=[M.toakF,M.tdefF,M.tfatF];
+  for(let g=0; g<20; g++){
+    const a=rng()*TAU, gr=CLEAR+2 + rng()*13;
+    const gx=Math.cos(a)*gr, gz=Math.sin(a)*gr*0.82;
+    const species = rng()<0.30 ? falls : greens;          // some autumn groves for colour
+    const n=3+Math.floor(rng()*5);
+    for(let i=0;i<n;i++){
+      const x=gx+(rng()-0.5)*4.5, z=gz+(rng()-0.5)*4.5;
+      if(rad(x,z)<CLEAR) continue;                          // keep the clearing open
+      const s=1.0+rng()*0.7, r=0.85*s;
+      if(!fits(x,z,r)) continue;
+      drop(pick(species), x,z, rng()*TAU, s, r);
+      if(rng()<0.4){ const bx=x+(rng()-0.5)*1.6, bz=z+(rng()-0.5)*1.6;   // understory at tree base
+        if(fits(bx,bz,0.3)) drop(rng()<0.5?M.mR:M.bushS, bx,bz, rng()*TAU, 0.6+rng()*0.4, 0.3); }
+    }
   }
-  // a wood structure landmark on the plateau edge
-  put(M.structure, COLS-4, 1, groundY(COLS-4,1), 0.4, 1.0); used.add((COLS-4)+',1');
+  // 3) scattered bushes (mid-ground)
+  for(let i=0;i<46;i++){ const a=rng()*TAU, gr=CLEAR-1+rng()*15; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82;
+    if(rad(x,z)<CLEAR-1||!fits(x,z,0.5)) continue; drop(pick([M.bush,M.bushL,M.bushD,M.bushS]),x,z,rng()*TAU,0.7+rng()*0.5,0.5); }
+  // 4) flower patches (one colour per patch)
+  const palettes=[[M.fR_A,M.fR_B],[M.fY_A,M.fY_B],[M.fP_B]];
+  for(let p=0;p<11;p++){ const a=rng()*TAU, gr=4+rng()*14; const cx=Math.cos(a)*gr,cz=Math.sin(a)*gr*0.82; const set=pick(palettes);
+    for(let i=0;i<7;i++){ const x=cx+(rng()-0.5)*2.6,z=cz+(rng()-0.5)*2.6; if(!fits(x,z,0.28)) continue; drop(pick(set),x,z,rng()*TAU,0.7+rng()*0.4,0.28); } }
+  // 5) grass tufts (light, everywhere incl. clearing fringe)
+  for(let i=0;i<120;i++){ const a=rng()*TAU, gr=3+rng()*18; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82;
+    if(!fits(x,z,0.22)) continue; drop(pick([M.grass,M.grassL,M.grassLf]),x,z,rng()*TAU,0.7+rng()*0.6,0.22); }
+  // 6) rock piles (clusters)
+  for(let p=0;p<7;p++){ const a=rng()*TAU, gr=CLEAR+rng()*14; const cx=Math.cos(a)*gr,cz=Math.sin(a)*gr*0.82;
+    for(let i=0;i<3;i++){ const x=cx+(rng()-0.5)*1.8,z=cz+(rng()-0.5)*1.8; if(!fits(x,z,0.45)) continue; drop(pick([M.rkSB,M.rkSD,M.rkLB,M.rkLD]),x,z,rng()*TAU,0.7+rng()*0.5,0.45); } }
 
-  // ---------- clustered decor (groves / rock piles / crystals) ----------
-  const clusters=[ {x:2,z:3,k:'tree',n:5}, {x:3,z:9,k:'tree',n:4}, {x:9,z:9,k:'tree',n:5},
-                   {x:7,z:2,k:'rock',n:3}, {x:11,z:7,k:'crystal',n:4}, {x:2,z:6,k:'rock',n:3} ];
-  for(const cl of clusters){ for(let i=0;i<cl.n;i++){
-    const cx=cl.x+Math.round((rng()-0.5)*2.2), cz=cl.z+Math.round((rng()-0.5)*2.2);
-    if(!isLand(cx,cz)||used.has(cx+','+cz)||onPath(cx,cz)) continue;
-    const m = cl.k==='tree'? (rng()<0.5?M.tree:M.treeL) : cl.k==='rock'? M.rocks : M.crystal;
-    put(m,cx,cz,groundY(cx,cz),rng()*6.28, (cl.k==='tree'?0.85:0.8)+rng()*0.4);
-  }}
+  // 7) path + stream + bridge (a coherent feature line)
+  const ribbon=(pts,w,col,flat)=>{ const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p[0],0.03,p[1])));
+    const geo=new THREE.TubeGeometry(curve,48,w,10,false); const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,roughness:1}));
+    mesh.scale.y=flat; mesh.position.y=0.02; mesh.receiveShadow=true; scene.add(mesh); };
+  ribbon([[-24,-3],[-12,-1],[-3,-3],[6,-1],[20,2]], 1.15, 0x9c7b4a, 0.05);    // dirt path
+  ribbon([[-6,18],[-3,8],[-1,0],[2,-9],[5,-20]], 1.5, 0x49a9d8, 0.05);        // stream
+  { const b=M.bridge.clone(true); b.position.set(-2,0.05,-2.5); b.rotation.y=0.7; b.scale.setScalar(1.3); scene.add(b); } // bridge over crossing
 
-  // ---------- post ----------
+  // ---------------- post ----------------
   try{
     const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType, samples:8});
     composer=new EffectComposer(renderer,rt);

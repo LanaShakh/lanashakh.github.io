@@ -76,7 +76,7 @@
   </div>
   <div class="stage">
     <canvas id="cv"></canvas>
-    <div class="hint" id="hint">Тяни от своей башни к другой, чтобы создать связь. Тяни ещё раз — связь снимется.</div>
+    <div class="hint" id="hint">Тяни от своей башни к другой — создать связь. Убрать: кликни по линии (ПК) или проведи связь ещё раз (телефон).</div>
 
     <div class="overlay" id="ovEnd">
       <div class="big" id="ovTitle"></div>
@@ -323,23 +323,46 @@
     return null;
   }
   function pointerPos(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
+  function distSeg(px,py,ax,ay,bx,by){
+    const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy;
+    let t = L2 ? ((px-ax)*dx+(py-ay)*dy)/L2 : 0; t=Math.max(0,Math.min(1,t));
+    return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+  }
+  function linkAt(px,py){ // only the player's own links are clickable to remove
+    let best=null, bd=14;
+    for(const L of links){ if(L.o!==1) continue;
+      const a=nodes[L.from], b=nodes[L.to], d=distSeg(px,py,a.x,a.y,b.x,b.y);
+      if(d<bd){ bd=d; best=L; } }
+    return best;
+  }
 
+  let downPt=null;
   cv.addEventListener('pointerdown',e=>{
     if(ended) return;
-    const p=pointerPos(e); const n=nodeAt(p.x,p.y);
+    const p=pointerPos(e); downPt={x:p.x,y:p.y};
+    const n=nodeAt(p.x,p.y);
     if(n && n.o===1){ drag={fromId:n.id, x:p.x, y:p.y, sx:p.x, sy:p.y}; cv.setPointerCapture(e.pointerId);
       $('hint').style.opacity='0'; }
   });
-  cv.addEventListener('pointermove',e=>{ if(drag){ const p=pointerPos(e); drag.x=p.x; drag.y=p.y; } });
-  cv.addEventListener('pointerup',e=>{
-    if(!drag) return;
-    const p=pointerPos(e); const n=nodeAt(p.x,p.y);
-    // require a deliberate drag (not an accidental tap) ending on another tower
-    const movedFar = Math.hypot(p.x-drag.sx, p.y-drag.sy) > 14;
-    if(n && n.id!==drag.fromId && movedFar){ toggleLink(drag.fromId, n.id); }
-    drag=null;
+  cv.addEventListener('pointermove',e=>{
+    const p=pointerPos(e);
+    if(drag){ drag.x=p.x; drag.y=p.y; }
+    else if(e.pointerType==='mouse'){ cv.style.cursor = linkAt(p.x,p.y) ? 'pointer' : 'default'; }
   });
-  cv.addEventListener('pointercancel',()=>{ drag=null; });
+  cv.addEventListener('pointerup',e=>{
+    const p=pointerPos(e);
+    const movedFar = downPt && Math.hypot(p.x-downPt.x, p.y-downPt.y) > 14;
+    if(drag){
+      const n=nodeAt(p.x,p.y);
+      if(n && n.id!==drag.fromId && movedFar) toggleLink(drag.fromId, n.id); // create / re-drag to remove
+      drag=null;
+    } else if(!movedFar){
+      const L=linkAt(p.x,p.y); // click/tap on a connection line removes it
+      if(L) removeLink(L);
+    }
+    downPt=null;
+  });
+  cv.addEventListener('pointercancel',()=>{ drag=null; downPt=null; });
 
   $('speedBtn').onclick=()=>{ speed = speed===1?2:1; $('speedBtn').textContent='×'+speed; };
   $('menuBtn').onclick=()=>{ running=false; openMenu(); };

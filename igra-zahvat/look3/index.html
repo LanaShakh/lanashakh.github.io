@@ -88,7 +88,10 @@ async function init(){
     fR_A:'nat/flower_redA.glb', fR_B:'nat/flower_redB.glb', fY_A:'nat/flower_yellowA.glb', fY_B:'nat/flower_yellowB.glb', fP_B:'nat/flower_purpleB.glb',
     mR:'nat/mushroom_redGroup.glb', mT:'nat/mushroom_tanGroup.glb',
     rkSB:'nat/rock_smallB.glb', rkSD:'nat/rock_smallD.glb', rkLB:'nat/rock_largeB.glb', rkLD:'nat/rock_largeD.glb',
-    bridge:'nat/bridge_wood.glb',
+    fence:'nat/fence_simple.glb', fenceP:'nat/fence_planks.glb', fenceC:'nat/fence_corner.glb', fenceG:'nat/fence_gate.glb',
+    log:'nat/log.glb', logL:'nat/log_large.glb', logS:'nat/log_stack.glb', stump:'nat/stump_old.glb',
+    sign:'nat/sign.glb', camp:'nat/campfire_logs.glb', campS:'nat/campfire_stones.glb',
+    h1:'vil/house1.glb', h2:'vil/house2.glb', h3:'vil/house3.glb', h4:'vil/house4.glb', h5:'vil/house5.glb', h6:'vil/house6.glb',
     tb:'td/tower-round-build-b.glb', tc:'td/tower-round-build-c.glb', td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb' };
   const M={}; await Promise.all(Object.entries(N).map(async([k,f])=>{ M[k]=await load('models/'+f); }));
 
@@ -152,13 +155,31 @@ async function init(){
   for(let p=0;p<7;p++){ const a=rng()*TAU, gr=CLEAR+rng()*14; const cx=Math.cos(a)*gr,cz=Math.sin(a)*gr*0.82;
     for(let i=0;i<3;i++){ const x=cx+(rng()-0.5)*1.8,z=cz+(rng()-0.5)*1.8; if(!fits(x,z,0.45)) continue; drop(pick([M.rkSB,M.rkSD,M.rkLB,M.rkLD]),x,z,rng()*TAU,0.7+rng()*0.5,0.45); } }
 
-  // 7) path + stream + bridge (a coherent feature line)
+  // 7) road + stream (separated, no crossing -> no bridge needed)
   const ribbon=(pts,w,col,flat)=>{ const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p[0],0.03,p[1])));
     const geo=new THREE.TubeGeometry(curve,48,w,10,false); const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,roughness:1}));
     mesh.scale.y=flat; mesh.position.y=0.02; mesh.receiveShadow=true; scene.add(mesh); };
-  ribbon([[-24,-3],[-12,-1],[-3,-3],[6,-1],[20,2]], 1.15, 0x9c7b4a, 0.05);    // dirt path
-  ribbon([[-6,18],[-3,8],[-1,0],[2,-9],[5,-20]], 1.5, 0x49a9d8, 0.05);        // stream
-  { const b=M.bridge.clone(true); b.position.set(-2,0.05,-2.5); b.rotation.y=0.7; b.scale.setScalar(1.3); scene.add(b); } // bridge over crossing
+  ribbon([[-26,9],[-13,7],[-2,9],[9,7],[24,9]], 1.25, 0x9c7b4a, 0.05);        // dirt road (south, by the village)
+  ribbon([[-26,-11],[-12,-9],[2,-11],[15,-9],[26,-12]], 1.6, 0x49a9d8, 0.05); // stream (north, no crossing)
+
+  // 8) VILLAGE — houses along the road + fence + campfire + sign (life!)
+  const houseModels=[M.h1,M.h2,M.h3,M.h4,M.h5,M.h6];
+  const hpos=[[-10,10.5],[-6,11],[-1.5,10.6],[3.5,11],[8,10.6],[12,10.8]];
+  for(let i=0;i<hpos.length;i++){ const [x,z]=hpos[i]; const o=houseModels[i].clone(true);
+    o.position.set(x,0,z); o.rotation.y=Math.PI+(rng()-0.5)*0.3; o.scale.setScalar(1.45); scene.add(o); placed.push({x,z,r:2.2}); }
+  // picket fence between road and houses (with a gate gap)
+  for(let x=-13;x<=14;x++){ if(x===-1||x===0) continue; const m=(x%6===0)?M.fenceP:M.fence;
+    const o=m.clone(true); o.position.set(x,0,8.4); o.scale.setScalar(0.95); scene.add(o); }
+  { const g=M.fenceG.clone(true); g.position.set(0,0,8.4); g.scale.setScalar(0.95); scene.add(g); }
+  // campfire + sign + woodpile
+  { const a=M.campS.clone(true); a.position.set(-2,0,9.4); a.scale.setScalar(0.6); scene.add(a);
+    const b=M.camp.clone(true); b.position.set(-2,0,9.4); b.scale.setScalar(0.5); scene.add(b); }
+  { const s=M.sign.clone(true); s.position.set(-14,0,8.6); s.rotation.y=0.4; s.scale.setScalar(0.9); scene.add(s); }
+  { const w=M.logS.clone(true); w.position.set(6,0,9.6); w.rotation.y=0.5; w.scale.setScalar(0.9); scene.add(w); }
+
+  // 9) forest-floor detail: logs & stumps in the woods
+  for(let i=0;i<12;i++){ const a=rng()*TAU, gr=CLEAR+1+rng()*14; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82;
+    if(rad(x,z)<CLEAR||!fits(x,z,0.5)) continue; drop(pick([M.log,M.logL,M.stump]),x,z,rng()*TAU,0.8+rng()*0.4,0.5); }
 
   // ---------------- post ----------------
   try{

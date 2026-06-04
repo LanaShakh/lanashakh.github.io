@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#fef6ec">
+<title>Скажи-Покажи</title>
+<meta name="description" content="Скажи-Покажи — развивающие карточки с озвучкой для занятий с детьми. Два режима: понимание речи (покажи картинку) и развитие речи (назови картинку). Свои карточки и фото.">
+<style>
+  :root{
+    --bg1:#fef6ec; --bg2:#fde9d6; --ink:#3a2e26; --muted:#9a8a7d;
+    --card:#ffffff; --shadow:0 10px 30px rgba(120,80,40,.12);
+    --green:#46c08a; --green-d:#2fa170;
+    --blue:#4a9fe0; --blue-d:#2f86cb;
+    --amber:#f4a94b; --amber-d:#e0913a;
+    --pink:#f47ba7;
+    --line:rgba(120,80,40,.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:'Nunito',ui-rounded,'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+    color:var(--ink); user-select:none;
+    background:
+      radial-gradient(900px 500px at 15% -10%,rgba(244,169,75,.18),transparent 60%),
+      radial-gradient(800px 480px at 110% 0%,rgba(74,159,224,.14),transparent 55%),
+      linear-gradient(160deg,var(--bg1),var(--bg2));
+    display:flex; flex-direction:column; height:100%;
+  }
+
+  /* ---------- top bar ---------- */
+  .bar{display:flex; align-items:center; gap:10px; padding:max(12px,env(safe-area-inset-top)) 16px 10px;}
+  .bar .logo{font-weight:900; font-size:19px; letter-spacing:-.3px; display:flex; align-items:center; gap:8px;}
+  .bar .logo .em{font-size:22px;}
+  .spacer{margin-left:auto;}
+  .iconbtn{background:var(--card); border:1px solid var(--line); color:var(--ink);
+    min-width:44px;height:44px;border-radius:14px; font-size:18px; font-weight:800; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px; padding:0 14px; box-shadow:var(--shadow);}
+  .iconbtn:active{transform:translateY(2px);}
+  .iconbtn.ghost{background:transparent; box-shadow:none; border-color:transparent; color:var(--muted);}
+
+  .stage{flex:1; min-height:0; position:relative; overflow:hidden;}
+  .screen{position:absolute; inset:0; display:none; flex-direction:column; padding:8px 16px 16px; overflow-y:auto;}
+  .screen.show{display:flex; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+
+  /* ---------- home ---------- */
+  .hero{text-align:center; margin:18px 0 8px;}
+  .hero h1{font-size:30px; font-weight:900; letter-spacing:-.5px;}
+  .hero p{color:var(--muted); font-size:15px; margin-top:6px; max-width:340px; margin-inline:auto;}
+  .menu{display:flex; flex-direction:column; gap:14px; max-width:420px; width:100%; margin:18px auto 0;}
+  .big-btn{border:none; border-radius:24px; padding:22px 22px; font-family:inherit; font-weight:900;
+    font-size:21px; color:#fff; cursor:pointer; box-shadow:var(--shadow); display:flex; align-items:center; gap:16px;
+    text-align:left;}
+  .big-btn .e{font-size:34px; line-height:1;}
+  .big-btn small{display:block; font-weight:700; font-size:13px; opacity:.92; margin-top:3px;}
+  .big-btn:active{transform:translateY(2px);}
+  .b-show{background:linear-gradient(135deg,var(--blue),var(--blue-d));}
+  .b-say{background:linear-gradient(135deg,var(--amber),var(--amber-d));}
+  .b-cards{background:linear-gradient(135deg,#8b7fd6,#6f61c4);}
+  .foot{margin-top:auto; text-align:center; color:var(--muted); font-size:12px; padding-top:18px;}
+  .foot b{color:#b89a82;}
+
+  /* ---------- screen title ---------- */
+  .sub-head{display:flex; align-items:center; gap:12px; margin:4px 0 10px;}
+  .sub-head h2{font-size:20px; font-weight:900;}
+  .sub-head .tag{margin-left:auto; font-size:13px; font-weight:800; color:#fff; background:var(--green);
+    padding:6px 12px; border-radius:999px;}
+
+  /* ---------- PLAY: понимание ---------- */
+  .prompt{display:flex; flex-direction:column; align-items:center; gap:12px; margin:10px 0 18px;}
+  .speak{border:none; cursor:pointer; background:linear-gradient(135deg,var(--green),var(--green-d));
+    color:#fff; font-weight:900; font-size:19px; padding:16px 28px; border-radius:999px; box-shadow:var(--shadow);
+    display:flex; align-items:center; gap:12px;}
+  .speak .e{font-size:26px;}
+  .speak:active{transform:translateY(2px);}
+  .speak.pulse{animation:pulse 1.1s ease infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 8px 22px rgba(70,192,138,.35)}50%{box-shadow:0 8px 34px rgba(70,192,138,.7)}}
+  .word-hint{color:var(--muted); font-size:14px; font-weight:700; min-height:18px;}
+
+  .grid{display:grid; gap:14px; width:100%; max-width:560px; margin:0 auto;
+    grid-template-columns:repeat(2,1fr);}
+  .grid.cols3{grid-template-columns:repeat(3,1fr);} /* unused on narrow, kept for big screens */
+  .choice{aspect-ratio:1/1; background:var(--card); border:3px solid transparent; border-radius:24px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--shadow);
+    overflow:hidden; position:relative; transition:transform .12s, border-color .15s;}
+  .choice .em{font-size:min(20vw,86px); line-height:1;}
+  .choice img{width:100%; height:100%; object-fit:cover;}
+  .choice:active{transform:scale(.96);}
+  .choice.right{border-color:var(--green); animation:pop .4s ease;}
+  .choice.wrong{border-color:#e8746f; animation:shake .4s ease;}
+  .choice.dim{opacity:.35;}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+  /* ---------- PLAY: речь ---------- */
+  .say-card{background:var(--card); border-radius:30px; box-shadow:var(--shadow); width:100%; max-width:420px;
+    margin:6px auto 0; padding:24px; display:flex; flex-direction:column; align-items:center; gap:8px;}
+  .say-pic{width:min(62vw,260px); height:min(62vw,260px); border-radius:24px; display:flex; align-items:center;
+    justify-content:center; overflow:hidden; background:var(--bg1);}
+  .say-pic .em{font-size:min(40vw,150px); line-height:1;}
+  .say-pic img{width:100%;height:100%;object-fit:cover;}
+  .say-word{font-size:30px; font-weight:900; letter-spacing:-.3px; margin-top:6px;}
+  .say-actions{display:flex; gap:12px; width:100%; max-width:420px; margin:16px auto 0;}
+  .act{flex:1; border:none; border-radius:20px; padding:18px; font-family:inherit; font-weight:900; font-size:16px;
+    color:#fff; cursor:pointer; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .act .e{font-size:24px;}
+  .act:active{transform:translateY(2px);}
+  .act.again{background:linear-gradient(135deg,#cdbfae,#b6a690);}
+  .act.ok{background:linear-gradient(135deg,var(--green),var(--green-d));}
+
+  .nav-row{display:flex; gap:10px; max-width:420px; margin:14px auto 0; width:100%;}
+  .nav-row .iconbtn{flex:1; justify-content:center;}
+
+  /* ---------- celebration ---------- */
+  .cheer{position:absolute; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:30;}
+  .cheer.show{display:flex;}
+  .cheer .star{font-size:120px; animation:cheer .9s ease;}
+  @keyframes cheer{0%{transform:scale(0) rotate(-30deg); opacity:0}40%{transform:scale(1.2) rotate(10deg); opacity:1}100%{transform:scale(1) rotate(0); opacity:0}}
+
+  /* ---------- cards manager ---------- */
+  .stars{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; padding:12px 16px; margin-bottom:12px; box-shadow:var(--shadow); font-weight:800; font-size:14px;}
+  .stars .big{font-size:22px; color:var(--amber-d);}
+  .card-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:12px; max-width:560px; margin:0 auto; width:100%;}
+  .cm{background:var(--card); border-radius:18px; box-shadow:var(--shadow); padding:10px; text-align:center; position:relative;}
+  .cm .pic{height:62px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px;}
+  .cm .pic .em{font-size:42px;} .cm .pic img{width:100%;height:62px;object-fit:cover;border-radius:12px;}
+  .cm .lbl{font-weight:800; font-size:13px; margin-top:6px; word-break:break-word;}
+  .cm .pr{font-size:11px; color:var(--muted); margin-top:2px;}
+  .cm .del{position:absolute; top:-7px; right:-7px; width:24px; height:24px; border-radius:50%; border:none;
+    background:#e8746f; color:#fff; font-weight:900; cursor:pointer; font-size:14px; line-height:1; box-shadow:var(--shadow);}
+  .add-cm{border:2px dashed var(--muted); background:transparent; color:var(--muted); border-radius:18px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height:110px; font-weight:800;}
+  .add-cm .e{font-size:30px;}
+
+  /* ---------- modal (add card) ---------- */
+  .modal{position:absolute; inset:0; background:rgba(58,46,38,.45); display:none; align-items:center; justify-content:center;
+    z-index:40; padding:18px; backdrop-filter:blur(3px);}
+  .modal.show{display:flex; animation:fade .2s ease;}
+  .sheet{background:var(--bg1); border-radius:26px; width:100%; max-width:440px; padding:22px; box-shadow:var(--shadow);
+    max-height:90%; overflow-y:auto;}
+  .sheet h3{font-size:19px; font-weight:900; margin-bottom:14px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-weight:800; font-size:13px; color:var(--muted); margin-bottom:6px;}
+  .field input[type=text]{width:100%; border:2px solid var(--line); border-radius:14px; padding:14px; font-family:inherit;
+    font-size:17px; font-weight:700; color:var(--ink); background:#fff;}
+  .field input:focus{outline:none; border-color:var(--blue);}
+  .emoji-pick{display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr)); gap:8px; max-height:180px; overflow-y:auto;
+    background:#fff; border:2px solid var(--line); border-radius:14px; padding:10px;}
+  .ep{font-size:28px; padding:6px; border-radius:10px; cursor:pointer; text-align:center; border:2px solid transparent; background:none;}
+  .ep.sel{border-color:var(--blue); background:rgba(74,159,224,.12);}
+  .or{text-align:center; color:var(--muted); font-weight:800; font-size:12px; margin:10px 0;}
+  .upload-btn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:2px solid var(--line);
+    border-radius:14px; padding:14px; background:#fff; cursor:pointer; font-weight:800; font-size:15px; color:var(--ink);}
+  .upload-prev{width:64px;height:64px;border-radius:12px;object-fit:cover;}
+  .sheet-actions{display:flex; gap:10px; margin-top:8px;}
+  .sheet-actions .iconbtn{flex:1; justify-content:center; font-size:16px; height:50px;}
+  .save-btn{background:linear-gradient(135deg,var(--green),var(--green-d)); color:#fff; border:none; box-shadow:var(--shadow);}
+
+  .empty{text-align:center; color:var(--muted); font-weight:700; margin:30px auto; max-width:300px;}
+
+  /* settings inline */
+  .seg{display:flex; gap:8px; margin:6px 0 0;}
+  .seg button{flex:1; border:2px solid var(--line); background:#fff; border-radius:12px; padding:10px; font-family:inherit;
+    font-weight:800; cursor:pointer; color:var(--ink);}
+  .seg button.on{border-color:var(--blue); background:rgba(74,159,224,.12);}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="logo"><span class="em">🗣️</span> Скажи-Покажи</div>
+  <div class="spacer"></div>
+  <button class="iconbtn ghost" id="homeBtn" style="display:none">🏠 Домой</button>
+</div>
+
+<div class="stage">
+
+  <!-- ===================== HOME ===================== -->
+  <section class="screen show" id="scr-home">
+    <div class="hero">
+      <h1>Скажи-Покажи</h1>
+      <p>Развивающие карточки с озвучкой. Слушаем, узнаём картинку и учимся называть.</p>
+    </div>
+    <div class="menu">
+      <button class="big-btn b-show" data-go="show">
+        <span class="e">👀</span>
+        <span>Покажи<small>Слушаем слово — находим картинку</small></span>
+      </button>
+      <button class="big-btn b-say" data-go="say">
+        <span class="e">💬</span>
+        <span>Скажи<small>Смотрим картинку — называем сами</small></span>
+      </button>
+      <button class="big-btn b-cards" data-go="cards">
+        <span class="e">🗂️</span>
+        <span>Карточки<small>Для взрослого: добавить слова и фото</small></span>
+      </button>
+    </div>
+    <div class="foot">Всё работает <b>офлайн</b> в браузере. Карточки хранятся на этом устройстве.</div>
+  </section>
+
+  <!-- ===================== PLAY: SHOW (понимание) ===================== -->
+  <section class="screen" id="scr-show">
+    <div class="sub-head">
+      <h2>👀 Покажи картинку</h2>
+      <span class="tag" id="showScore">⭐ 0</span>
+    </div>
+    <div class="prompt">
+      <button class="speak pulse" id="speakBtn"><span class="e">🔊</span> Послушать</button>
+      <div class="word-hint" id="showHint"></div>
+    </div>
+    <div class="grid" id="showGrid"></div>
+  </section>
+
+  <!-- ===================== PLAY: SAY (речь) ===================== -->
+  <section class="screen" id="scr-say">
+    <div class="sub-head">
+      <h2>💬 Назови картинку</h2>
+      <span class="tag" id="sayScore">⭐ 0</span>
+    </div>
+    <div class="say-card">
+      <div class="say-pic" id="sayPic"></div>
+      <div class="say-word" id="sayWord"></div>
+      <button class="speak" id="sampleBtn" style="margin-top:6px"><span class="e">🔊</span> Образец</button>
+    </div>
+    <div class="say-actions">
+      <button class="act again" id="sayAgain"><span class="e">🔁</span> Ещё разок</button>
+      <button class="act ok" id="sayOk"><span class="e">✅</span> Сказал!</button>
+    </div>
+    <div class="nav-row">
+      <button class="iconbtn" id="sayPrev">← Назад</button>
+      <button class="iconbtn" id="sayNext">Дальше →</button>
+    </div>
+  </section>
+
+  <!-- ===================== CARDS MANAGER ===================== -->
+  <section class="screen" id="scr-cards">
+    <div class="sub-head">
+      <h2>🗂️ Карточки</h2>
+      <span class="tag" id="cardCount" style="background:var(--blue)">0 шт.</span>
+    </div>
+    <div class="stars" id="starBar"><span class="big">⭐</span> <span id="starText">Звёзд за успехи: 0</span></div>
+    <div class="seg" style="margin-bottom:14px">
+      <span style="align-self:center;font-weight:800;font-size:13px;color:var(--muted);margin-right:6px">Сложность «Покажи»:</span>
+    </div>
+    <div class="seg" id="diffSeg" style="margin-bottom:16px">
+      <button data-diff="2">2 картинки</button>
+      <button data-diff="3">3 картинки</button>
+      <button data-diff="4">4 картинки</button>
+    </div>
+    <div class="card-list" id="cardList"></div>
+    <div class="foot" style="margin-top:20px">Совет: фото знакомых ребёнку предметов узнаются лучше готовых картинок.</div>
+  </section>
+
+  <!-- celebration overlay -->
+  <div class="cheer" id="cheer"><div class="star" id="cheerEmoji">⭐</div></div>
+
+  <!-- add-card modal -->
+  <div class="modal" id="modal">
+    <div class="sheet">
+      <h3 id="modalTitle">Новая карточка</h3>
+      <div class="field">
+        <label>Слово (что озвучивать)</label>
+        <input type="text" id="wordInput" placeholder="например: мяч" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Выбери картинку</label>
+        <div class="emoji-pick" id="emojiPick"></div>
+      </div>
+      <div class="or">— или —</div>
+      <div class="field">
+        <label for="fileInput" class="upload-btn" id="uploadLabel">📷 Загрузить своё фото</label>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+      </div>
+      <div class="sheet-actions">
+        <button class="iconbtn" id="cancelBtn">Отмена</button>
+        <button class="iconbtn save-btn" id="saveBtn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Скажи-Покажи — прототип развивающих карточек с озвучкой
+   Хранилище: localStorage (офлайн, на устройстве)
+   ============================================================ */
+
+const LS_KEY = 'skazhi-pokazhi-v1';
+
+/* стартовый набор простых, узнаваемых слов */
+const STARTER = [
+  ['мама','👩'],['папа','👨'],['баба','👵'],['дом','🏠'],['кот','🐱'],
+  ['собака','🐶'],['мяч','⚽'],['машина','🚗'],['яблоко','🍎'],['банан','🍌'],
+  ['молоко','🥛'],['вода','💧'],['рыба','🐟'],['солнце','☀️'],['ложка','🥄'],
+  ['чашка','☕'],['мишка','🧸'],['кукла','🪆'],['цветок','🌸'],['рука','✋'],
+];
+
+/* палитра эмодзи для выбора картинки */
+const EMOJI_BANK = ('👩 👨 👵 👴 👶 🧒 🐱 🐶 🐰 🐻 🐭 🐸 🐮 🐷 🐔 🐥 🐟 🐢 🦋 🐝 '
+  +'🍎 🍌 🍓 🍇 🍊 🍉 🥕 🥦 🍞 🧀 🥚 🥛 🍪 🍰 🍭 🍫 🥄 🍴 🥤 ☕ '
+  +'🏠 🚗 🚌 🚂 ✈️ 🚲 ⚽ 🏀 🎈 🎂 🧸 🪆 🚀 ⛵ 🪀 🎨 ✏️ 📚 🔑 ⏰ '
+  +'☀️ 🌙 ⭐ ☁️ 🌧️ 🌈 🌸 🌳 🍄 🌻 ✋ 👁️ 👂 👃 👄 🦷 🦶 👕 👟 🧦').split(' ');
+
+let state = load();
+let editId = null;        // id карточки при редактировании (пока только добавление)
+let pickedEmoji = null;
+let pickedImage = null;   // dataURL
+
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ const s = JSON.parse(raw); s.cards ||= []; s.stars ||= 0; s.diff ||= 3; return s; }
+  }catch(e){}
+  // первый запуск — заполняем стартовым набором
+  return {
+    cards: STARTER.map((c,i)=>({id:'s'+i, word:c[0], emoji:c[1], img:null, seen:0, ok:0})),
+    stars: 0, diff: 3
+  };
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* -------------------- озвучка -------------------- */
+let ruVoice = null;
+function pickVoice(){
+  const vs = speechSynthesis.getVoices();
+  ruVoice = vs.find(v=>/ru[-_]RU/i.test(v.lang)) || vs.find(v=>/^ru/i.test(v.lang)) || null;
+}
+if('speechSynthesis' in window){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ru-RU';
+  if(ruVoice) u.voice = ruVoice;
+  u.rate = 0.85;   // помедленнее — лучше для понимания
+  u.pitch = 1.05;
+  speechSynthesis.speak(u);
+}
+
+/* -------------------- простые звуки -------------------- */
+let actx = null;
+function tone(freq, dur, type='sine', when=0){
+  try{
+    actx ||= new (window.AudioContext||window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime + when;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.start(t); o.stop(t+dur+0.02);
+  }catch(e){}
+}
+function sndRight(){ tone(660,0.12,'triangle',0); tone(880,0.18,'triangle',0.1); tone(1175,0.22,'triangle',0.22); }
+function sndWrong(){ tone(220,0.18,'sine',0); }
+
+/* -------------------- навигация по экранам -------------------- */
+const screens = {
+  home:  document.getElementById('scr-home'),
+  show:  document.getElementById('scr-show'),
+  say:   document.getElementById('scr-say'),
+  cards: document.getElementById('scr-cards'),
+};
+const homeBtn = document.getElementById('homeBtn');
+function go(name){
+  Object.values(screens).forEach(s=>s.classList.remove('show'));
+  screens[name].classList.add('show');
+  homeBtn.style.display = name==='home' ? 'none' : '';
+  if(name==='show') startShow();
+  if(name==='say')  startSay();
+  if(name==='cards') renderCards();
+}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{ if(actx) actx.resume(); go(b.dataset.go); });
+homeBtn.onclick = ()=>{ speechSynthesis.cancel?.(); go('home'); };
+
+/* -------------------- helpers -------------------- */
+function picHTML(card){
+  return card.img
+    ? `<img src="${card.img}" alt="">`
+    : `<span class="em">${card.emoji||'❓'}</span>`;
+}
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function pickWeighted(){
+  // чаще показываем слова, которые освоены хуже
+  const cards = state.cards;
+  const weights = cards.map(c=>{ const rate = c.seen? c.ok/c.seen : 0; return 1 + (1-rate)*2; });
+  const sum = weights.reduce((a,b)=>a+b,0);
+  let r = Math.random()*sum;
+  for(let i=0;i<cards.length;i++){ r-=weights[i]; if(r<=0) return cards[i]; }
+  return cards[cards.length-1];
+}
+function addStar(n=1){ state.stars += n; save(); }
+
+function cheer(emoji='⭐'){
+  const el = document.getElementById('cheer');
+  document.getElementById('cheerEmoji').textContent = emoji;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 850);
+}
+
+/* ==================== ПОКАЗИ (понимание) ==================== */
+const showGrid = document.getElementById('showGrid');
+const showHint = document.getElementById('showHint');
+const speakBtn = document.getElementById('speakBtn');
+let curShow = null, showLock = false, showScore = 0;
+
+function startShow(){
+  if(state.cards.length < 2){ showGrid.innerHTML = needMore(); showHint.textContent=''; return; }
+  showScore = 0; updateShowScore();
+  nextShow();
+}
+function needMore(){
+  return `<div class="empty">Нужно хотя бы 2 карточки.<br>Зайди в «🗂️ Карточки» и добавь.</div>`;
+}
+function updateShowScore(){ document.getElementById('showScore').textContent = '⭐ '+showScore; }
+
+function nextShow(){
+  showLock = false;
+  showHint.textContent = '';
+  const target = pickWeighted();
+  curShow = target;
+  const n = Math.min(state.diff, state.cards.length);
+  const distract = shuffle(state.cards.filter(c=>c.id!==target.id)).slice(0, n-1);
+  const opts = shuffle([target, ...distract]);
+
+  showGrid.innerHTML = '';
+  showGrid.style.gridTemplateColumns = (opts.length>=3 && window.innerWidth>520)
+      ? 'repeat(3,1fr)' : 'repeat(2,1fr)';
+  opts.forEach(c=>{
+    const d = document.createElement('div');
+    d.className = 'choice';
+    d.innerHTML = picHTML(c);
+    d.onclick = ()=>chooseShow(c, d, target);
+    showGrid.appendChild(d);
+  });
+  setTimeout(()=>speak(target.word), 250);
+  speakBtn.classList.add('pulse');
+}
+
+function chooseShow(card, el, target){
+  if(showLock) return;
+  // фиксируем попытку
+  target.seen = (target.seen||0)+1;
+  if(card.id === target.id){
+    showLock = true;
+    target.ok = (target.ok||0)+1;
+    save();
+    el.classList.add('right');
+    [...showGrid.children].forEach(c=>{ if(c!==el) c.classList.add('dim'); });
+    sndRight(); addStar(1); showScore++; updateShowScore();
+    cheer('🌟');
+    setTimeout(()=>speak('Молодец!'), 400);
+    setTimeout(nextShow, 1500);
+  }else{
+    save();
+    el.classList.add('wrong');
+    sndWrong();
+    showHint.textContent = '🔊 Послушай ещё раз';
+    setTimeout(()=>{ el.classList.remove('wrong'); }, 500);
+    setTimeout(()=>speak(target.word), 550);
+  }
+}
+speakBtn.onclick = ()=>{ if(curShow){ speakBtn.classList.remove('pulse'); speak(curShow.word); } };
+
+/* ==================== СКАЖИ (речь) ==================== */
+const sayPic = document.getElementById('sayPic');
+const sayWord = document.getElementById('sayWord');
+let sayOrder = [], sayIdx = 0, sayScore = 0;
+
+function startSay(){
+  if(state.cards.length < 1){ sayPic.innerHTML='<span class="em">🗂️</span>'; sayWord.textContent='Добавь карточки'; return; }
+  sayOrder = shuffle(state.cards);
+  sayIdx = 0; sayScore = 0; updateSayScore();
+  renderSay();
+}
+function updateSayScore(){ document.getElementById('sayScore').textContent = '⭐ '+sayScore; }
+function renderSay(){
+  const c = sayOrder[sayIdx];
+  if(!c) return;
+  sayPic.innerHTML = picHTML(c);
+  sayWord.textContent = c.word;
+  setTimeout(()=>speak(c.word), 250);
+}
+document.getElementById('sampleBtn').onclick = ()=>speak(sayOrder[sayIdx]?.word||'');
+document.getElementById('sayNext').onclick = ()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); };
+document.getElementById('sayPrev').onclick = ()=>{ sayIdx=(sayIdx-1+sayOrder.length)%sayOrder.length; renderSay(); };
+document.getElementById('sayAgain').onclick = ()=>speak(sayOrder[sayIdx]?.word||'');
+document.getElementById('sayOk').onclick = ()=>{
+  const c = sayOrder[sayIdx];
+  if(c){ c.seen=(c.seen||0)+1; c.ok=(c.ok||0)+1; save(); }
+  sndRight(); addStar(1); sayScore++; updateSayScore(); cheer('🎉');
+  setTimeout(()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); }, 900);
+};
+
+/* ==================== КАРТОЧКИ (родитель) ==================== */
+const cardList = document.getElementById('cardList');
+function renderCards(){
+  document.getElementById('cardCount').textContent = state.cards.length+' шт.';
+  document.getElementById('starText').textContent = 'Звёзд за успехи: '+state.stars;
+  // сложность
+  document.querySelectorAll('#diffSeg button').forEach(b=>{
+    b.classList.toggle('on', +b.dataset.diff===state.diff);
+  });
+  cardList.innerHTML = '';
+  state.cards.forEach(c=>{
+    const rate = c.seen ? Math.round(c.ok/c.seen*100) : 0;
+    const el = document.createElement('div');
+    el.className = 'cm';
+    el.innerHTML = `
+      <button class="del" title="Удалить">×</button>
+      <div class="pic">${picHTML(c)}</div>
+      <div class="lbl">${c.word}</div>
+      <div class="pr">${c.seen? rate+'% · '+c.ok+'/'+c.seen : 'новое'}</div>`;
+    el.querySelector('.del').onclick = ()=>{
+      if(confirm('Удалить карточку «'+c.word+'»?')){
+        state.cards = state.cards.filter(x=>x.id!==c.id); save(); renderCards();
+      }
+    };
+    cardList.appendChild(el);
+  });
+  const add = document.createElement('button');
+  add.className = 'add-cm';
+  add.innerHTML = '<span class="e">➕</span> Добавить';
+  add.onclick = openModal;
+  cardList.appendChild(add);
+}
+document.querySelectorAll('#diffSeg button').forEach(b=>{
+  b.onclick = ()=>{ state.diff = +b.dataset.diff; save(); renderCards(); };
+});
+
+/* ---------- modal: добавление карточки ---------- */
+const modal = document.getElementById('modal');
+const wordInput = document.getElementById('wordInput');
+const emojiPick = document.getElementById('emojiPick');
+const fileInput = document.getElementById('fileInput');
+const uploadLabel = document.getElementById('uploadLabel');
+
+function buildEmojiBank(){
+  emojiPick.innerHTML = '';
+  EMOJI_BANK.forEach(e=>{
+    const b = document.createElement('button');
+    b.className='ep'; b.textContent=e; b.type='button';
+    b.onclick = ()=>{
+      pickedEmoji = e; pickedImage = null;
+      uploadLabel.innerHTML = '📷 Загрузить своё фото';
+      [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
+      b.classList.add('sel');
+    };
+    emojiPick.appendChild(b);
+  });
+}
+buildEmojiBank();
+
+function openModal(){
+  editId = null; pickedEmoji = null; pickedImage = null;
+  wordInput.value = '';
+  uploadLabel.innerHTML = '📷 Загрузить своё фото';
+  [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
+  modal.classList.add('show');
+  setTimeout(()=>wordInput.focus(), 100);
+}
+function closeModal(){ modal.classList.remove('show'); }
+document.getElementById('cancelBtn').onclick = closeModal;
+modal.onclick = (e)=>{ if(e.target===modal) closeModal(); };
+
+/* загрузка и сжатие фото до ~512px, чтобы беречь localStorage */
+fileInput.onchange = ()=>{
+  const f = fileInput.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const max = 512, scale = Math.min(1, max/Math.max(img.width,img.height));
+      const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      pickedImage = cv.toDataURL('image/jpeg', 0.8);
+      pickedEmoji = null;
+      [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
+      uploadLabel.innerHTML = `<img class="upload-prev" src="${pickedImage}"> Фото выбрано — нажми «Сохранить»`;
+    };
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+};
+
+document.getElementById('saveBtn').onclick = ()=>{
+  const word = wordInput.value.trim();
+  if(!word){ wordInput.focus(); wordInput.style.borderColor='#e8746f'; return; }
+  if(!pickedEmoji && !pickedImage){ alert('Выбери картинку или загрузи фото'); return; }
+  state.cards.push({
+    id: 'c'+Date.now(),
+    word, emoji: pickedEmoji, img: pickedImage,
+    seen:0, ok:0
+  });
+  save(); closeModal(); renderCards();
+};
+
+/* первый рендер сложности и т.п. произойдёт при заходе на экран */
+</script>
+</body>
+</html>

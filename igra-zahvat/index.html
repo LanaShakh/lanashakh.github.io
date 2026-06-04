@@ -89,6 +89,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const $ = id => document.getElementById(id);
 function fail(msg){ const e=document.getElementById('err'); e.style.display='block';
@@ -98,8 +99,8 @@ function fail(msg){ const e=document.getElementById('err'); e.style.display='blo
 const PROD_BASE=2.2, CAP_BASE=30, MAX_LEVEL=4, MAXLINKS=3, BOT_INTERVAL=1.45;
 const ISL_W=15, ISL_D=10, GROUNDPAD=0.84;
 const COL = { 0:0xc9ceda, 1:0x4f8bff, 2:0xff5c72 };       // soldiers / accents
-const SOLID = { 0:0xc2c8d2, 1:0x3f80ee, 2:0xe8485c };      // solid team color for towers & links
-const SOLIDD= { 0:0x8b92a0, 1:0x2456b0, 2:0xb02a3c };      // darker base ring
+const SOLID = { 0:0x94a3b8, 1:0x3b82f6, 2:0xef4444 };      // solid team color for towers & links
+const SOLIDD= { 0:0x64748b, 1:0x1d4ed8, 2:0xb91c1c };      // darker base ring
 const TINT= { 0:0xffffff, 1:0xd2e2ff, 2:0xffd6dc };        // (unused now) gentle tower tint
 const CSS = { 0:'#7d8499', 1:'#2f6fe0', 2:'#e23b4e' };
 const STORE='g_zahvat_progress';
@@ -146,27 +147,31 @@ async function init(){
   renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12;
   document.getElementById('app').appendChild(renderer.domElement);
 
   labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
   labelRenderer.setSize(innerWidth, innerHeight);
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x9fd0e8);
-  scene.fog = new THREE.Fog(0x9fd0e8, 70, 170);
+  scene.background = makeSky();
+  scene.fog = new THREE.Fog(0xc7e6f2, 80, 180);
+  // soft studio image-based lighting -> materials read much nicer
+  try{ const pmrem=new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; }catch(e){ console.warn('env',e); }
 
   // camera: isometric orthographic
   const aspect = innerWidth/innerHeight; const vs = camViewSize();
   camera = new THREE.OrthographicCamera(-vs*aspect, vs*aspect, vs, -vs, 0.1, 200);
   camera.position.set(18, 21, 18); camera.lookAt(0, 0.4, 0);
 
-  // lights
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x6a7a55, 0.95));
-  const sun = new THREE.DirectionalLight(0xfff2d6, 1.25);
-  sun.position.set(14, 26, 8); sun.castShadow = true;
+  // lights (IBL provides ambient; sun gives shape + shadows)
+  scene.add(new THREE.HemisphereLight(0xeaf3ff, 0x55703f, 0.5));
+  const sun = new THREE.DirectionalLight(0xfff4dd, 2.1);
+  sun.position.set(13, 24, 9); sun.castShadow = true;
   sun.shadow.mapSize.set(2048,2048);
-  const sc=sun.shadow.camera; sc.left=-16; sc.right=16; sc.top=12; sc.bottom=-12; sc.near=1; sc.far=80;
-  sun.shadow.bias=-0.0004; scene.add(sun);
+  const sc=sun.shadow.camera; sc.left=-18; sc.right=18; sc.top=13; sc.bottom=-13; sc.near=1; sc.far=80;
+  sun.shadow.bias=-0.0004; sun.shadow.radius=4; scene.add(sun);
 
   raycaster = new THREE.Raycaster();
   groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(200,200).rotateX(-Math.PI/2),
@@ -198,6 +203,11 @@ async function init(){
   renderer.setAnimationLoop(frame);
 }
 
+function makeSky(){ const c=document.createElement('canvas'); c.width=4; c.height=256; const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#d3ecf6'); g.addColorStop(0.62,'#bfe2f0'); g.addColorStop(1,'#a3cfe4');
+  x.fillStyle=g; x.fillRect(0,0,4,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
 function makeStripeTexture(){
   const c=document.createElement('canvas'); c.width=16; c.height=64; const x=c.getContext('2d');
   x.clearRect(0,0,16,64);

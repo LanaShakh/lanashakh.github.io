@@ -1696,11 +1696,18 @@
 })();
 </script>
 <script>
-  // Яндекс Игры SDK: инициализация и сигнал готовности
+  // Яндекс Игры SDK
   (function(){
     if (!window.YaGames) return;
     YaGames.init().then(function(ysdk){
       window.ysdk = ysdk;
+      // п.2.14 — автоопределение языка игрока при запуске
+      try {
+        var lang = ysdk.environment.i18n.lang;     // напр. "ru", "en", "tr"
+        window.gameLang = (lang === "ru") ? "ru" : "ru"; // игра пока на русском (fallback ru)
+        document.documentElement.setAttribute("lang", lang || "ru");
+      } catch(e){}
+      // сигнал, что игра загрузилась
       try { ysdk.features.LoadingAPI.ready(); } catch(e){}
     }).catch(function(){});
   })();

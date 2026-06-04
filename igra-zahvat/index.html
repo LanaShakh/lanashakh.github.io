@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1226">
+<title>Захват</title>
+<meta name="description" content="Захват — стратегия в реальном времени: тяни связи между башнями, усиливай свои и захватывай чужие. Победи бота на каждой карте.">
+<style>
+  :root{
+    --bg1:#0f1226; --bg2:#171a3a; --ink:#eef0ff; --muted:#a7adda;
+    --p:#21d4fd; --e:#ff5c87; --n:#8b90c0; --panel:rgba(255,255,255,.05);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    color:var(--ink); user-select:none;
+    background:radial-gradient(1000px 500px at 12% -10%,rgba(124,92,255,.25),transparent 60%),
+               radial-gradient(900px 480px at 110% 0%,rgba(33,212,253,.16),transparent 55%),
+               linear-gradient(160deg,var(--bg1),var(--bg2));
+    display:flex; flex-direction:column; height:100%;
+  }
+  .hud{
+    display:flex; align-items:center; gap:10px; padding:max(10px,env(safe-area-inset-top)) 14px 10px;
+    flex-wrap:nowrap;
+  }
+  .hud .title{font-weight:800; font-size:17px; letter-spacing:-.3px; white-space:nowrap;}
+  .hud .title small{display:block; font-weight:600; font-size:11px; color:var(--muted); margin-top:1px;}
+  .counts{display:flex; gap:8px; margin-left:auto; align-items:center;}
+  .pill{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:999px;
+    padding:5px 11px; font-weight:800; font-size:14px; display:flex; align-items:center; gap:6px;}
+  .pill .dot{width:9px;height:9px;border-radius:50%;}
+  .dot.p{background:var(--p);} .dot.e{background:var(--e);}
+  .iconbtn{background:var(--panel); border:1px solid rgba(255,255,255,.10); color:var(--ink);
+    width:38px;height:38px;border-radius:11px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .iconbtn:active{transform:translateY(1px);}
+  .stage{position:relative; flex:1; min-height:0;}
+  canvas{display:block; width:100%; height:100%; touch-action:none;}
+  .hint{position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
+    background:rgba(15,18,38,.7); border:1px solid rgba(255,255,255,.10); backdrop-filter:blur(6px);
+    color:var(--muted); font-size:12.5px; padding:7px 14px; border-radius:999px; pointer-events:none;
+    max-width:92%; text-align:center; transition:opacity .4s;}
+
+  .overlay{position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:16px; text-align:center; padding:26px; background:rgba(15,18,38,.8); backdrop-filter:blur(7px); z-index:20; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .overlay.show{display:flex;}
+  .overlay .big{font-size:38px; font-weight:800; letter-spacing:-1px;}
+  .overlay.win .big{background:linear-gradient(120deg,#21d4fd,#2bffb0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .overlay.lose .big{color:var(--e);}
+  .overlay .sub{color:var(--muted); font-size:15px; max-width:300px;}
+  .row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--ink);
+    font-family:inherit; font-weight:700; font-size:15px; padding:12px 20px; border-radius:12px; cursor:pointer;}
+  .btn.primary{background:linear-gradient(120deg,#7c5cff,#a17bff); border-color:transparent; box-shadow:0 8px 22px rgba(124,92,255,.35);}
+  .btn:active{transform:translateY(2px);}
+
+  .levels{display:grid; grid-template-columns:repeat(4,56px); gap:12px; justify-content:center;}
+  .lvl{width:56px;height:56px;border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.12);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; cursor:pointer; color:var(--ink);}
+  .lvl.locked{opacity:.35; cursor:default;}
+  .lvl.done{border-color:#2bffb0; color:#2bffb0;}
+  .ovh{font-size:13px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; font-weight:700;}
+</style>
+</head>
+<body>
+  <div class="hud">
+    <div class="title">Захват<small id="mapName">Карта 1</small></div>
+    <div class="counts">
+      <div class="pill"><span class="dot p"></span><span id="cntP">0</span></div>
+      <div class="pill"><span class="dot e"></span><span id="cntE">0</span></div>
+      <button class="iconbtn" id="speedBtn" title="Скорость">×1</button>
+      <button class="iconbtn" id="menuBtn" title="Карты">☰</button>
+    </div>
+  </div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="hint" id="hint">Тяни от своей башни к другой, чтобы создать связь. Тяни ещё раз — связь снимется.</div>
+
+    <div class="overlay" id="ovEnd">
+      <div class="big" id="ovTitle"></div>
+      <div class="sub" id="ovSub"></div>
+      <div class="row" id="ovRow"></div>
+    </div>
+
+    <div class="overlay" id="ovMenu">
+      <div class="ovh">Карты</div>
+      <div class="levels" id="lvlGrid"></div>
+      <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- config ----------
+  const PROD_BASE = 1.4, CAP_BASE = 24, LINK_RATE = 4.6, MAXLINKS = 3, MAX_LEVEL = 4;
+  const BOT_INTERVAL = 1.45, ARRIVE = 0.62;
+  const COL = { 0:'#8b90c0', 1:'#21d4fd', 2:'#ff5c87' };
+  const COL_DIM = { 0:'#565a86', 1:'#1789a6', 2:'#a83b5b' };
+  const STORE = 'g_zahvat_progress';
+
+  // ---------- maps (normalized 0..1) ----------
+  // owner: 0 neutral, 1 player, 2 enemy
+  const MAPS = [
+    { name:'Первый контакт', aggro:0.35, nodes:[
+      {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
+      {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
+    { name:'Перекрёсток', aggro:0.45, nodes:[
+      {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},
+      {x:.5,y:.5,o:0,t:16,l:1},
+      {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},
+      {x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
+    { name:'Клин', aggro:0.5, nodes:[
+      {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
+      {x:.87,y:.3,o:2,t:24,l:1},{x:.87,y:.7,o:2,t:24,l:1},
+      {x:.5,y:.5,o:0,t:18,l:1},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
+    { name:'Окружение', aggro:0.55, nodes:[
+      {x:.5,y:.5,o:1,t:28,l:1},
+      {x:.5,y:.16,o:0,t:12,l:1},{x:.5,y:.84,o:0,t:12,l:1},
+      {x:.2,y:.3,o:2,t:22,l:1},{x:.2,y:.7,o:0,t:12,l:1},
+      {x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:22,l:1} ] },
+    { name:'Две крепости', aggro:0.6, nodes:[
+      {x:.15,y:.5,o:1,t:30,l:2},{x:.85,y:.5,o:2,t:34,l:2},
+      {x:.4,y:.3,o:0,t:14,l:1},{x:.6,y:.7,o:0,t:14,l:1},
+      {x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
+    { name:'Архипелаг', aggro:0.68, nodes:[
+      {x:.1,y:.5,o:1,t:24,l:1},
+      {x:.9,y:.2,o:2,t:22,l:1},{x:.9,y:.8,o:2,t:22,l:1},
+      {x:.35,y:.2,o:0,t:10,l:1},{x:.35,y:.8,o:0,t:10,l:1},
+      {x:.55,y:.5,o:0,t:16,l:1},{x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},
+      {x:.5,y:.15,o:0,t:9,l:1},{x:.5,y:.85,o:0,t:9,l:1} ] },
+  ];
+
+  // ---------- state ----------
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  let W=0,H=0,DPR=1, play={x:0,y:0,w:0,h:0}, baseR=20, speedPx=120;
+  let nodes=[], links=[], soldiers=[];
+  let mapIndex=0, running=true, ended=false, speed=1, botTimer=0;
+  let drag=null; // {fromId, x, y}
+  let progress = +(localStorage.getItem(STORE)||0); // max unlocked index
+
+  const $ = id=>document.getElementById(id);
+
+  function layout(){
+    const r = cv.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio||1, 2.5);
+    W = r.width; H = r.height;
+    cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    const pad = Math.max(46, Math.min(W,H)*0.1);
+    play = { x:pad, y:pad, w:W-2*pad, h:H-2*pad };
+    baseR = Math.max(15, Math.min(play.w,play.h)*0.052);
+    speedPx = Math.min(play.w,play.h)*0.34;
+    for(const n of nodes){ n.x = play.x + n.nx*play.w; n.y = play.y + n.ny*play.h; }
+  }
+
+  function nodeR(n){ return baseR*(0.82 + n.l*0.12); }
+  function cap(n){ return CAP_BASE*n.l; }
+  function prod(n){ return PROD_BASE*n.l; }
+
+  function loadMap(i){
+    mapIndex=i; const m=MAPS[i];
+    nodes = m.nodes.map((d,idx)=>({ id:idx, nx:d.x, ny:d.y, x:0,y:0, o:d.o, t:d.t, l:d.l||1 }));
+    links=[]; soldiers=[]; drag=null; botTimer=0; ended=false; running=true; speed=1;
+    $('speedBtn').textContent='×1';
+    $('mapName').textContent = 'Карта '+(i+1)+' · '+m.name;
+    hideOverlay($('ovEnd')); hideOverlay($('ovMenu'));
+    $('hint').style.opacity = (i===0?'1':'0');
+    layout();
+  }
+
+  // ---------- links ----------
+  function findLink(from,to){ return links.find(L=>L.from===from && L.to===to); }
+  function toggleLink(from,to){
+    if(from===to) return;
+    const src=nodes[from];
+    const existing = findLink(from,to);
+    if(existing){ removeLink(existing); return; }
+    const out = links.filter(L=>L.from===from);
+    if(out.length>=MAXLINKS){ // replace oldest
+      removeLink(out[0]);
+    }
+    links.push({ from, to, o:src.o, accum:0 });
+  }
+  function removeLink(L){
+    const i=links.indexOf(L); if(i<0) return;
+    const src=nodes[L.from];
+    if(src && src.o===L.o) src.t += L.accum; // refund in-transit fraction
+    links.splice(i,1);
+  }
+  function removeLinksFrom(id){ links.filter(L=>L.from===id).forEach(removeLink); }
+
+  // ---------- simulation ----------
+  function step(dt){
+    // production
+    for(const n of nodes){
+      if(n.o!==0){
+        const c=cap(n);
+        if(n.t < c){ n.t = Math.min(c, n.t + prod(n)*dt); }
+        // level up from over-cap reinforcement
+        if(n.t > c+0.001 && n.l<MAX_LEVEL){ n.l++; }
+      }
+    }
+    // emission along links
+    // group links by source
+    for(const n of nodes){
+      const out = links.filter(L=>L.from===n.id);
+      if(!out.length) continue;
+      if(n.o===0){ out.forEach(removeLink); continue; }
+      // sync link owner; drop if source ownership changed
+      let valid=[];
+      for(const L of out){ if(L.o!==n.o){ removeLink(L); } else valid.push(L); }
+      if(!valid.length) continue;
+      const desiredEach = LINK_RATE*dt;
+      const totalDesired = desiredEach*valid.length;
+      const avail = Math.min(n.t, totalDesired);
+      const factor = totalDesired>0 ? avail/totalDesired : 0;
+      for(const L of valid){
+        const amt = desiredEach*factor;
+        n.t -= amt; L.accum += amt;
+        while(L.accum >= 1){
+          L.accum -= 1;
+          spawnSoldier(n, nodes[L.to]);
+        }
+      }
+      if(n.t<0) n.t=0;
+    }
+    // move soldiers
+    for(let i=soldiers.length-1;i>=0;i--){
+      const s=soldiers[i]; const tn=nodes[s.tid];
+      if(!tn){ soldiers.splice(i,1); continue; }
+      const dx=tn.x-s.x, dy=tn.y-s.y, d=Math.hypot(dx,dy);
+      const arriveDist = nodeR(tn)*ARRIVE;
+      if(d <= arriveDist || d<2){
+        applyArrival(tn, s.o); soldiers.splice(i,1); continue;
+      }
+      const v=speedPx*dt;
+      s.x += dx/d*v; s.y += dy/d*v;
+    }
+    // bot
+    botTimer -= dt;
+    if(botTimer<=0){ botTimer=BOT_INTERVAL; botThink(); }
+    checkEnd();
+  }
+
+  function spawnSoldier(from,to){
+    const r=nodeR(from)*0.7, a=Math.atan2(to.y-from.y,to.x-from.x);
+    soldiers.push({ x:from.x+Math.cos(a)*r + (Math.random()-.5)*4,
+                    y:from.y+Math.sin(a)*r + (Math.random()-.5)*4,
+                    tid:to.id, o:from.o });
+  }
+  function applyArrival(node, owner){
+    if(node.o===owner){
+      node.t += 1; // reinforce (may push over cap -> level up handled in step)
+    } else {
+      node.t -= 1;
+      if(node.t <= 0){ node.o = owner; node.t = -node.t; removeLinksFrom(node.id); }
+    }
+  }
+
+  // ---------- bot AI ----------
+  function botThink(){
+    const m=MAPS[mapIndex];
+    const aggro = m.aggro;
+    const mine = nodes.filter(n=>n.o===2);
+    if(!mine.length) return;
+    // prune wasteful links (target fully owned & capped)
+    for(const L of links.filter(L=>L.o===2)){
+      const tn=nodes[L.to];
+      if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L);
+    }
+    // each strong node may open an attack
+    const sorted=[...mine].sort((a,b)=>b.t-a.t);
+    for(const src of sorted){
+      if(src.t < 10) continue;
+      if(links.filter(L=>L.from===src.id).length >= MAXLINKS) continue;
+      if(Math.random() > aggro+0.25) continue;
+      // candidate targets: not owned by bot, beatable-ish, nearest first
+      let best=null, bestScore=Infinity;
+      for(const n of nodes){
+        if(n.o===2) continue;
+        if(findLink(src.id,n.id)) continue;
+        const dist=Math.hypot(n.x-src.x,n.y-src.y);
+        const defense = n.t + (n.o===1?6:0); // prefer neutrals early
+        if(defense > src.t*1.15) continue; // too strong
+        const score = dist*0.6 + defense*4;
+        if(score<bestScore){ bestScore=score; best=n; }
+      }
+      if(best){ links.push({from:src.id,to:best.id,o:2,accum:0}); }
+      else if(src.t>cap(src)*0.7){
+        // consolidate: feed nearest weaker bot node toward the front
+        let feed=null,fd=Infinity;
+        for(const n of mine){ if(n===src||n.l>=MAX_LEVEL) continue;
+          const d=Math.hypot(n.x-src.x,n.y-src.y); if(d<fd){fd=d;feed=n;} }
+        if(feed && !findLink(src.id,feed.id)) links.push({from:src.id,to:feed.id,o:2,accum:0});
+      }
+    }
+  }
+
+  // ---------- win/lose ----------
+  function counts(){
+    let p=0,e=0; for(const n of nodes){ if(n.o===1)p++; else if(n.o===2)e++; }
+    return {p,e};
+  }
+  function checkEnd(){
+    if(ended) return;
+    const {p,e}=counts();
+    const pSold = soldiers.some(s=>s.o===1), eSold = soldiers.some(s=>s.o===2);
+    if(e===0 && !eSold){ endGame(true); }
+    else if(p===0 && !pSold){ endGame(false); }
+  }
+  function endGame(win){
+    ended=true; running=false;
+    const ov=$('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
+    $('ovTitle').textContent = win?'Победа! 🎉':'Поражение';
+    const ovRow=$('ovRow'); ovRow.innerHTML='';
+    if(win){
+      const next=mapIndex+1;
+      if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
+      $('ovSub').textContent = next<MAPS.length ? 'Карта зачищена. Готова к следующей?' : 'Все карты пройдены — ты захватила всё! 🏆';
+      if(next<MAPS.length) addBtn(ovRow,'Следующая','primary',()=>loadMap(next));
+      addBtn(ovRow,'Заново','',()=>loadMap(mapIndex));
+    } else {
+      $('ovSub').textContent = 'Враг захватил все твои башни. Попробуй другую тактику.';
+      addBtn(ovRow,'Ещё раз','primary',()=>loadMap(mapIndex));
+    }
+  }
+  function addBtn(row,label,cls,fn){ const b=document.createElement('button'); b.className='btn '+cls; b.textContent=label; b.onclick=fn; row.appendChild(b); }
+  function hideOverlay(ov){ ov.className='overlay'; }
+
+  // ---------- input ----------
+  function nodeAt(px,py){
+    for(let i=nodes.length-1;i>=0;i--){ const n=nodes[i];
+      if(Math.hypot(px-n.x,py-n.y) <= nodeR(n)+8) return n; }
+    return null;
+  }
+  function pointerPos(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
+
+  cv.addEventListener('pointerdown',e=>{
+    if(ended) return;
+    const p=pointerPos(e); const n=nodeAt(p.x,p.y);
+    if(n && n.o===1){ drag={fromId:n.id, x:p.x, y:p.y}; cv.setPointerCapture(e.pointerId);
+      $('hint').style.opacity='0'; }
+  });
+  cv.addEventListener('pointermove',e=>{ if(drag){ const p=pointerPos(e); drag.x=p.x; drag.y=p.y; } });
+  cv.addEventListener('pointerup',e=>{
+    if(!drag) return;
+    const p=pointerPos(e); const n=nodeAt(p.x,p.y);
+    if(n && n.id!==drag.fromId){ toggleLink(drag.fromId, n.id); }
+    drag=null;
+  });
+  cv.addEventListener('pointercancel',()=>{ drag=null; });
+
+  $('speedBtn').onclick=()=>{ speed = speed===1?2:1; $('speedBtn').textContent='×'+speed; };
+  $('menuBtn').onclick=()=>{ running=false; openMenu(); };
+  $('closeMenu').onclick=()=>{ hideOverlay($('ovMenu')); if(!ended) running=true; };
+
+  function openMenu(){
+    const grid=$('lvlGrid'); grid.innerHTML='';
+    MAPS.forEach((m,i)=>{
+      const el=document.createElement('div');
+      const locked = i>progress;
+      el.className='lvl'+(locked?' locked':'')+(i<progress?' done':'');
+      el.textContent=i+1;
+      if(!locked) el.onclick=()=>{ hideOverlay($('ovMenu')); loadMap(i); };
+      grid.appendChild(el);
+    });
+    $('ovMenu').className='overlay show';
+  }
+
+  // ---------- render ----------
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // links
+    for(const L of links){
+      const a=nodes[L.from], b=nodes[L.to];
+      ctx.strokeStyle = COL_DIM[L.o]; ctx.lineWidth=2; ctx.globalAlpha=.55;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      // arrowhead near target
+      const ang=Math.atan2(b.y-a.y,b.x-a.x), rr=nodeR(b)+4;
+      const hx=b.x-Math.cos(ang)*rr, hy=b.y-Math.sin(ang)*rr;
+      ctx.fillStyle=COL_DIM[L.o]; ctx.globalAlpha=.8;
+      ctx.beginPath();
+      ctx.moveTo(hx,hy);
+      ctx.lineTo(hx-Math.cos(ang-0.5)*8, hy-Math.sin(ang-0.5)*8);
+      ctx.lineTo(hx-Math.cos(ang+0.5)*8, hy-Math.sin(ang+0.5)*8);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    // drag rubber band
+    if(drag){ const a=nodes[drag.fromId];
+      ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(drag.x,drag.y); ctx.stroke(); ctx.setLineDash([]);
+      const hov=nodeAt(drag.x,drag.y);
+      if(hov && hov.id!==drag.fromId){ ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(hov.x,hov.y,nodeR(hov)+6,0,7); ctx.stroke(); }
+    }
+    // soldiers
+    for(const s of soldiers){ ctx.fillStyle=COL[s.o];
+      ctx.beginPath(); ctx.arc(s.x,s.y,3.1,0,7); ctx.fill(); }
+    // nodes
+    for(const n of nodes){
+      const r=nodeR(n);
+      // body
+      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,7);
+      ctx.fillStyle='rgba(15,18,38,.85)'; ctx.fill();
+      ctx.lineWidth=3.5; ctx.strokeStyle=COL[n.o]; ctx.stroke();
+      // level pips ring
+      if(n.l>1){ ctx.lineWidth=2; ctx.strokeStyle=COL_DIM[n.o];
+        ctx.beginPath(); ctx.arc(n.x,n.y,r-6,0,7); ctx.stroke(); }
+      // count
+      ctx.fillStyle=COL[n.o]; ctx.font='800 '+Math.round(r*0.82)+'px Inter, sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(Math.floor(n.t)), n.x, n.y+1);
+      // level badge
+      if(n.l>1){ ctx.fillStyle=COL[n.o]; ctx.font='800 '+Math.round(r*0.42)+'px Inter, sans-serif';
+        ctx.fillText('lv'+n.l, n.x, n.y - r - 9); }
+    }
+    // counts hud
+    const c=counts(); $('cntP').textContent=c.p; $('cntE').textContent=c.e;
+  }
+
+  // ---------- loop ----------
+  let last=performance.now();
+  function frame(now){
+    let dt=(now-last)/1000; last=now;
+    if(dt>0.05) dt=0.05;
+    if(running && !ended){
+      const sub = speed; // run 'speed' sim seconds per real second
+      step(dt*sub);
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- boot ----------
+  window.addEventListener('resize', layout);
+  loadMap(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

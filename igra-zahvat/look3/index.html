@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Захват — образец (Tower Defense Kit)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:#bfe0ef;}
+  body{font-family:'Inter',system-ui,sans-serif;}
+  #app{position:fixed;inset:0;} canvas{display:block;}
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(130% 95% at 50% 40%, rgba(0,0,0,0) 52%, rgba(8,18,28,0.32) 100%);}
+  .tag{position:fixed;left:14px;top:12px;z-index:10;color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 6px rgba(0,0,0,.5);}
+  .tag small{display:block;font-weight:600;font-size:12px;opacity:.9;}
+  .hint{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:10;
+    background:rgba(15,18,38,.6);color:#eaf0ff;font-size:12.5px;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px);}
+  #loading{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,#0f1226,#171a3a);color:#cfe0ff;font-weight:700;}
+  #err{position:fixed;inset:0;z-index:41;display:none;align-items:center;justify-content:center;text-align:center;
+    background:#1a1020;color:#ffd3da;padding:24px;font-size:14px;}
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="vignette"></div>
+  <div class="tag">Образец: Tower Defense Kit 🗼<small>башни-герои + плитки + декор (Kenney CC0)</small></div>
+  <div class="hint">Башни в фокусе. Покрути пальцем/мышью.</div>
+  <div id="loading">Сборка локации…</div>
+  <div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+let renderer, scene, camera, controls, composer;
+const TEAM={p:0x3b82f6,e:0xef4444,n:0x9aa3b2};
+function sky(){ const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256); g.addColorStop(0,'#bfe4f6'); g.addColorStop(.55,'#a9d6ec'); g.addColorStop(1,'#8fc4de');
+  x.fillStyle=g; x.fillRect(0,0,4,256); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
+function findMesh(root){ let f=null; root.traverse(o=>{ if(!f&&o.isMesh) f=o; }); return f; }
+
+async function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.1;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  scene=new THREE.Scene(); scene.background=sky(); scene.fog=new THREE.Fog(0xa9d6ec, 30, 75);
+  try{ const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture; }catch(e){}
+
+  camera=new THREE.PerspectiveCamera(34, innerWidth/innerHeight, 0.1, 400);
+  camera.position.set(13,11,15);
+  controls=new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0,1.1,0); controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.autoRotate=true; controls.autoRotateSpeed=0.38; controls.minDistance=9; controls.maxDistance=42; controls.maxPolarAngle=Math.PI*0.49;
+
+  scene.add(new THREE.HemisphereLight(0xeaf3ff,0x5a7a40,0.55));
+  const sun=new THREE.DirectionalLight(0xfff0d2,2.3); sun.position.set(12,20,8); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048); const sc=sun.shadow.camera;
+  sc.left=-20;sc.right=20;sc.top=16;sc.bottom=-16;sc.near=1;sc.far=80; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff,0.5); fill.position.set(-15,9,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff,1.25); rim.position.set(-8,8,-16); scene.add(rim);
+
+  const loader=new GLTFLoader();
+  const load=async f=>{ const g=await loader.loadAsync('models/'+f);
+    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; if(c.material) c.material.metalness=0; } }); return g.scene; };
+  const N={ tile:'tile.glb', dirt:'tile-dirt.glb', ttree:'tile-tree.glb', hill:'tile-hill.glb',
+    tree:'detail-tree.glb', treeL:'detail-tree-large.glb', rocks:'detail-rocks.glb', crystal:'detail-crystal.glb',
+    structure:'wood-structure-high.glb', tb:'tower-round-build-b.glb', tc:'tower-round-build-c.glb', td:'tower-round-build-d.glb', tf:'tower-round-build-f.glb' };
+  const M={}; await Promise.all(Object.entries(N).map(async([k,f])=>{ M[k]=await load(f); }));
+
+  // tile top height (place objects on top of tiles)
+  const tm=findMesh(M.tile); tm.geometry.computeBoundingBox(); const TOP=tm.geometry.boundingBox.max.y;
+
+  // ---- tiled island ----
+  const COLS=11, ROWS=8, ox=(COLS-1)/2, oz=(ROWS-1)/2;
+  const used=new Set();
+  const put=(m,cx,cz,y=0,ry=0,s=1)=>{ const o=m.clone(true); o.position.set(cx-ox,y,cz-oz); o.rotation.y=ry; o.scale.setScalar(s); scene.add(o); return o; };
+  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
+    let m=M.tile;
+    if(cz===4) m=M.dirt;                                    // a path across
+    else if((cx+cz)%9===0) m=M.hill;                        // occasional hill
+    put(m,cx,cz,0);
+  }
+
+  // ---- TOWERS = heroes: show level growth b->c->d->f, with team rings ----
+  const heroes=[ {m:M.tb,cx:2,cz:2,team:'p',s:1.0}, {m:M.tc,cx:4,cz:2,team:'p',s:1.05},
+                 {m:M.td,cx:6,cz:6,team:'e',s:1.1}, {m:M.tf,cx:8,cz:6,team:'e',s:1.15},
+                 {m:M.tc,cx:8,cz:2,team:'n',s:1.05} ];
+  for(const h of heroes){ used.add(h.cx+','+h.cz);
+    put(h.m,h.cx,h.cz,TOP,0,h.s);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.52,0.07,12,36).rotateX(Math.PI/2),
+      new THREE.MeshStandardMaterial({color:TEAM[h.team], emissive:TEAM[h.team], emissiveIntensity:0.4, roughness:0.5}));
+    ring.position.set(h.cx-ox, TOP+0.04, h.cz-oz); ring.scale.setScalar(h.s); scene.add(ring);
+  }
+
+  // a couple of decorative wood structures on the edge
+  put(M.structure,0,7,TOP,0.3,1.0); put(M.structure,10,1,TOP,-0.5,1.0);
+
+  // ---- decor on free grass tiles ----
+  let s=2024; const rng=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
+    if(cz===4) continue; if(used.has(cx+','+cz)) continue; if(rng()<0.62) continue;
+    const r=rng(); const m = r<0.4?M.tree : r<0.66?M.treeL : r<0.85?M.rocks : M.crystal;
+    put(m,cx,cz,TOP,rng()*6.28, 0.8+rng()*0.5);
+  }
+
+  try{
+    const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType, samples:8});
+    composer=new EffectComposer(renderer,rt);
+    composer.addPass(new RenderPass(scene,camera));
+    try{ composer.addPass(new GTAOPass(scene,camera,innerWidth,innerHeight)); }catch(e){ console.warn('AO',e); }
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.16,0.6,0.95));
+    composer.addPass(new OutputPass());
+    try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
+  }catch(e){ composer=null; }
+
+  addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight); if(composer) composer.setSize(innerWidth,innerHeight); });
+
+  document.getElementById('loading').style.display='none';
+  renderer.setAnimationLoop(()=>{ controls.update(); if(composer) composer.render(); else renderer.render(scene,camera); });
+}
+init().catch(e=>{ console.error(e); document.getElementById('loading').style.display='none';
+  const el=document.getElementById('err'); el.style.display='flex'; el.textContent='Ошибка сцены: '+(e&&e.message?e.message:e); });
+</script>
+</body>
+</html>

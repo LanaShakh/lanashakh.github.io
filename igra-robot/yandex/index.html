@@ -278,13 +278,25 @@
   /* ===================== РЕДИЗАЙН: приложение без прокрутки ===================== */
   body {
     font-family:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    align-items:stretch; padding:0; height:100vh; height:100dvh;
+    align-items:center; justify-content:center; padding:0; min-height:100vh; min-height:100dvh;
   }
   .app {
     max-width:480px; width:100%; margin:0 auto;
     height:100vh; height:100dvh; min-height:0;
     border-radius:0; padding:0; display:flex; flex-direction:column;
     box-shadow:0 0 50px rgba(0,0,0,.25); overflow:hidden;
+  }
+
+  /* На широких экранах (ПК/планшет) — аккуратная карточка-«телефон» по центру */
+  @media (min-width:600px){
+    body { padding:20px; }
+    .app {
+      height:min(96vh, 900px);
+      max-width:430px;
+      border-radius:32px;
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 24px 70px rgba(0,0,0,.38);
+    }
   }
   .content {
     flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
@@ -1701,13 +1713,11 @@
     if (!window.YaGames) return;
     YaGames.init().then(function(ysdk){
       window.ysdk = ysdk;
-      // п.2.14 — автоопределение языка игрока при запуске
       try {
-        var lang = ysdk.environment.i18n.lang;     // напр. "ru", "en", "tr"
-        window.gameLang = (lang === "ru") ? "ru" : "ru"; // игра пока на русском (fallback ru)
+        var lang = ysdk.environment.i18n.lang;
+        window.gameLang = (lang === "ru") ? "ru" : "ru";
         document.documentElement.setAttribute("lang", lang || "ru");
       } catch(e){}
-      // сигнал, что игра загрузилась
       try { ysdk.features.LoadingAPI.ready(); } catch(e){}
     }).catch(function(){});
   })();

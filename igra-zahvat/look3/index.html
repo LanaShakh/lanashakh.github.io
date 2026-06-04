@@ -174,7 +174,7 @@ async function init(){
 
   // 9) HOUSES set back from the road, facing it
   const houseModels=[M.h1,M.h2,M.h3,M.h4,M.h5,M.h6], hback=4.4;
-  [0.08,0.24,0.40,0.58,0.74,0.90].forEach((t,i)=>{ const {p,perp}=onRoad(t);
+  [0.30,0.38,0.46,0.54,0.62,0.70].forEach((t,i)=>{ const {p,perp}=onRoad(t);
     const x=p.x+perp.x*hback, z=p.z+perp.z*hback;
     const o=houseModels[i].clone(true); o.position.set(x,0,z); o.rotation.y=Math.atan2(-perp.x,-perp.z); o.scale.setScalar(1.4);
     scene.add(o); placed.push({x,z,r:2.4}); });
@@ -185,8 +185,14 @@ async function init(){
     const b=M.camp.clone(true); b.position.set(x,0,z); b.scale.setScalar(0.5); scene.add(b); }
   { const c=onRoad(0.03); const s=M.sign.clone(true); s.position.set(c.p.x+c.perp.x*0.95,0,c.p.z+c.perp.z*0.95); s.rotation.y=Math.atan2(-c.perp.x,-c.perp.z); s.scale.setScalar(0.9); scene.add(s); }
   { const c=onRoad(0.66); const w=M.logS.clone(true); w.position.set(c.p.x+c.perp.x*2.9,0,c.p.z+c.perp.z*2.9); w.rotation.y=0.5; w.scale.setScalar(0.9); scene.add(w); }
-  [0.30,0.5,0.72].forEach(t=>{ const c=onRoad(t); const x=c.p.x+c.perp.x*1.45, z=c.p.z+c.perp.z*1.45;
-    const v=M.vlg.clone(true); v.position.set(x,0,z); v.rotation.y=rng()*TAU; v.scale.setScalar(1.0); scene.add(v); });
+  // auto-normalize any character model: stand it up, scale to target height, drop feet to ground
+  const addChar=(model,x,z,targetH,ry)=>{ const m=model.clone(true);
+    let box=new THREE.Box3().setFromObject(m); const size=new THREE.Vector3(); box.getSize(size);
+    if(size.y < Math.max(size.x,size.z)*0.6){ m.rotation.x=-Math.PI/2; box=new THREE.Box3().setFromObject(m); box.getSize(size); } // lying -> stand up
+    m.scale.multiplyScalar(targetH/Math.max(1e-4,size.y));
+    box=new THREE.Box3().setFromObject(m); m.position.set(x,-box.min.y,z); m.rotation.y=ry;
+    m.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } }); scene.add(m); };
+  [0.32,0.5,0.7].forEach(t=>{ const c=onRoad(t); addChar(M.vlg, c.p.x+c.perp.x*1.5, c.p.z+c.perp.z*1.5, 1.6, rng()*TAU); });
 
   // 9) forest-floor detail: logs & stumps in the woods
   for(let i=0;i<12;i++){ const a=rng()*TAU, gr=CLEAR+1+rng()*14; const x=Math.cos(a)*gr,z=Math.sin(a)*gr*0.82;

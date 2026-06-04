@@ -1117,10 +1117,15 @@
     next();
   }
   function voiceQuestion(q){
-    if (q.a > 100 || q.b > 100){ speakQuestion(q); return; } // запас: очень больших чисел нет, но на всякий
-    vpPlaySeq(["q_skolko", "n"+q.a, (q.sign === "+" ? "op_plus" : "op_minus"), "n"+q.b]);
+    // примеры до 10 — целая фраза с вопросительной интонацией
+    if (q.a <= 10 && q.b <= 10){
+      vpPlaySeq(["q_" + q.a + "_" + (q.sign === "+" ? "p" : "m") + "_" + q.b]);
+    } else {
+      // большие числа — склейка слов
+      vpPlaySeq(["q_skolko", "n"+q.a, (q.sign === "+" ? "op_plus" : "op_minus"), "n"+q.b]);
+    }
   }
-  function voicePraise(){ vpPlaySeq(["praise_" + rnd(6)]); }
+  function voicePraise(){ vpPlaySeq(["praise_" + rnd(8)]); }
   function voiceWin(correct){ vpPlaySeq([correct >= 8 ? "win_good" : "win_ok"]); }
   function voiceHello(){ vpPlaySeq(["hello"]); }
   function voiceGoal(){ vpPlaySeq(["goal"]); }

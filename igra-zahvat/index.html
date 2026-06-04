@@ -4,545 +4,459 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f1226">
-<title>Захват</title>
-<meta name="description" content="Захват — стратегия в реальном времени: тяни связи между башнями, усиливай свои и захватывай чужие. Победи бота на каждой карте.">
+<title>Захват — 3D</title>
+<meta name="description" content="Захват — 3D-стратегия: тяни связи между башнями, усиливай свои и захватывай чужие.">
 <style>
-  :root{
-    --bg1:#0f1226; --bg2:#171a3a; --ink:#eef0ff; --muted:#a7adda;
-    --p:#2f6fe0; --e:#e23b4e; --n:#9298ad; --panel:rgba(255,255,255,.05);
-  }
+  :root{ --ink:#eef0ff; --muted:#a7adda; --p:#2f6fe0; --e:#e23b4e; --panel:rgba(255,255,255,.06); }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;overflow:hidden;}
-  body{
-    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-    color:var(--ink); user-select:none;
-    background:radial-gradient(1000px 500px at 12% -10%,rgba(124,92,255,.25),transparent 60%),
-               radial-gradient(900px 480px at 110% 0%,rgba(33,212,253,.16),transparent 55%),
-               linear-gradient(160deg,var(--bg1),var(--bg2));
-    display:flex; flex-direction:column; height:100%;
-  }
-  .hud{
-    display:flex; align-items:center; gap:10px; padding:max(10px,env(safe-area-inset-top)) 14px 10px;
-    flex-wrap:nowrap;
-  }
-  .hud .title{font-weight:800; font-size:17px; letter-spacing:-.3px; white-space:nowrap;}
-  .hud .title small{display:block; font-weight:600; font-size:11px; color:var(--muted); margin-top:1px;}
-  .counts{display:flex; gap:8px; margin-left:auto; align-items:center;}
-  .pill{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:999px;
-    padding:5px 11px; font-weight:800; font-size:14px; display:flex; align-items:center; gap:6px;}
-  .pill .dot{width:9px;height:9px;border-radius:50%;}
-  .dot.p{background:var(--p);} .dot.e{background:var(--e);}
-  .iconbtn{background:var(--panel); border:1px solid rgba(255,255,255,.10); color:var(--ink);
-    width:38px;height:38px;border-radius:11px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
-  .iconbtn:active{transform:translateY(1px);}
-  .stage{position:relative; flex:1; min-height:0;}
-  canvas{display:block; width:100%; height:100%; touch-action:none;}
-  .hint{position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
-    background:rgba(15,18,38,.7); border:1px solid rgba(255,255,255,.10); backdrop-filter:blur(6px);
-    color:var(--muted); font-size:12.5px; padding:7px 14px; border-radius:999px; pointer-events:none;
-    max-width:92%; text-align:center; transition:opacity .4s;}
+  body{ font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    color:var(--ink); user-select:none; background:#9fd0e8; height:100%; }
+  #app{position:fixed; inset:0;}
+  canvas{display:block; touch-action:none;}
+  .labels{position:fixed; inset:0; pointer-events:none; overflow:hidden;}
+  .tlabel{ background:#fff; border:2.5px solid #888; border-radius:999px; color:#333;
+    font-weight:800; font-size:14px; padding:1px 9px; transform:translate(-50%,-50%);
+    box-shadow:0 3px 8px rgba(0,0,0,.25); white-space:nowrap; }
 
-  .overlay{position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
-    gap:16px; text-align:center; padding:26px; background:rgba(15,18,38,.8); backdrop-filter:blur(7px); z-index:20; animation:fade .25s ease;}
-  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .hud{ position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:10px;
+    padding:max(10px,env(safe-area-inset-top)) 14px 10px; z-index:10; }
+  .hud .title{font-weight:800; font-size:17px; letter-spacing:-.3px; white-space:nowrap; text-shadow:0 2px 6px rgba(0,0,0,.4);}
+  .hud .title small{display:block; font-weight:600; font-size:11px; color:#eaf3ff; opacity:.85; margin-top:1px;}
+  .counts{display:flex; gap:8px; margin-left:auto; align-items:center;}
+  .pill{background:rgba(15,18,38,.5); border:1px solid rgba(255,255,255,.14); border-radius:999px;
+    padding:5px 11px; font-weight:800; font-size:14px; display:flex; align-items:center; gap:6px; backdrop-filter:blur(6px);}
+  .pill .dot{width:9px;height:9px;border-radius:50%;} .dot.p{background:var(--p);} .dot.e{background:var(--e);}
+  .iconbtn{background:rgba(15,18,38,.5); border:1px solid rgba(255,255,255,.16); color:#fff;
+    width:38px;height:38px;border-radius:11px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px);}
+  .iconbtn:active{transform:translateY(1px);}
+  .hint{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:10;
+    background:rgba(15,18,38,.62); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(6px);
+    color:#eaf0ff; font-size:12.5px; padding:8px 15px; border-radius:999px; max-width:92%; text-align:center; transition:opacity .4s;}
+
+  .overlay{ position:fixed; inset:0; z-index:30; display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:16px; text-align:center; padding:26px; background:rgba(15,18,38,.82); backdrop-filter:blur(7px); }
   .overlay.show{display:flex;}
   .overlay .big{font-size:38px; font-weight:800; letter-spacing:-1px;}
   .overlay.win .big{background:linear-gradient(120deg,#21d4fd,#2bffb0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
   .overlay.lose .big{color:var(--e);}
   .overlay .sub{color:var(--muted); font-size:15px; max-width:300px;}
   .row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
-  .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--ink);
+  .btn{border:1px solid rgba(255,255,255,.14); background:var(--panel); color:var(--ink);
     font-family:inherit; font-weight:700; font-size:15px; padding:12px 20px; border-radius:12px; cursor:pointer;}
   .btn.primary{background:linear-gradient(120deg,#7c5cff,#a17bff); border-color:transparent; box-shadow:0 8px 22px rgba(124,92,255,.35);}
   .btn:active{transform:translateY(2px);}
-
   .levels{display:grid; grid-template-columns:repeat(4,56px); gap:12px; justify-content:center;}
-  .lvl{width:56px;height:56px;border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.12);
+  .lvl{width:56px;height:56px;border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.14);
     display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; cursor:pointer; color:var(--ink);}
-  .lvl.locked{opacity:.35; cursor:default;}
-  .lvl.done{border-color:#2bffb0; color:#2bffb0;}
+  .lvl.locked{opacity:.35; cursor:default;} .lvl.done{border-color:#2bffb0; color:#2bffb0;}
   .ovh{font-size:13px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; font-weight:700;}
+
+  #loading{ position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    background:linear-gradient(160deg,#0f1226,#171a3a); color:#cfe0ff; }
+  .spinner{width:42px;height:42px;border-radius:50%;border:4px solid rgba(255,255,255,.18); border-top-color:#7c5cff; animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #err{display:none; max-width:80%; text-align:center; color:#ffd3da; font-size:14px; line-height:1.6;}
 </style>
 </head>
 <body>
+  <div id="app"></div>
+  <div class="labels" id="labels"></div>
+
   <div class="hud">
     <div class="title">Захват<small id="mapName">Карта 1</small></div>
     <div class="counts">
       <div class="pill"><span class="dot p"></span><span id="cntP">0</span></div>
       <div class="pill"><span class="dot e"></span><span id="cntE">0</span></div>
-      <button class="iconbtn" id="speedBtn" title="Скорость">×1</button>
-      <button class="iconbtn" id="menuBtn" title="Карты">☰</button>
+      <button class="iconbtn" id="speedBtn">×1</button>
+      <button class="iconbtn" id="menuBtn">☰</button>
     </div>
   </div>
-  <div class="stage">
-    <canvas id="cv"></canvas>
-    <div class="hint" id="hint">Тяни от своей башни к другой — создать связь. Убрать: кликни по линии (ПК) или проведи связь ещё раз (телефон).</div>
+  <div class="hint" id="hint">Тяни от своей башни к другой — создать связь. Убрать: тапни по линии.</div>
 
-    <div class="overlay" id="ovEnd">
-      <div class="big" id="ovTitle"></div>
-      <div class="sub" id="ovSub"></div>
-      <div class="row" id="ovRow"></div>
-    </div>
+  <div class="overlay" id="ovEnd"><div class="big" id="ovTitle"></div><div class="sub" id="ovSub"></div><div class="row" id="ovRow"></div></div>
+  <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div><div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
 
-    <div class="overlay" id="ovMenu">
-      <div class="ovh">Карты</div>
-      <div class="levels" id="lvlGrid"></div>
-      <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div>
-    </div>
-  </div>
+  <div id="loading"><div class="spinner"></div><div>Загружаем 3D-мир…</div><div id="err"></div></div>
 
-<script>
-(function(){
-  "use strict";
-  // ---------- config ----------
-  const PROD_BASE = 2.2, CAP_BASE = 30, MAX_LEVEL = 4, MAXLINKS = 3;
-  const BOT_INTERVAL = 1.45, ARRIVE = 0.62;
-  const COL = { 0:'#9298ad', 1:'#2f6fe0', 2:'#e23b4e' }; // neutral stone / player blue / enemy crimson
-  const STORE = 'g_zahvat_progress';
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-  // ---------- maps (normalized 0..1) ----------
-  // owner: 0 neutral, 1 player, 2 enemy
-  const MAPS = [
-    { name:'Первый контакт', aggro:0.35, nodes:[
-      {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
-      {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
-    { name:'Перекрёсток', aggro:0.45, nodes:[
-      {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},
-      {x:.5,y:.5,o:0,t:16,l:1},
-      {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},
-      {x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
-    { name:'Клин', aggro:0.5, nodes:[
-      {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
-      {x:.87,y:.3,o:2,t:24,l:1},{x:.87,y:.7,o:2,t:24,l:1},
-      {x:.5,y:.5,o:0,t:18,l:1},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
-    { name:'Окружение', aggro:0.55, nodes:[
-      {x:.5,y:.5,o:1,t:28,l:1},
-      {x:.5,y:.16,o:0,t:12,l:1},{x:.5,y:.84,o:0,t:12,l:1},
-      {x:.2,y:.3,o:2,t:22,l:1},{x:.2,y:.7,o:0,t:12,l:1},
-      {x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:22,l:1} ] },
-    { name:'Две крепости', aggro:0.6, nodes:[
-      {x:.15,y:.5,o:1,t:30,l:2},{x:.85,y:.5,o:2,t:34,l:2},
-      {x:.4,y:.3,o:0,t:14,l:1},{x:.6,y:.7,o:0,t:14,l:1},
-      {x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
-    { name:'Архипелаг', aggro:0.68, nodes:[
-      {x:.1,y:.5,o:1,t:24,l:1},
-      {x:.9,y:.2,o:2,t:22,l:1},{x:.9,y:.8,o:2,t:22,l:1},
-      {x:.35,y:.2,o:0,t:10,l:1},{x:.35,y:.8,o:0,t:10,l:1},
-      {x:.55,y:.5,o:0,t:16,l:1},{x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},
-      {x:.5,y:.15,o:0,t:9,l:1},{x:.5,y:.85,o:0,t:9,l:1} ] },
-  ];
+const $ = id => document.getElementById(id);
+function fail(msg){ const e=document.getElementById('err'); e.style.display='block';
+  e.textContent = msg + ' Обнови страницу или попробуй другой браузер.'; }
 
-  // ---------- state ----------
-  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  let W=0,H=0,DPR=1, play={x:0,y:0,w:0,h:0}, baseR=20, speedPx=120;
-  let nodes=[], links=[], soldiers=[], pulses=[], decor=[];
-  let mapIndex=0, running=true, ended=false, speed=1, botTimer=0;
-  let drag=null; // {fromId, x, y}
-  let progress = +(localStorage.getItem(STORE)||0); // max unlocked index
+// ---------------- game constants & data ----------------
+const PROD_BASE=2.2, CAP_BASE=30, MAX_LEVEL=4, MAXLINKS=3, BOT_INTERVAL=1.45;
+const ISL_W=15, ISL_D=10, GROUNDPAD=0.84;
+const COL = { 0:0xc9ceda, 1:0x4f8bff, 2:0xff5c72 };       // soldiers / accents
+const SOLID = { 0:0xc2c8d2, 1:0x3f80ee, 2:0xe8485c };      // solid team color for towers & links
+const SOLIDD= { 0:0x8b92a0, 1:0x2456b0, 2:0xb02a3c };      // darker base ring
+const TINT= { 0:0xffffff, 1:0xd2e2ff, 2:0xffd6dc };        // (unused now) gentle tower tint
+const CSS = { 0:'#7d8499', 1:'#2f6fe0', 2:'#e23b4e' };
+const STORE='g_zahvat_progress';
 
-  const $ = id=>document.getElementById(id);
+const MAPS = [
+  { name:'Первый контакт', aggro:0.35, nodes:[
+    {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
+    {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
+  { name:'Перекрёсток', aggro:0.45, nodes:[
+    {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},{x:.5,y:.5,o:0,t:16,l:1},
+    {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},{x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
+  { name:'Клин', aggro:0.5, nodes:[
+    {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
+    {x:.87,y:.3,o:2,t:24,l:1},{x:.87,y:.7,o:2,t:24,l:1},
+    {x:.5,y:.5,o:0,t:18,l:1},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
+  { name:'Окружение', aggro:0.55, nodes:[
+    {x:.5,y:.5,o:1,t:28,l:1},{x:.5,y:.16,o:0,t:12,l:1},{x:.5,y:.84,o:0,t:12,l:1},
+    {x:.2,y:.3,o:2,t:22,l:1},{x:.2,y:.7,o:0,t:12,l:1},{x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:22,l:1} ] },
+  { name:'Две крепости', aggro:0.6, nodes:[
+    {x:.15,y:.5,o:1,t:30,l:2},{x:.85,y:.5,o:2,t:34,l:2},
+    {x:.4,y:.3,o:0,t:14,l:1},{x:.6,y:.7,o:0,t:14,l:1},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
+  { name:'Архипелаг', aggro:0.68, nodes:[
+    {x:.1,y:.5,o:1,t:24,l:1},{x:.9,y:.2,o:2,t:22,l:1},{x:.9,y:.8,o:2,t:22,l:1},
+    {x:.35,y:.2,o:0,t:10,l:1},{x:.35,y:.8,o:0,t:10,l:1},{x:.55,y:.5,o:0,t:16,l:1},
+    {x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},{x:.5,y:.15,o:0,t:9,l:1},{x:.5,y:.85,o:0,t:9,l:1} ] },
+];
 
-  function layout(){
-    const r = cv.getBoundingClientRect();
-    DPR = Math.min(window.devicePixelRatio||1, 2.5);
-    W = r.width; H = r.height;
-    cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    const pad = Math.max(46, Math.min(W,H)*0.1);
-    play = { x:pad, y:pad, w:W-2*pad, h:H-2*pad };
-    baseR = Math.max(15, Math.min(play.w,play.h)*0.052);
-    speedPx = Math.min(play.w,play.h)*0.34;
-    for(const n of nodes){ n.x = play.x + n.nx*play.w; n.y = play.y + n.ny*play.h; }
-    for(const d of decor){ d.x = play.x + d.nx*play.w; d.y = play.y + d.ny*play.h; }
-  }
+// ---------------- three.js setup ----------------
+let renderer, labelRenderer, scene, camera, raycaster, groundPlane;
+let MODELS={}, GROUND_TOP=0, stripeTex;
+let nodes=[], links=[], soldiers=[], decor=[];
+let mapIndex=0, running=true, ended=false, speed=1, botTimer=0, progress=+(localStorage.getItem(STORE)||0);
+let drag=null, dragLine=null, linkSig='';
+const pointer=new THREE.Vector2();
 
-  function nodeR(n){ return baseR*(0.82 + n.l*0.12); }
-  function cap(n){ return CAP_BASE*n.l; }
-  function prod(n){ return PROD_BASE*n.l; }
+const cap=n=>CAP_BASE*n.l, prod=n=>PROD_BASE*n.l;
+function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
+function camViewSize(){ const aspect=innerWidth/innerHeight;
+  const halfW=(ISL_W+ISL_D)*0.5*0.62, halfH=(ISL_W+ISL_D)*0.5*0.40;
+  return Math.max(halfH, halfW/aspect)*1.06; }
 
-  function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
-    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-  function genDecor(seed){
-    const rng=mulberry32(seed*977+13), out=[]; let tries=0;
-    while(out.length<16 && tries<500){ tries++;
-      const nx=0.04+rng()*0.92, ny=0.05+rng()*0.9;
-      let ok=true;
-      for(const n of nodes){ if(Math.hypot(nx-n.nx, ny-n.ny)<0.12){ ok=false; break; } }
-      if(ok) for(const d of out){ if(Math.hypot(nx-d.nx, ny-d.ny)<0.06){ ok=false; break; } }
-      if(ok) out.push({ nx, ny, x:0, y:0, type: rng()<0.72?'tree':'rock', s:0.7+rng()*0.7 });
-    }
-    return out;
-  }
-  function loadMap(i){
-    mapIndex=i; const m=MAPS[i];
-    nodes = m.nodes.map((d,idx)=>({ id:idx, nx:d.x, ny:d.y, x:0,y:0, o:d.o, t:d.t, l:d.l||1, atk:0 }));
-    decor = genDecor(i);
-    links=[]; soldiers=[]; pulses=[]; drag=null; botTimer=0; ended=false; running=true; speed=1;
-    $('speedBtn').textContent='×1';
-    $('mapName').textContent = 'Карта '+(i+1)+' · '+m.name;
-    hideOverlay($('ovEnd')); hideOverlay($('ovMenu'));
-    $('hint').style.opacity = (i===0?'1':'0');
-    layout();
-  }
+async function init(){
+  renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  document.getElementById('app').appendChild(renderer.domElement);
 
-  // ---------- links ----------
-  function findLink(from,to){ return links.find(L=>L.from===from && L.to===to); }
-  function toggleLink(from,to){
-    if(from===to) return;
-    const src=nodes[from];
-    const existing = findLink(from,to);
-    if(existing){ removeLink(existing); return; }
-    // up to MAXLINKS outgoing per tower; growth is split among them
-    const out = links.filter(L=>L.from===from);
-    if(out.length>=MAXLINKS) removeLink(out[0]); // replace the oldest
-    links.push({ from, to, o:src.o, accum:0 });
-  }
-  function removeLink(L){
-    const i=links.indexOf(L); if(i<0) return;
-    links.splice(i,1);
-  }
-  function removeLinksFrom(id){ links.filter(L=>L.from===id).forEach(removeLink); }
+  labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
+  labelRenderer.setSize(innerWidth, innerHeight);
 
-  // ---------- simulation ----------
-  function step(dt){
-    // growth & flow: a tower with NO outgoing link grows itself;
-    // a tower WITH a link freezes and redirects its growth to the target.
-    for(const n of nodes){
-      if(n.atk>0) n.atk = Math.max(0, n.atk - dt);
-      if(n.o===0) continue; // neutral towers are static until captured
-      // drop links left over from a previous owner (after capture)
-      links.filter(L=>L.from===n.id && L.o!==n.o).forEach(removeLink);
-      const out = links.filter(L=>L.from===n.id);
-      if(out.length===0){
-        const c=cap(n);
-        if(n.t < c && n.atk<=0) n.t = Math.min(c, n.t + prod(n)*dt); // grow self (unless under attack)
-      } else {
-        const per = (prod(n)/out.length)*dt; // redirect growth; source stays frozen
-        for(const L of out){
-          L.accum += per;
-          while(L.accum >= 1){ L.accum -= 1; spawnSoldier(n, nodes[L.to]); }
-        }
-      }
-      if(n.t > cap(n)+0.001 && n.l<MAX_LEVEL) n.l++; // overflow -> level up
-    }
-    // move soldiers
-    for(let i=soldiers.length-1;i>=0;i--){
-      const s=soldiers[i]; const tn=nodes[s.tid];
-      if(!tn){ soldiers.splice(i,1); continue; }
-      const dx=tn.x-s.x, dy=tn.y-s.y, d=Math.hypot(dx,dy);
-      const arriveDist = nodeR(tn)*ARRIVE;
-      if(d <= arriveDist || d<2){
-        applyArrival(tn, s.o); soldiers.splice(i,1); continue;
-      }
-      const v=speedPx*dt;
-      s.x += dx/d*v; s.y += dy/d*v;
-    }
-    // bot
-    botTimer -= dt;
-    if(botTimer<=0){ botTimer=BOT_INTERVAL; botThink(); }
-    checkEnd();
-  }
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9fd0e8);
+  scene.fog = new THREE.Fog(0x9fd0e8, 70, 170);
 
-  function spawnSoldier(from,to){
-    const r=nodeR(from)*0.7, a=Math.atan2(to.y-from.y,to.x-from.x);
-    soldiers.push({ x:from.x+Math.cos(a)*r + (Math.random()-.5)*4,
-                    y:from.y+Math.sin(a)*r + (Math.random()-.5)*4,
-                    tid:to.id, o:from.o });
-  }
-  function applyArrival(node, owner){
-    if(node.o===owner){
-      node.t += 1; // reinforce (may push over cap -> level up handled in step)
-    } else {
-      node.atk = 0.6; // under attack: self-growth suppressed briefly
-      node.t -= 1;
-      if(node.t <= 0){ node.o = owner; node.t = -node.t; node.atk = 0; removeLinksFrom(node.id);
-        pulses.push({x:node.x, y:node.y, o:owner, t:0, life:26, r0:nodeR(node)}); }
-    }
-  }
+  // camera: isometric orthographic
+  const aspect = innerWidth/innerHeight; const vs = camViewSize();
+  camera = new THREE.OrthographicCamera(-vs*aspect, vs*aspect, vs, -vs, 0.1, 200);
+  camera.position.set(18, 21, 18); camera.lookAt(0, 0.4, 0);
 
-  // ---------- bot AI ----------
-  function botThink(){
-    const m=MAPS[mapIndex];
-    const aggro = m.aggro;
-    const mine = nodes.filter(n=>n.o===2);
-    if(!mine.length) return;
-    // prune wasteful links (target fully owned & capped)
-    for(const L of links.filter(L=>L.o===2)){
-      const tn=nodes[L.to];
-      if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L);
-    }
-    // each strong node may open an attack
-    const sorted=[...mine].sort((a,b)=>b.t-a.t);
-    for(const src of sorted){
-      if(src.t < 10) continue;
-      if(links.filter(L=>L.from===src.id).length >= MAXLINKS) continue;
-      if(Math.random() > aggro+0.25) continue;
-      // candidate targets: not owned by bot, beatable-ish, nearest first
-      let best=null, bestScore=Infinity;
-      for(const n of nodes){
-        if(n.o===2) continue;
-        if(findLink(src.id,n.id)) continue;
-        const dist=Math.hypot(n.x-src.x,n.y-src.y);
-        const defense = n.t + (n.o===1?6:0); // prefer neutrals early
-        if(defense > src.t*1.15) continue; // too strong
-        const score = dist*0.6 + defense*4;
-        if(score<bestScore){ bestScore=score; best=n; }
-      }
-      if(best){ links.push({from:src.id,to:best.id,o:2,accum:0}); }
-      else if(src.t>cap(src)*0.7){
-        // consolidate: feed nearest weaker bot node toward the front
-        let feed=null,fd=Infinity;
-        for(const n of mine){ if(n===src||n.l>=MAX_LEVEL) continue;
-          const d=Math.hypot(n.x-src.x,n.y-src.y); if(d<fd){fd=d;feed=n;} }
-        if(feed && !findLink(src.id,feed.id)) links.push({from:src.id,to:feed.id,o:2,accum:0});
-      }
-    }
-  }
+  // lights
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6a7a55, 0.95));
+  const sun = new THREE.DirectionalLight(0xfff2d6, 1.25);
+  sun.position.set(14, 26, 8); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  const sc=sun.shadow.camera; sc.left=-16; sc.right=16; sc.top=12; sc.bottom=-12; sc.near=1; sc.far=80;
+  sun.shadow.bias=-0.0004; scene.add(sun);
 
-  // ---------- win/lose ----------
-  function counts(){
-    let p=0,e=0; for(const n of nodes){ if(n.o===1)p++; else if(n.o===2)e++; }
-    return {p,e};
-  }
-  function checkEnd(){
-    if(ended) return;
-    const {p,e}=counts();
-    const pSold = soldiers.some(s=>s.o===1), eSold = soldiers.some(s=>s.o===2);
-    if(e===0 && !eSold){ endGame(true); }
-    else if(p===0 && !pSold){ endGame(false); }
-  }
-  function endGame(win){
-    ended=true; running=false;
-    const ov=$('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
-    $('ovTitle').textContent = win?'Победа! 🎉':'Поражение';
-    const ovRow=$('ovRow'); ovRow.innerHTML='';
-    if(win){
-      const next=mapIndex+1;
-      if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
-      $('ovSub').textContent = next<MAPS.length ? 'Карта зачищена. Готова к следующей?' : 'Все карты пройдены — ты захватила всё! 🏆';
-      if(next<MAPS.length) addBtn(ovRow,'Следующая','primary',()=>loadMap(next));
-      addBtn(ovRow,'Заново','',()=>loadMap(mapIndex));
-    } else {
-      $('ovSub').textContent = 'Враг захватил все твои башни. Попробуй другую тактику.';
-      addBtn(ovRow,'Ещё раз','primary',()=>loadMap(mapIndex));
-    }
-  }
-  function addBtn(row,label,cls,fn){ const b=document.createElement('button'); b.className='btn '+cls; b.textContent=label; b.onclick=fn; row.appendChild(b); }
-  function hideOverlay(ov){ ov.className='overlay'; }
+  raycaster = new THREE.Raycaster();
+  groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(200,200).rotateX(-Math.PI/2),
+                               new THREE.MeshBasicMaterial({visible:false}));
+  scene.add(groundPlane);
 
-  // ---------- input ----------
-  function nodeAt(px,py){
-    for(let i=nodes.length-1;i>=0;i--){ const n=nodes[i];
-      if(Math.hypot(px-n.x,py-n.y) <= nodeR(n)*1.5+12) return n; }
-    return null;
-  }
-  function pointerPos(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
-  function distSeg(px,py,ax,ay,bx,by){
-    const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy;
-    let t = L2 ? ((px-ax)*dx+(py-ay)*dy)/L2 : 0; t=Math.max(0,Math.min(1,t));
-    return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
-  }
-  function linkAt(px,py){ // only the player's own links are clickable to remove
-    let best=null, bd=14;
-    for(const L of links){ if(L.o!==1) continue;
-      const a=nodes[L.from], b=nodes[L.to], d=distSeg(px,py,a.x,a.y,b.x,b.y);
-      if(d<bd){ bd=d; best=L; } }
-    return best;
-  }
+  // stripe texture for flow ribbons
+  stripeTex = makeStripeTexture();
 
-  let downPt=null;
-  cv.addEventListener('pointerdown',e=>{
-    if(ended) return;
-    const p=pointerPos(e); downPt={x:p.x,y:p.y};
-    const n=nodeAt(p.x,p.y);
-    if(n && n.o===1){ drag={fromId:n.id, x:p.x, y:p.y, sx:p.x, sy:p.y}; cv.setPointerCapture(e.pointerId);
-      $('hint').style.opacity='0'; }
-  });
-  cv.addEventListener('pointermove',e=>{
-    const p=pointerPos(e);
-    if(drag){ drag.x=p.x; drag.y=p.y; }
-    else if(e.pointerType==='mouse'){ cv.style.cursor = linkAt(p.x,p.y) ? 'pointer' : 'default'; }
-  });
-  cv.addEventListener('pointerup',e=>{
-    const p=pointerPos(e);
-    const movedFar = downPt && Math.hypot(p.x-downPt.x, p.y-downPt.y) > 14;
-    if(drag){
-      const n=nodeAt(p.x,p.y);
-      if(n && n.id!==drag.fromId && movedFar) toggleLink(drag.fromId, n.id); // create / re-drag to remove
-      drag=null;
-    } else if(!movedFar){
-      const L=linkAt(p.x,p.y); // click/tap on a connection line removes it
-      if(L) removeLink(L);
-    }
-    downPt=null;
-  });
-  cv.addEventListener('pointercancel',()=>{ drag=null; downPt=null; });
+  // load models
+  const loader = new GLTFLoader();
+  const names = { tile:'tile.glb', lvl1:'lvl1.glb', lvl2:'lvl2.glb', lvl3:'lvl3.glb', lvl4:'lvl4.glb',
+                  tree:'tree.glb', treeL:'tree-large.glb', rocks:'rocks.glb' };
+  const entries = await Promise.all(Object.entries(names).map(async ([k,f])=>{
+    const g = await loader.loadAsync('models/'+f); return [k, g.scene];
+  }));
+  for(const [k,s] of entries) MODELS[k]=s;
 
-  $('speedBtn').onclick=()=>{ speed = speed===1?2:1; $('speedBtn').textContent='×'+speed; };
-  $('menuBtn').onclick=()=>{ running=false; openMenu(); };
-  $('closeMenu').onclick=()=>{ hideOverlay($('ovMenu')); if(!ended) running=true; };
+  buildGround();
+  document.getElementById('loading').style.display='none';
 
-  function openMenu(){
-    const grid=$('lvlGrid'); grid.innerHTML='';
-    MAPS.forEach((m,i)=>{
-      const el=document.createElement('div');
-      const locked = i>progress;
-      el.className='lvl'+(locked?' locked':'')+(i<progress?' done':'');
-      el.textContent=i+1;
-      if(!locked) el.onclick=()=>{ hideOverlay($('ovMenu')); loadMap(i); };
-      grid.appendChild(el);
-    });
-    $('ovMenu').className='overlay show';
-  }
+  // drag line
+  const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+  dragLine = new THREE.Line(lg, new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.85}));
+  dragLine.visible=false; scene.add(dragLine);
 
-  // ---------- render (Tower-War style: stacked-cylinder towers) ----------
-  function withAlpha(hex,a){ const n=parseInt(hex.slice(1),16);
-    return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
-  function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
-    const f=amt<0?0:255, p=Math.abs(amt);
-    r=Math.round(r+(f-r)*p); g=Math.round(g+(f-g)*p); b=Math.round(b+(f-b)*p);
-    return 'rgb('+r+','+g+','+b+')'; }
-  function rr(x,y,w,h,r){ r=Math.min(r,w/2,h/2);
-    ctx.beginPath();
-    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
-    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-  let flowPhase=0, fcount=0;
-
-  function drawTree(d){ const x=d.x,y=d.y, s=baseR*0.6*d.s;
-    ctx.fillStyle='rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(x,y+s*0.22,s*0.72,s*0.26,0,0,7); ctx.fill();
-    ctx.fillStyle='#7a5230'; ctx.fillRect(x-s*0.11,y-s*0.1,s*0.22,s*0.5);
-    ctx.fillStyle='#2f8a3c';
-    ctx.beginPath(); ctx.arc(x,y-s*0.55,s*0.58,0,7); ctx.arc(x-s*0.4,y-s*0.28,s*0.42,0,7); ctx.arc(x+s*0.4,y-s*0.28,s*0.42,0,7); ctx.fill();
-    ctx.fillStyle='#4cb053'; ctx.beginPath(); ctx.arc(x-s*0.14,y-s*0.72,s*0.36,0,7); ctx.fill();
-  }
-  function drawRock(d){ const x=d.x,y=d.y, s=baseR*0.42*d.s;
-    ctx.fillStyle='rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(x,y+s*0.3,s*0.95,s*0.3,0,0,7); ctx.fill();
-    ctx.fillStyle='#9aa0ac'; ctx.beginPath(); ctx.arc(x,y,s*0.68,0,7); ctx.arc(x+s*0.5,y+s*0.12,s*0.44,0,7); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.16)'; ctx.beginPath(); ctx.arc(x-s*0.2,y-s*0.22,s*0.28,0,7); ctx.fill();
-  }
-  // thick troop-band between towers, with arrowhead toward target
-  function drawBand(L){ const a=nodes[L.from], b=nodes[L.to], col=COL[L.o];
-    const ang=Math.atan2(b.y-a.y,b.x-a.x);
-    const ax=a.x+Math.cos(ang)*nodeR(a)*0.5, ay=a.y+Math.sin(ang)*nodeR(a)*0.5;
-    const bx=b.x-Math.cos(ang)*nodeR(b)*0.7, by=b.y-Math.sin(ang)*nodeR(b)*0.7;
-    const w=Math.max(7,baseR*0.42);
-    ctx.lineCap='round';
-    ctx.strokeStyle=shade(col,-0.32); ctx.lineWidth=w+4; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
-    ctx.strokeStyle=withAlpha(col,.92); ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
-    // moving chevrons
-    const len=Math.hypot(bx-ax,by-ay), gap=w*1.7, cn=Math.max(1,Math.floor(len/gap));
-    const ux=(bx-ax)/(len||1), uy=(by-ay)/(len||1), px=-uy, py=ux, ch=w*0.32;
-    ctx.fillStyle='rgba(255,255,255,.55)';
-    for(let i=0;i<cn;i++){ const t=((i+flowPhase)%cn)/cn, cx=ax+ux*len*t, cy=ay+uy*len*t;
-      ctx.beginPath(); ctx.moveTo(cx+ux*ch,cy+uy*ch);
-      ctx.lineTo(cx-ux*ch+px*ch,cy-uy*ch+py*ch); ctx.lineTo(cx-ux*ch-px*ch,cy-uy*ch-py*ch);
-      ctx.closePath(); ctx.fill(); }
-    // arrowhead
-    const hs=w*1.15; ctx.fillStyle=shade(col,0.06);
-    ctx.beginPath(); ctx.moveTo(bx+ux*hs,by+uy*hs);
-    ctx.lineTo(bx-ux*hs+px*hs,by-uy*hs+py*hs); ctx.lineTo(bx-ux*hs-px*hs,by-uy*hs-py*hs);
-    ctx.closePath(); ctx.fill();
-  }
-  function drawFlag(cx,topY,col,u){ const ph=u*0.8;
-    ctx.strokeStyle='#6b5740'; ctx.lineWidth=Math.max(1.5,u*0.07);
-    ctx.beginPath(); ctx.moveTo(cx,topY); ctx.lineTo(cx,topY-ph); ctx.stroke();
-    const w=Math.sin(fcount*0.13)*ph*0.16;
-    ctx.fillStyle=col; ctx.strokeStyle=shade(col,-0.25); ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.moveTo(cx,topY-ph);
-    ctx.lineTo(cx+ph*0.7+w, topY-ph+ph*0.18); ctx.lineTo(cx, topY-ph+ph*0.36); ctx.closePath();
-    ctx.fill(); ctx.stroke();
-  }
-  // stacked-cylinder tower; height grows with troops, width with level
-  function drawStackTower(cx,groundY,rw,segs,col){
-    const sh=Math.max(6,baseR*0.26), ry=rw*0.4, bodyH=segs*sh, topY=groundY-bodyH;
-    ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(cx,groundY+ry*0.18,rw*1.12,ry*0.95,0,0,7); ctx.fill();
-    ctx.fillStyle=shade(col,-0.3); ctx.beginPath(); ctx.ellipse(cx,groundY,rw,ry,0,0,7); ctx.fill();
-    const gr=ctx.createLinearGradient(cx-rw,0,cx+rw,0);
-    gr.addColorStop(0,shade(col,0.2)); gr.addColorStop(.5,col); gr.addColorStop(1,shade(col,-0.22));
-    ctx.fillStyle=gr; ctx.fillRect(cx-rw, topY, rw*2, bodyH);
-    ctx.strokeStyle=shade(col,-0.16); ctx.lineWidth=Math.max(1,sh*0.16);
-    for(let i=1;i<segs;i++){ const yy=groundY-i*sh; ctx.beginPath(); ctx.ellipse(cx,yy,rw,ry,0,0,Math.PI); ctx.stroke(); }
-    ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(cx-rw*0.82, topY, rw*0.3, bodyH);
-    ctx.strokeStyle=shade(col,-0.28); ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.moveTo(cx-rw,topY); ctx.lineTo(cx-rw,groundY); ctx.moveTo(cx+rw,topY); ctx.lineTo(cx+rw,groundY); ctx.stroke();
-    ctx.fillStyle=shade(col,0.24); ctx.beginPath(); ctx.ellipse(cx,topY,rw,ry,0,0,7); ctx.fill();
-    ctx.strokeStyle=shade(col,-0.1); ctx.lineWidth=1.5; ctx.beginPath(); ctx.ellipse(cx,topY,rw,ry,0,0,7); ctx.stroke();
-    return topY;
-  }
-  function drawBuilding(n){
-    const col=COL[n.o], u=nodeR(n);
-    const segs=Math.max(2, Math.min(10, Math.round(2 + n.t/6)));
-    const rw=u*(0.58+n.l*0.1);
-    const cx=n.x + (n.atk>0?Math.sin(fcount*0.8)*2:0);
-    const groundY=n.y+u*0.45;
-    if(n.atk>0){ ctx.fillStyle='rgba(226,59,78,'+(0.18+0.12*Math.sin(fcount*0.5))+')';
-      ctx.beginPath(); ctx.ellipse(cx,groundY+2,rw*1.5,rw*0.62,0,0,7); ctx.fill(); }
-    const topY=drawStackTower(cx,groundY,rw,segs,col);
-    drawFlag(cx,topY,col,u);
-    // number badge on the cap
-    const num=String(Math.floor(n.t)), fs=Math.max(11,baseR*0.56);
-    ctx.font='800 '+Math.round(fs)+'px Inter, system-ui, sans-serif';
-    const bw=Math.max(fs*1.7, ctx.measureText(num).width+fs*0.8), bh=fs*1.36, by=topY+rw*0.32;
-    rr(cx-bw/2, by-bh/2, bw, bh, bh/2);
-    ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=2.5; ctx.strokeStyle=shade(col,-0.12); ctx.stroke();
-    ctx.fillStyle=shade(col,-0.5); ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(num, cx, by+0.5);
-  }
-
-  function render(){
-    fcount++; flowPhase=(flowPhase+0.05)%1;
-    // bright cartoon grass
-    const g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,'#79c759'); g.addColorStop(1,'#52a247');
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-    const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.32, W/2,H/2,Math.max(W,H)*0.74);
-    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,40,0,0.20)');
-    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
-
-    for(const d of decor){ d.type==='tree' ? drawTree(d) : drawRock(d); }
-    for(const L of links) drawBand(L);
-
-    if(drag){ const a=nodes[drag.fromId];
-      ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=Math.max(5,baseR*0.34); ctx.lineCap='round';
-      ctx.setLineDash([3,12]); ctx.lineDashOffset=-flowPhase*48;
-      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(drag.x,drag.y); ctx.stroke(); ctx.setLineDash([]);
-      const hov=nodeAt(drag.x,drag.y);
-      if(hov && hov.id!==drag.fromId){ ctx.strokeStyle='#fff'; ctx.lineWidth=3;
-        ctx.beginPath(); ctx.ellipse(hov.x,hov.y+nodeR(hov)*0.45,nodeR(hov)*1.1,nodeR(hov)*0.5,0,0,7); ctx.stroke(); }
-    }
-
-    for(const s of soldiers){ const col=COL[s.o];
-      ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(s.x,s.y+1.5,2.6,0,7); ctx.fill();
-      ctx.fillStyle=shade(col,0.12); ctx.beginPath(); ctx.arc(s.x,s.y,2.8,0,7); ctx.fill(); }
-
-    for(const n of [...nodes].sort((a,b)=>a.y-b.y)) drawBuilding(n);
-
-    for(let i=pulses.length-1;i>=0;i--){ const p=pulses[i]; p.t++;
-      const k=p.t/p.life; if(k>=1){ pulses.splice(i,1); continue; }
-      ctx.strokeStyle=withAlpha(COL[p.o], (1-k)*0.8); ctx.lineWidth=3.5;
-      ctx.beginPath(); ctx.ellipse(p.x,p.y, p.r0*(1+k*1.7), p.r0*(1+k*1.7)*0.5, 0,0,7); ctx.stroke();
-    }
-    const c=counts(); $('cntP').textContent=c.p; $('cntE').textContent=c.e;
-  }
-
-  // ---------- loop ----------
-  let last=performance.now();
-  function frame(now){
-    let dt=(now-last)/1000; last=now;
-    if(dt>0.05) dt=0.05;
-    if(running && !ended){
-      const sub = speed; // run 'speed' sim seconds per real second
-      step(dt*sub);
-    }
-    render();
-    requestAnimationFrame(frame);
-  }
-
-  // ---------- boot ----------
-  window.addEventListener('resize', layout);
+  bindInput();
   loadMap(0);
-  requestAnimationFrame(frame);
-})();
+  renderer.setAnimationLoop(frame);
+}
+
+function makeStripeTexture(){
+  const c=document.createElement('canvas'); c.width=16; c.height=64; const x=c.getContext('2d');
+  x.clearRect(0,0,16,64);
+  x.fillStyle='rgba(255,255,255,0.9)';
+  for(let i=0;i<2;i++){ const y=i*32; x.beginPath(); x.moveTo(2,y+6); x.lineTo(14,y+16); x.lineTo(2,y+26); x.lineTo(2,y+20); x.lineTo(9,y+16); x.lineTo(2,y+12); x.closePath(); x.fill(); }
+  const t=new THREE.CanvasTexture(c); t.wrapS=THREE.RepeatWrapping; t.wrapT=THREE.RepeatWrapping; return t;
+}
+
+function buildGround(){
+  GROUND_TOP = 0;
+  // one continuous world, fills the screen (no grid)
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x6cbb57, roughness:1, metalness:0}));
+  g.position.y=0; g.receiveShadow=true; scene.add(g);
+  // soft mottled patches for depth (deterministic, no grid)
+  const rng=mulberry32(98765);
+  for(let i=0;i<28;i++){ const col=i%2? 0x5fae4e:0x7cca64; const r=3+rng()*6.5;
+    const patch=new THREE.Mesh(new THREE.CircleGeometry(r,20).rotateX(-Math.PI/2),
+      new THREE.MeshStandardMaterial({color:col, roughness:1, transparent:true, opacity:0.5, depthWrite:false}));
+    patch.position.set((rng()*2-1)*24, 0.01+i*0.0006, (rng()*2-1)*17); scene.add(patch);
+  }
+}
+function findMesh(root){ let found=null; root.traverse(o=>{ if(!found && o.isMesh) found=o; }); return found; }
+
+// ---------------- map / nodes ----------------
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[]; let tries=0;
+  while(out.length<42 && tries<2500){ tries++;
+    const x=(rng()*2-1)*15.5, z=(rng()*2-1)*10.5; let ok=true;
+    for(const n of nodes){ if(Math.hypot(x-n.x, z-n.z)<2.4){ ok=false; break; } }
+    if(ok) for(const d of out){ if(Math.hypot(x-d.x, z-d.z)<1.1){ ok=false; break; } }
+    if(ok){ const r=rng(); out.push({ x, z, type: r<0.5?'tree': r<0.8?'treeL':'rocks', rot:rng()*6.28, s:1.05+rng()*0.65 }); }
+  }
+  return out;
+}
+
+let nodeGroup=null, decorGroup=null, soldierGroup=null, linkGroup=null;
+function clearGroup(g){ if(!g) return; while(g.children.length) g.remove(g.children[0]); }
+
+function loadMap(i){
+  mapIndex=i; const m=MAPS[i];
+  // reset groups
+  if(nodeGroup) scene.remove(nodeGroup); if(decorGroup) scene.remove(decorGroup);
+  if(soldierGroup) scene.remove(soldierGroup); if(linkGroup) scene.remove(linkGroup);
+  nodeGroup=new THREE.Group(); decorGroup=new THREE.Group(); soldierGroup=new THREE.Group(); linkGroup=new THREE.Group();
+  scene.add(nodeGroup); scene.add(decorGroup); scene.add(soldierGroup); scene.add(linkGroup);
+  // clear labels
+  document.getElementById('labels').innerHTML='';
+
+  nodes = m.nodes.map((d,idx)=>{ const p=worldPos(d.x,d.y);
+    return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, view:null, lr:-1, or:-1 }; });
+  links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1;
+  document.getElementById('speedBtn').textContent='×1';
+  document.getElementById('mapName').textContent='Карта '+(i+1)+' · '+m.name;
+  hideOverlay('ovEnd'); hideOverlay('ovMenu');
+  document.getElementById('hint').style.opacity = i===0?'1':'0';
+
+  // decor
+  decor=genDecor(i);
+  for(const d of decor){ const src=MODELS[d.type]; const o=src.clone(true);
+    o.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+    o.position.set(d.x,GROUND_TOP,d.z); o.rotation.y=d.rot; o.scale.setScalar(d.s);
+    decorGroup.add(o); }
+
+  for(const n of nodes) buildTower(n);
+}
+
+function buildTower(n){
+  if(n.view){ nodeGroup.remove(n.view.group); if(n.view.label) n.view.group.remove(n.view.label); }
+  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(0.85);
+  const teamMat=new THREE.MeshStandardMaterial({ color:SOLID[n.o], roughness:0.55, metalness:0.05 });
+  const model=MODELS['lvl'+n.l].clone(true);
+  model.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.material=teamMat; c.userData.nodeId=n.id; } });
+  group.add(model);
+  // darker colored base disc (grounds the tower, shows team)
+  const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.66,0.14,28),
+    new THREE.MeshStandardMaterial({ color:SOLIDD[n.o], roughness:0.7 }));
+  disc.position.y=0.03; disc.receiveShadow=true; group.add(disc);
+  // invisible pick disc (easy tap target)
+  const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,1.8,12), new THREE.MeshBasicMaterial({visible:false}));
+  pick.position.y=0.9; pick.userData.nodeId=n.id; group.add(pick);
+  // label
+  const div=document.createElement('div'); div.className='tlabel';
+  const label=new CSS2DObject(div); label.position.set(0,1.75,0); group.add(label);
+  nodeGroup.add(group);
+  n.view={group, model, div, label}; n.lr=n.l; n.or=n.o;
+}
+
+// ---------------- simulation (same rules as before) ----------------
+function findLink(f,t){ return links.find(L=>L.from===f && L.to===t); }
+function removeLink(L){ const i=links.indexOf(L); if(i>=0) links.splice(i,1); }
+function removeLinksFrom(id){ links.filter(L=>L.from===id).forEach(removeLink); }
+function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
+  const ex=findLink(from,to); if(ex){ removeLink(ex); return; }
+  const out=links.filter(L=>L.from===from); if(out.length>=MAXLINKS) removeLink(out[0]);
+  links.push({from,to,o:src.o,accum:0}); }
+
+function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null }); }
+function applyArrival(node, owner){
+  if(node.o===owner){ node.t+=1; }
+  else { node.atk=0.6; node.t-=1; if(node.t<=0){ node.o=owner; node.t=-node.t; node.atk=0; removeLinksFrom(node.id); } }
+}
+
+function step(dt){
+  for(const n of nodes){
+    if(n.atk>0) n.atk=Math.max(0,n.atk-dt);
+    if(n.o===0) continue;
+    links.filter(L=>L.from===n.id && L.o!==n.o).forEach(removeLink);
+    const out=links.filter(L=>L.from===n.id);
+    if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
+    else { const per=(prod(n)/out.length)*dt;
+      for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
+    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL) n.l++;
+  }
+  // soldiers move in world (x,z)
+  const SP=4.0*Math.max(1,1);
+  for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
+    const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
+    if(d<=0.5){ applyArrival(tn,s.o); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
+    const v=SP*dt; s.x+=dx/d*v; s.z+=dz/d*v;
+  }
+  botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL; botThink(); }
+  checkEnd();
+}
+
+function botThink(){
+  const aggro=MAPS[mapIndex].aggro, mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
+  for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
+  const sorted=[...mine].sort((a,b)=>b.t-a.t);
+  for(const src of sorted){
+    if(src.t<10) continue;
+    if(links.filter(L=>L.from===src.id).length>=MAXLINKS) continue;
+    if(Math.random()>aggro+0.25) continue;
+    let best=null,bs=Infinity;
+    for(const n of nodes){ if(n.o===2) continue; if(findLink(src.id,n.id)) continue;
+      const dist=Math.hypot(n.x-src.x,n.z-src.z), def=n.t+(n.o===1?6:0);
+      if(def>src.t*1.15) continue; const sc=dist*0.6+def*4; if(sc<bs){ bs=sc; best=n; } }
+    if(best) links.push({from:src.id,to:best.id,o:2,accum:0});
+    else if(src.t>cap(src)*0.7){ let feed=null,fd=Infinity;
+      for(const n of mine){ if(n===src||n.l>=MAX_LEVEL) continue; const d=Math.hypot(n.x-src.x,n.z-src.z); if(d<fd){fd=d;feed=n;} }
+      if(feed && !findLink(src.id,feed.id)) links.push({from:src.id,to:feed.id,o:2,accum:0}); }
+  }
+}
+
+function counts(){ let p=0,e=0; for(const n of nodes){ if(n.o===1)p++; else if(n.o===2)e++; } return {p,e}; }
+function checkEnd(){ if(ended) return; const {p,e}=counts();
+  const pS=soldiers.some(s=>s.o===1), eS=soldiers.some(s=>s.o===2);
+  if(e===0 && !eS) endGame(true); else if(p===0 && !pS) endGame(false); }
+function endGame(win){ ended=true; running=false;
+  const ov=document.getElementById('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
+  document.getElementById('ovTitle').textContent = win?'Победа! 🎉':'Поражение';
+  const row=document.getElementById('ovRow'); row.innerHTML='';
+  if(win){ const next=mapIndex+1; if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
+    document.getElementById('ovSub').textContent = next<MAPS.length?'Карта зачищена. Дальше?':'Все карты пройдены! 🏆';
+    if(next<MAPS.length) addBtn(row,'Следующая','primary',()=>loadMap(next));
+    addBtn(row,'Заново','',()=>loadMap(mapIndex));
+  } else { document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
+    addBtn(row,'Ещё раз','primary',()=>loadMap(mapIndex)); }
+}
+function addBtn(row,label,cls,fn){ const b=document.createElement('button'); b.className='btn '+cls; b.textContent=label; b.onclick=fn; row.appendChild(b); }
+function hideOverlay(id){ document.getElementById(id).className='overlay'; }
+
+// ---------------- per-frame visual sync ----------------
+function syncVisuals(){
+  for(const n of nodes){
+    if(n.lr!==n.l || n.or!==n.o){ buildTower(n); }   // rebuild on level/owner change
+    const v=n.view; if(!v) continue;
+    // atk shake
+    v.group.position.x = n.x + (n.atk>0?Math.sin(performance.now()*0.03)*0.06:0);
+    // label
+    v.div.textContent = Math.floor(n.t);
+    v.div.style.borderColor = CSS[n.o];
+    v.div.style.color = CSS[n.o]==='#7d8499' ? '#444' : CSS[n.o];
+  }
+  // soldiers meshes
+  for(const s of soldiers){ if(!s.mesh){ s.mesh=new THREE.Mesh(
+      new THREE.SphereGeometry(0.19,12,10), new THREE.MeshStandardMaterial({color:SOLID[s.o], roughness:0.4, emissive:SOLID[s.o], emissiveIntensity:0.15}));
+      s.mesh.castShadow=true; soldierGroup.add(s.mesh); }
+    s.mesh.position.set(s.x, GROUND_TOP+0.32, s.z); }
+  // links — rebuild ribbon meshes when set changes
+  const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
+  if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }
+  const c=counts(); document.getElementById('cntP').textContent=c.p; document.getElementById('cntE').textContent=c.e;
+}
+
+function rebuildLinks(){
+  clearGroup(linkGroup);
+  const up=new THREE.Vector3(0,1,0);
+  for(const L of links){ const a=nodes[L.from], b=nodes[L.to];
+    const A=new THREE.Vector3(a.x,GROUND_TOP+0.22,a.z), B=new THREE.Vector3(b.x,GROUND_TOP+0.22,b.z);
+    const u=new THREE.Vector3().subVectors(B,A).normalize();
+    const start=A.clone().add(u.clone().multiplyScalar(0.75));
+    const end=B.clone().add(u.clone().multiplyScalar(-0.95));
+    const seg=new THREE.Vector3().subVectors(end,start); const L2=seg.length();
+    const mat=new THREE.MeshStandardMaterial({ color:SOLID[L.o], roughness:0.45, metalness:0.05, emissive:SOLID[L.o], emissiveIntensity:0.12 });
+    const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,L2,12), mat);
+    tube.quaternion.setFromUnitVectors(up, seg.clone().normalize());
+    tube.position.copy(start).add(end).multiplyScalar(0.5);
+    tube.userData.link=L; linkGroup.add(tube);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.5,14), mat);
+    cone.quaternion.setFromUnitVectors(up, u); cone.position.copy(end); cone.userData.link=L; linkGroup.add(cone);
+  }
+}
+
+// ---------------- input ----------------
+function setPointer(e){ pointer.x=(e.clientX/innerWidth)*2-1; pointer.y=-(e.clientY/innerHeight)*2+1; }
+function pickNode(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(nodeGroup.children, true);
+  for(const h of hits){ let o=h.object; while(o){ if(o.userData && o.userData.nodeId!=null) return nodes[o.userData.nodeId]; o=o.parent; } }
+  return null; }
+function pickGround(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
+  const h=raycaster.intersectObject(groundPlane); return h.length?h[0].point:null; }
+function pickLink(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(linkGroup.children,true);
+  for(const h of hits){ const L=h.object.userData.link; if(L && L.o===1) return L; } return null; }
+
+let downXY=null;
+function bindInput(){
+  const el=renderer.domElement;
+  el.addEventListener('pointerdown',e=>{ if(ended) return; downXY={x:e.clientX,y:e.clientY};
+    const n=pickNode(e); if(n && n.o===1){ drag={fromId:n.id}; dragLine.visible=true; document.getElementById('hint').style.opacity='0'; } });
+  el.addEventListener('pointermove',e=>{ if(!drag) return; const g=pickGround(e); if(!g) return;
+    const a=nodes[drag.fromId]; dragLine.geometry.setFromPoints([new THREE.Vector3(a.x,GROUND_TOP+0.4,a.z), new THREE.Vector3(g.x,GROUND_TOP+0.2,g.z)]); });
+  el.addEventListener('pointerup',e=>{
+    const far = downXY && Math.hypot(e.clientX-downXY.x, e.clientY-downXY.y)>14;
+    if(drag){ const n=pickNode(e); if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id); drag=null; dragLine.visible=false; }
+    else if(!far){ const L=pickLink(e); if(L) removeLink(L); }
+    downXY=null; });
+  el.addEventListener('pointercancel',()=>{ drag=null; dragLine.visible=false; downXY=null; });
+
+  document.getElementById('speedBtn').onclick=()=>{ speed=speed===1?2:1; document.getElementById('speedBtn').textContent='×'+speed; };
+  document.getElementById('menuBtn').onclick=()=>{ running=false; openMenu(); };
+  document.getElementById('closeMenu').onclick=()=>{ hideOverlay('ovMenu'); if(!ended) running=true; };
+  addEventListener('resize',onResize);
+}
+function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHTML='';
+  MAPS.forEach((m,i)=>{ const el=document.createElement('div'); const locked=i>progress;
+    el.className='lvl'+(locked?' locked':'')+(i<progress?' done':''); el.textContent=i+1;
+    if(!locked) el.onclick=()=>{ hideOverlay('ovMenu'); loadMap(i); }; grid.appendChild(el); });
+  document.getElementById('ovMenu').className='overlay show'; }
+
+function onResize(){ const aspect=innerWidth/innerHeight, vs=camViewSize();
+  camera.left=-vs*aspect; camera.right=vs*aspect; camera.top=vs; camera.bottom=-vs; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight); }
+
+// ---------------- loop ----------------
+let last=performance.now();
+function frame(){
+  const now=performance.now(); let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+  if(running && !ended) step(dt*speed);
+  stripeTex.offset.y = (stripeTex.offset.y - dt*0.9) % 1;
+  syncVisuals();
+  renderer.render(scene,camera); labelRenderer.render(scene,camera);
+}
+
+init().catch(err=>{ console.error(err); document.querySelector('#loading .spinner').style.display='none';
+  document.querySelector('#loading div').textContent='Не удалось запустить 3D.';
+  fail('Ошибка загрузки: '+(err&&err.message?err.message:err)+'.'); });
 </script>
 </body>
 </html>

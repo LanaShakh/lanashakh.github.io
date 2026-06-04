@@ -356,6 +356,7 @@
   <section class="screen" id="scr-settings">
     <div class="sub-head"><h2>⚙️ Настройки</h2></div>
     <div class="setting"><div class="nm">Темп речи<small>Медленнее — понятнее</small></div><div class="ctl"><input type="range" id="setRate" min="50" max="110" step="5"></div></div>
+    <div class="setting"><div class="nm">Голос озвучки<small>Список зависит от устройства</small></div><div class="ctl"><select id="setVoice" style="max-width:170px;padding:8px;border-radius:10px;border:2px solid var(--line);font-family:inherit;font-weight:700;background:#fff"></select></div></div>
     <div class="setting"><div class="nm">Картинок в «Покажи»<small>Авто подстраивается под ребёнка</small></div><div class="ctl"><div class="seg" id="setChoices" style="width:200px"><button data-c="auto">Авто</button><button data-c="2">2</button><button data-c="3">3</button><button data-c="4">4</button></div></div></div>
     <div class="setting"><div class="nm">Похвала голосом<small>«Молодец!» после успеха</small></div><div class="ctl"><button class="toggle" id="setPraise"></button></div></div>
     <div class="setting"><div class="nm">Звуки<small>Сигналы верно/неверно</small></div><div class="ctl"><button class="toggle" id="setSounds"></button></div></div>
@@ -467,6 +468,7 @@ function normalize(s){
   s.settings.choices = s.settings.choices || 'auto';
   s.settings.praise = s.settings.praise!==false;
   s.settings.sounds = s.settings.sounds!==false;
+  s.settings.voiceURI = s.settings.voiceURI || '';
   // дозаливаем стартовые действия, если их нет (миграция v1->v2)
   const have=new Set(s.cards.map(c=>c.word));
   STARTER.filter(c=>c[2]==='action' && !have.has(c[0])).forEach((c,i)=>{
@@ -480,8 +482,21 @@ function getCard(id){ return state.cards.find(c=>c.id===id); }
 
 /* ---------- озвучка ---------- */
 let ruVoice=null;
-function pickVoice(){ const vs=speechSynthesis.getVoices(); ruVoice=vs.find(v=>/ru[-_]RU/i.test(v.lang))||vs.find(v=>/^ru/i.test(v.lang))||null; }
-if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function pickVoice(){
+  const vs=speechSynthesis.getVoices();
+  if(state.settings.voiceURI){ const v=vs.find(x=>x.voiceURI===state.settings.voiceURI); if(v){ ruVoice=v; return; } }
+  ruVoice=vs.find(v=>/ru[-_]RU/i.test(v.lang))||vs.find(v=>/^ru/i.test(v.lang))||null;
+}
+function populateVoices(){
+  const sel=document.getElementById('setVoice'); if(!sel) return;
+  const vs=speechSynthesis.getVoices();
+  let list=vs.filter(v=>/^ru/i.test(v.lang)); if(!list.length) list=vs;   // нет русских — покажем все
+  sel.innerHTML='';
+  if(!list.length){ sel.innerHTML='<option value="">Нет голосов</option>'; return; }
+  list.forEach(v=>{ const o=document.createElement('option'); o.value=v.voiceURI; o.textContent=v.name+(/^ru/i.test(v.lang)?'':' · '+v.lang); sel.appendChild(o); });
+  sel.value=state.settings.voiceURI||(ruVoice?ruVoice.voiceURI:'');
+}
+if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged=()=>{ pickVoice(); populateVoices(); }; }
 function speakText(text, rateMul=1){
   if(!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
@@ -777,12 +792,14 @@ document.getElementById('resetProgress').onclick=()=>{ if(confirm('Сброси�
 /* ==================== НАСТРОЙКИ ==================== */
 function renderSettings(){
   document.getElementById('setRate').value=state.settings.rate;
+  populateVoices();
   document.querySelectorAll('#setChoices button').forEach(b=>b.classList.toggle('on', String(state.settings.choices)===b.dataset.c));
   document.getElementById('setPraise').classList.toggle('on', state.settings.praise);
   document.getElementById('setSounds').classList.toggle('on', state.settings.sounds);
 }
 document.getElementById('setRate').oninput=e=>{ state.settings.rate=+e.target.value; save(); };
 document.getElementById('setRate').onchange=()=>speakText('Вот так звучит');
+document.getElementById('setVoice').onchange=e=>{ state.settings.voiceURI=e.target.value; save(); pickVoice(); speakText('Привет! Вот так я говорю.'); };
 document.querySelectorAll('#setChoices button').forEach(b=>b.onclick=()=>{ state.settings.choices=b.dataset.c; save(); renderSettings(); });
 document.getElementById('setPraise').onclick=function(){ state.settings.praise=!state.settings.praise; save(); this.classList.toggle('on',state.settings.praise); };
 document.getElementById('setSounds').onclick=function(){ state.settings.sounds=!state.settings.sounds; save(); this.classList.toggle('on',state.settings.sounds); };

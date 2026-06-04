@@ -506,10 +506,26 @@ function speakText(text, rateMul=1){
   speechSynthesis.speak(u);
 }
 let curAudio=null;
+/* нейроголос (Silero): заранее озвученные клипы из voices_pack/manifest.json */
+let voicePack={};
+function loadVoicePack(){ return fetch('voices_pack/manifest.json').then(r=>r.json()).then(m=>{voicePack=m||{};}).catch(()=>{voicePack={};}); }
+function packUrl(text){ const f=voicePack[text]; return f?('voices_pack/'+f):null; }
+function playClip(url){ try{ if(curAudio) curAudio.pause(); curAudio=new Audio(url); curAudio.play().catch(()=>{}); return true; }catch(e){ return false; } }
+/* универсальная озвучка: сначала нейроклип, иначе браузерный голос */
+function say(text){ const u=packUrl(text); if(u && playClip(u)) return; speakText(text); }
 function playCard(card){
-  const a=mAudio(card.id);
-  if(a){ try{ if(curAudio){curAudio.pause();} curAudio=new Audio(a); curAudio.play(); return; }catch(e){} }
-  speakText(card.word);
+  const a=mAudio(card.id);                              // 1) записанный родителем голос
+  if(a){ try{ if(curAudio) curAudio.pause(); curAudio=new Audio(a); curAudio.play(); return; }catch(e){} }
+  const u=packUrl(card.word);                           // 2) нейроголос Silero
+  if(u && playClip(u)) return;
+  speakText(card.word);                                 // 3) запасной — браузер
+}
+/* проговорить фразу по словам нейроголосом, если все клипы есть */
+function speakSentence(items){
+  const urls=items.map(it=>(it.id&&mAudio(it.id))||packUrl(it.word));
+  if(urls.length && urls.every(Boolean)){
+    let i=0; const next=()=>{ if(i>=urls.length) return; const a=new Audio(urls[i++]); a.onended=next; curAudio=a; a.play().catch(()=>{}); }; next();
+  } else speakText(items.map(i=>i.word).join(' '));
 }
 /* грубое деление на слоги по гласным — для режима «по слогам» */
 function syllables(word){
@@ -552,7 +568,7 @@ function picHTML(card){ const img=mImg(card.id); return img?`<img src="${img}" a
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
 function addStar(n=1){ state.stars+=n; save(); }
 function cheer(em='⭐'){ const el=document.getElementById('cheer'); document.getElementById('cheerEmoji').textContent=em; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),850); }
-function praise(){ if(state.settings.praise){ const ph=['Молодец!','Отлично!','Супер!','Ура!','Хорошо!']; setTimeout(()=>speakText(ph[Math.random()*ph.length|0]),420); } }
+function praise(){ if(state.settings.praise){ const ph=['Молодец!','Отлично!','Супер!','Ура!','Хорошо!']; setTimeout(()=>say(ph[Math.random()*ph.length|0]),420); } }
 
 /* ==================== ПОКАЖИ (понимание + интервальное повторение) ==================== */
 const showGrid=document.getElementById('showGrid'), showHint=document.getElementById('showHint'), speakBtn=document.getElementById('speakBtn');
@@ -653,7 +669,7 @@ function renderAacGrid(){
   else { items=state.cards.filter(c=>c.kind===aacCatCur); }
   items.forEach(c=>{ const t=document.createElement('div'); t.className='aac-tile';
     t.innerHTML=`<div class="pic">${c.id?picHTML(c):`<span class="em">${c.emoji}</span>`}</div><div class="t">${c.word}</div>`;
-    t.onclick=()=>{ aacSentence.push({word:c.word, emoji:c.emoji, id:c.id||null}); if(c.id) playCard(c); else speakText(c.word); renderStrip(); };
+    t.onclick=()=>{ aacSentence.push({word:c.word, emoji:c.emoji, id:c.id||null}); if(c.id) playCard(c); else say(c.word); renderStrip(); };
     aacGrid.appendChild(t); });
 }
 function renderStrip(){
@@ -662,7 +678,7 @@ function renderStrip(){
   aacSentence.forEach(w=>{ const d=document.createElement('div'); d.className='word';
     d.innerHTML=`<span class="em">${w.id&&mImg(w.id)?'🖼️':(w.emoji||'❓')}</span><span class="t">${w.word}</span>`; aacStrip.appendChild(d); });
 }
-document.getElementById('aacSay').onclick=()=>{ if(aacSentence.length) speakText(aacSentence.map(w=>w.word).join(' ')); };
+document.getElementById('aacSay').onclick=()=>{ if(aacSentence.length) speakSentence(aacSentence); };
 document.getElementById('aacBack').onclick=()=>{ aacSentence.pop(); renderStrip(); };
 document.getElementById('aacClear').onclick=()=>{ aacSentence=[]; renderStrip(); };
 
@@ -697,7 +713,7 @@ function renderSchedPool(){
 }
 document.getElementById('schedMode').onclick=()=>{ schedBuilding=!schedBuilding; renderSched(); };
 document.getElementById('schedReset').onclick=()=>{ if(schedBuilding){ if(state.sched.length&&confirm('Очистить всё расписание?')){ state.sched=[]; state.schedDone=[]; save(); renderSchedStrip(); } } else { state.schedDone=[]; save(); renderSchedStrip(); } };
-document.getElementById('schedNow').onclick=()=>{ const id=state.sched.find(x=>!state.schedDone.includes(x)); if(id) speakText('Сейчас — '+getCard(id).word); else { speakText('Всё готово! Молодец!'); cheer('🎉'); } };
+document.getElementById('schedNow').onclick=()=>{ const id=state.sched.find(x=>!state.schedDone.includes(x)); if(id){ say('Сейчас'); setTimeout(()=>playCard(getCard(id)),650); } else { say('Всё готово! Молодец!'); cheer('🎉'); } };
 
 /* ==================== КАРТОЧКИ (родитель) ==================== */
 const cardList=document.getElementById('cardList'), cardsFilter=document.getElementById('cardsFilter');
@@ -805,7 +821,7 @@ document.getElementById('setPraise').onclick=function(){ state.settings.praise=!
 document.getElementById('setSounds').onclick=function(){ state.settings.sounds=!state.settings.sounds; save(); this.classList.toggle('on',state.settings.sounds); };
 
 /* ---------- старт ---------- */
-mediaLoadAll().then(()=>{ /* медиа подгружены, экраны рендерятся при заходе */ });
+Promise.all([mediaLoadAll(), loadVoicePack()]).then(()=>{ /* медиа и нейроголос подгружены */ });
 </script>
 </body>
 </html>

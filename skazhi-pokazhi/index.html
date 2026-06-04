@@ -58,6 +58,7 @@
   .b-show{background:linear-gradient(135deg,var(--blue),var(--blue-d));}
   .b-say{background:linear-gradient(135deg,var(--amber),var(--amber-d));}
   .b-cards{background:linear-gradient(135deg,#8b7fd6,#6f61c4);}
+  .b-sched{background:linear-gradient(135deg,#3fb8b0,#2c948d);}
   .foot{margin-top:auto; text-align:center; color:var(--muted); font-size:12px; padding-top:18px;}
   .foot b{color:#b89a82;}
 
@@ -134,6 +135,25 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height:110px; font-weight:800;}
   .add-cm .e{font-size:30px;}
 
+  /* ---------- schedule ---------- */
+  .sched-strip{display:flex; gap:4px; overflow-x:auto; padding:12px 4px; min-height:130px; align-items:center;
+    background:var(--card); border-radius:18px; box-shadow:var(--shadow); margin-bottom:12px;}
+  .sched-item{flex:0 0 auto; width:92px; background:var(--bg1); border-radius:16px; padding:8px; text-align:center;
+    position:relative; border:3px solid transparent; cursor:pointer;}
+  .sched-item.current{border-color:var(--amber); animation:pulse 1.1s ease infinite;}
+  .sched-item.done{opacity:.45;}
+  .sched-item .pic{height:52px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px;}
+  .sched-item .pic .em{font-size:38px;} .sched-item .pic img{width:100%;height:52px;object-fit:cover;border-radius:10px;}
+  .sched-item .lbl{font-weight:800; font-size:12px; margin-top:4px; word-break:break-word;}
+  .sched-item .check{position:absolute; top:-8px; right:-8px; font-size:22px; display:none;}
+  .sched-item.done .check{display:block;}
+  .sched-num{position:absolute; top:-8px; left:-8px; width:22px;height:22px;border-radius:50%;background:var(--blue);
+    color:#fff;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);}
+  .sched-arrow{flex:0 0 auto; color:var(--muted); font-size:18px; font-weight:900;}
+  .sched-empty{color:var(--muted); font-weight:700; text-align:center; width:100%; padding:0 14px; font-size:14px;}
+  .sched-tools{display:flex; gap:10px; justify-content:center; margin-bottom:12px;}
+  .sched-pool-label{font-weight:800; font-size:13px; color:var(--muted); margin:4px 0 8px; text-align:center;}
+
   /* ---------- modal (add card) ---------- */
   .modal{position:absolute; inset:0; background:rgba(58,46,38,.45); display:none; align-items:center; justify-content:center;
     z-index:40; padding:18px; backdrop-filter:blur(3px);}
@@ -192,9 +212,13 @@
         <span class="e">💬</span>
         <span>Скажи<small>Смотрим картинку — называем сами</small></span>
       </button>
+      <button class="big-btn b-sched" data-go="sched">
+        <span class="e">📅</span>
+        <span>Расписание<small>Что сейчас, что потом — по порядку</small></span>
+      </button>
       <button class="big-btn b-cards" data-go="cards">
         <span class="e">🗂️</span>
-        <span>Карточки<small>Для взрослого: добавить слова и фото</small></span>
+        <span>Карточки<small>Для взрослого: добавить слова, фото, действия</small></span>
       </button>
     </div>
     <div class="foot">Всё работает <b>офлайн</b> в браузере. Карточки хранятся на этом устройстве.</div>
@@ -234,6 +258,23 @@
     </div>
   </section>
 
+  <!-- ===================== SCHEDULE ===================== -->
+  <section class="screen" id="scr-sched">
+    <div class="sub-head">
+      <h2>📅 Расписание</h2>
+      <span class="tag" id="schedMode" style="background:var(--pink); cursor:pointer">🧩 Составляем</span>
+    </div>
+    <div class="sched-strip" id="schedStrip"></div>
+    <div class="sched-tools">
+      <button class="iconbtn" id="schedNow" style="display:none"><span>📣</span> Что сейчас?</button>
+      <button class="iconbtn" id="schedReset">🔄 Заново</button>
+    </div>
+    <div id="schedPoolWrap">
+      <div class="sched-pool-label">Нажми карточку — добавится в расписание. Нажми карточку в ленте — уберётся.</div>
+      <div class="card-list" id="schedPool"></div>
+    </div>
+  </section>
+
   <!-- ===================== CARDS MANAGER ===================== -->
   <section class="screen" id="scr-cards">
     <div class="sub-head">
@@ -265,6 +306,13 @@
         <input type="text" id="wordInput" placeholder="например: мяч" autocomplete="off">
       </div>
       <div class="field">
+        <label>Тип карточки</label>
+        <div class="seg" id="kindSeg">
+          <button data-kind="object" class="on" type="button">🧸 Предмет</button>
+          <button data-kind="action" type="button">🏃 Действие</button>
+        </div>
+      </div>
+      <div class="field">
         <label>Выбери картинку</label>
         <div class="emoji-pick" id="emojiPick"></div>
       </div>
@@ -291,34 +339,54 @@
 
 const LS_KEY = 'skazhi-pokazhi-v1';
 
-/* стартовый набор простых, узнаваемых слов */
+/* стартовый набор. третий элемент — тип: 'object' (предмет) или 'action' (действие/жест) */
 const STARTER = [
-  ['мама','👩'],['папа','👨'],['баба','👵'],['дом','🏠'],['кот','🐱'],
-  ['собака','🐶'],['мяч','⚽'],['машина','🚗'],['яблоко','🍎'],['банан','🍌'],
-  ['молоко','🥛'],['вода','💧'],['рыба','🐟'],['солнце','☀️'],['ложка','🥄'],
-  ['чашка','☕'],['мишка','🧸'],['кукла','🪆'],['цветок','🌸'],['рука','✋'],
+  // предметы
+  ['мама','👩','object'],['папа','👨','object'],['баба','👵','object'],['дом','🏠','object'],['кот','🐱','object'],
+  ['собака','🐶','object'],['мяч','⚽','object'],['машина','🚗','object'],['яблоко','🍎','object'],['банан','🍌','object'],
+  ['молоко','🥛','object'],['вода','💧','object'],['рыба','🐟','object'],['солнце','☀️','object'],['ложка','🥄','object'],
+  ['чашка','☕','object'],['мишка','🧸','object'],['кукла','🪆','object'],['цветок','🌸','object'],['рука','✋','object'],
+  // действия и режимные моменты (для жестов и расписания)
+  ['кушать','🍽️','action'],['спать','😴','action'],['мыть руки','🧼','action'],['гулять','🌳','action'],['играть','🧸','action'],
+  ['чистить зубы','🪥','action'],['одеваться','👕','action'],['читать','📖','action'],['рисовать','🎨','action'],['занятие','✏️','action'],
+  ['туалет','🚽','action'],['музыка','🎵','action'],['купаться','🛁','action'],['пить','🥤','action'],['привет','👋','action'],
 ];
 
 /* палитра эмодзи для выбора картинки */
 const EMOJI_BANK = ('👩 👨 👵 👴 👶 🧒 🐱 🐶 🐰 🐻 🐭 🐸 🐮 🐷 🐔 🐥 🐟 🐢 🦋 🐝 '
   +'🍎 🍌 🍓 🍇 🍊 🍉 🥕 🥦 🍞 🧀 🥚 🥛 🍪 🍰 🍭 🍫 🥄 🍴 🥤 ☕ '
   +'🏠 🚗 🚌 🚂 ✈️ 🚲 ⚽ 🏀 🎈 🎂 🧸 🪆 🚀 ⛵ 🪀 🎨 ✏️ 📚 🔑 ⏰ '
-  +'☀️ 🌙 ⭐ ☁️ 🌧️ 🌈 🌸 🌳 🍄 🌻 ✋ 👁️ 👂 👃 👄 🦷 🦶 👕 👟 🧦').split(' ');
+  +'☀️ 🌙 ⭐ ☁️ 🌧️ 🌈 🌸 🌳 🍄 🌻 ✋ 👁️ 👂 👃 👄 🦷 🦶 👕 👟 🧦 '
+  +'🍽️ 😴 🧼 🪥 🛁 🚽 🎵 🏃 🧩 📅 👋 🧹 🛏️ 🪑 🚿 📖 ✏️').split(' ');
 
 let state = load();
 let editId = null;        // id карточки при редактировании (пока только добавление)
 let pickedEmoji = null;
 let pickedImage = null;   // dataURL
+let pickedKind = 'object';
 
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); s.cards ||= []; s.stars ||= 0; s.diff ||= 3; return s; }
+    if(raw){
+      const s = JSON.parse(raw);
+      s.cards ||= []; s.stars ||= 0; s.diff ||= 3; s.sched ||= []; s.schedDone ||= [];
+      if(!s.ver || s.ver < 2){
+        // дозаливаем карточки-действия, появившиеся в новой версии
+        const have = new Set(s.cards.map(c=>c.word));
+        STARTER.filter(c=>c[2]==='action' && !have.has(c[0])).forEach((c,i)=>{
+          s.cards.push({id:'a'+Date.now()+i, word:c[0], emoji:c[1], img:null, kind:'action', seen:0, ok:0});
+        });
+        s.cards.forEach(c=>{ if(!c.kind) c.kind='object'; });   // старым карточкам — тип «предмет»
+        s.ver = 2;
+      }
+      return s;
+    }
   }catch(e){}
   // первый запуск — заполняем стартовым набором
   return {
-    cards: STARTER.map((c,i)=>({id:'s'+i, word:c[0], emoji:c[1], img:null, seen:0, ok:0})),
-    stars: 0, diff: 3
+    cards: STARTER.map((c,i)=>({id:'s'+i, word:c[0], emoji:c[1], img:null, kind:c[2]||'object', seen:0, ok:0})),
+    stars: 0, diff: 3, sched: [], schedDone: [], ver: 2
   };
 }
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
@@ -367,6 +435,7 @@ const screens = {
   home:  document.getElementById('scr-home'),
   show:  document.getElementById('scr-show'),
   say:   document.getElementById('scr-say'),
+  sched: document.getElementById('scr-sched'),
   cards: document.getElementById('scr-cards'),
 };
 const homeBtn = document.getElementById('homeBtn');
@@ -376,8 +445,10 @@ function go(name){
   homeBtn.style.display = name==='home' ? 'none' : '';
   if(name==='show') startShow();
   if(name==='say')  startSay();
+  if(name==='sched') startSched();
   if(name==='cards') renderCards();
 }
+function getCard(id){ return state.cards.find(c=>c.id===id); }
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{ if(actx) actx.resume(); go(b.dataset.go); });
 homeBtn.onclick = ()=>{ speechSynthesis.cancel?.(); go('home'); };
 
@@ -500,6 +571,73 @@ document.getElementById('sayOk').onclick = ()=>{
   setTimeout(()=>{ sayIdx=(sayIdx+1)%sayOrder.length; renderSay(); }, 900);
 };
 
+/* ==================== РАСПИСАНИЕ ==================== */
+let schedBuilding = true;   // true = составляем, false = выполняем
+const schedStrip = document.getElementById('schedStrip');
+const schedPool  = document.getElementById('schedPool');
+
+function startSched(){ renderSched(); }
+function renderSched(){
+  document.getElementById('schedMode').textContent = schedBuilding ? '🧩 Составляем' : '✅ Выполняем';
+  document.getElementById('schedPoolWrap').style.display = schedBuilding ? '' : 'none';
+  document.getElementById('schedNow').style.display = schedBuilding ? 'none' : '';
+  renderSchedStrip();
+  if(schedBuilding) renderSchedPool();
+}
+function renderSchedStrip(){
+  schedStrip.innerHTML = '';
+  if(!state.sched.length){
+    schedStrip.innerHTML = '<div class="sched-empty">Пусто 🙂 Нажми карточки ниже, чтобы составить порядок дел.</div>';
+    return;
+  }
+  const firstNotDone = state.sched.find(id=>!state.schedDone.includes(id));
+  state.sched.forEach((id,idx)=>{
+    const c = getCard(id); if(!c) return;
+    const done = state.schedDone.includes(id);
+    const item = document.createElement('div');
+    item.className = 'sched-item' + (done?' done':'') + (!schedBuilding && id===firstNotDone?' current':'');
+    item.innerHTML = `<div class="sched-num">${idx+1}</div><div class="check">✅</div>
+      <div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div>`;
+    item.onclick = ()=>{
+      if(schedBuilding){
+        state.sched.splice(idx,1); save(); renderSchedStrip();
+      }else{
+        if(done){ state.schedDone = state.schedDone.filter(x=>x!==id); }
+        else { state.schedDone.push(id); sndRight(); cheer('✅'); speak(c.word); }
+        save(); renderSchedStrip();
+      }
+    };
+    schedStrip.appendChild(item);
+    if(idx < state.sched.length-1){
+      const a = document.createElement('div'); a.className='sched-arrow'; a.textContent='→'; schedStrip.appendChild(a);
+    }
+  });
+}
+function renderSchedPool(){
+  schedPool.innerHTML = '';
+  // действия выводим первыми — из них чаще строят расписание
+  const sorted = [...state.cards].sort((a,b)=>(a.kind==='action'?0:1)-(b.kind==='action'?0:1));
+  sorted.forEach(c=>{
+    const el = document.createElement('div'); el.className='cm';
+    el.innerHTML = `<div class="pic">${picHTML(c)}</div><div class="lbl">${c.word}</div>`;
+    el.onclick = ()=>{ state.sched.push(c.id); save(); speak(c.word); renderSchedStrip(); };
+    schedPool.appendChild(el);
+  });
+}
+document.getElementById('schedMode').onclick = ()=>{ schedBuilding = !schedBuilding; renderSched(); };
+document.getElementById('schedReset').onclick = ()=>{
+  if(schedBuilding){
+    if(state.sched.length && confirm('Очистить всё расписание?')){ state.sched=[]; state.schedDone=[]; save(); renderSchedStrip(); }
+  }else{
+    state.schedDone=[]; save(); renderSchedStrip();   // в режиме «выполняем» — просто начать заново
+  }
+};
+document.getElementById('schedNow').onclick = ()=>{
+  const id = state.sched.find(x=>!state.schedDone.includes(x));
+  if(id){ speak('Сейчас — ' + getCard(id).word); }
+  else { speak('Всё готово! Молодец!'); cheer('🎉'); }
+};
+
 /* ==================== КАРТОЧКИ (родитель) ==================== */
 const cardList = document.getElementById('cardList');
 function renderCards(){
@@ -559,11 +697,19 @@ function buildEmojiBank(){
 }
 buildEmojiBank();
 
+document.querySelectorAll('#kindSeg button').forEach(b=>{
+  b.onclick = ()=>{
+    pickedKind = b.dataset.kind;
+    document.querySelectorAll('#kindSeg button').forEach(x=>x.classList.toggle('on', x===b));
+  };
+});
+
 function openModal(){
-  editId = null; pickedEmoji = null; pickedImage = null;
+  editId = null; pickedEmoji = null; pickedImage = null; pickedKind = 'object';
   wordInput.value = '';
   uploadLabel.innerHTML = '📷 Загрузить своё фото';
   [...emojiPick.children].forEach(x=>x.classList.remove('sel'));
+  document.querySelectorAll('#kindSeg button').forEach(x=>x.classList.toggle('on', x.dataset.kind==='object'));
   modal.classList.add('show');
   setTimeout(()=>wordInput.focus(), 100);
 }
@@ -598,7 +744,7 @@ document.getElementById('saveBtn').onclick = ()=>{
   if(!pickedEmoji && !pickedImage){ alert('Выбери картинку или загрузи фото'); return; }
   state.cards.push({
     id: 'c'+Date.now(),
-    word, emoji: pickedEmoji, img: pickedImage,
+    word, emoji: pickedEmoji, img: pickedImage, kind: pickedKind,
     seen:0, ok:0
   });
   save(); closeModal(); renderCards();

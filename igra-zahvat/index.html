@@ -333,7 +333,7 @@
   // ---------- input ----------
   function nodeAt(px,py){
     for(let i=nodes.length-1;i>=0;i--){ const n=nodes[i];
-      if(Math.hypot(px-n.x,py-n.y) <= nodeR(n)+8) return n; }
+      if(Math.hypot(px-n.x,py-n.y) <= nodeR(n)*1.5+12) return n; }
     return null;
   }
   function pointerPos(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
@@ -395,121 +395,132 @@
     $('ovMenu').className='overlay show';
   }
 
-  // ---------- render (hand-drawn medieval world) ----------
+  // ---------- render (Tower-War style: stacked-cylinder towers) ----------
   function withAlpha(hex,a){ const n=parseInt(hex.slice(1),16);
     return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
+  function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    const f=amt<0?0:255, p=Math.abs(amt);
+    r=Math.round(r+(f-r)*p); g=Math.round(g+(f-g)*p); b=Math.round(b+(f-b)*p);
+    return 'rgb('+r+','+g+','+b+')'; }
   function rr(x,y,w,h,r){ r=Math.min(r,w/2,h/2);
     ctx.beginPath();
     ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
     ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
   let flowPhase=0, fcount=0;
 
-  function drawTree(d){ const x=d.x,y=d.y, s=baseR*0.55*d.s;
-    ctx.fillStyle='rgba(0,0,0,.13)'; ctx.beginPath(); ctx.ellipse(x,y+s*0.18,s*0.8,s*0.3,0,0,7); ctx.fill();
-    ctx.fillStyle='#6b4a2b'; ctx.fillRect(x-s*0.13,y-s*0.3,s*0.26,s*0.7);
-    ctx.fillStyle='#367a35';
-    ctx.beginPath(); ctx.arc(x,y-s*0.7,s*0.62,0,7); ctx.arc(x-s*0.45,y-s*0.38,s*0.44,0,7); ctx.arc(x+s*0.45,y-s*0.38,s*0.44,0,7); ctx.fill();
-    ctx.fillStyle='#479246'; ctx.beginPath(); ctx.arc(x-s*0.12,y-s*0.85,s*0.4,0,7); ctx.fill();
+  function drawTree(d){ const x=d.x,y=d.y, s=baseR*0.6*d.s;
+    ctx.fillStyle='rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(x,y+s*0.22,s*0.72,s*0.26,0,0,7); ctx.fill();
+    ctx.fillStyle='#7a5230'; ctx.fillRect(x-s*0.11,y-s*0.1,s*0.22,s*0.5);
+    ctx.fillStyle='#2f8a3c';
+    ctx.beginPath(); ctx.arc(x,y-s*0.55,s*0.58,0,7); ctx.arc(x-s*0.4,y-s*0.28,s*0.42,0,7); ctx.arc(x+s*0.4,y-s*0.28,s*0.42,0,7); ctx.fill();
+    ctx.fillStyle='#4cb053'; ctx.beginPath(); ctx.arc(x-s*0.14,y-s*0.72,s*0.36,0,7); ctx.fill();
   }
   function drawRock(d){ const x=d.x,y=d.y, s=baseR*0.42*d.s;
-    ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(x,y+s*0.3,s*0.95,s*0.3,0,0,7); ctx.fill();
-    ctx.fillStyle='#969cab'; ctx.beginPath(); ctx.arc(x,y,s*0.7,0,7); ctx.arc(x+s*0.5,y+s*0.12,s*0.46,0,7); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.13)'; ctx.beginPath(); ctx.arc(x-s*0.2,y-s*0.2,s*0.3,0,7); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(x,y+s*0.3,s*0.95,s*0.3,0,0,7); ctx.fill();
+    ctx.fillStyle='#9aa0ac'; ctx.beginPath(); ctx.arc(x,y,s*0.68,0,7); ctx.arc(x+s*0.5,y+s*0.12,s*0.44,0,7); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.16)'; ctx.beginPath(); ctx.arc(x-s*0.2,y-s*0.22,s*0.28,0,7); ctx.fill();
   }
-  function drawRoad(L){ const a=nodes[L.from], b=nodes[L.to], col=COL[L.o];
-    ctx.save(); ctx.lineCap='round';
-    ctx.strokeStyle='rgba(116,90,58,.5)'; ctx.lineWidth=Math.max(6,baseR*0.34);
-    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-    ctx.strokeStyle=withAlpha(col,.9); ctx.lineWidth=3;
-    ctx.setLineDash([2,11]); ctx.lineDashOffset=-flowPhase*52;
-    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-    ctx.restore();
-    const ang=Math.atan2(b.y-a.y,b.x-a.x), d=nodeR(b)+10;
-    const hx=b.x-Math.cos(ang)*d, hy=b.y-Math.sin(ang)*d;
-    ctx.fillStyle=withAlpha(col,.95);
-    ctx.beginPath(); ctx.moveTo(hx,hy);
-    ctx.lineTo(hx-Math.cos(ang-0.42)*9, hy-Math.sin(ang-0.42)*9);
-    ctx.lineTo(hx-Math.cos(ang+0.42)*9, hy-Math.sin(ang+0.42)*9);
+  // thick troop-band between towers, with arrowhead toward target
+  function drawBand(L){ const a=nodes[L.from], b=nodes[L.to], col=COL[L.o];
+    const ang=Math.atan2(b.y-a.y,b.x-a.x);
+    const ax=a.x+Math.cos(ang)*nodeR(a)*0.5, ay=a.y+Math.sin(ang)*nodeR(a)*0.5;
+    const bx=b.x-Math.cos(ang)*nodeR(b)*0.7, by=b.y-Math.sin(ang)*nodeR(b)*0.7;
+    const w=Math.max(7,baseR*0.42);
+    ctx.lineCap='round';
+    ctx.strokeStyle=shade(col,-0.32); ctx.lineWidth=w+4; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.strokeStyle=withAlpha(col,.92); ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    // moving chevrons
+    const len=Math.hypot(bx-ax,by-ay), gap=w*1.7, cn=Math.max(1,Math.floor(len/gap));
+    const ux=(bx-ax)/(len||1), uy=(by-ay)/(len||1), px=-uy, py=ux, ch=w*0.32;
+    ctx.fillStyle='rgba(255,255,255,.55)';
+    for(let i=0;i<cn;i++){ const t=((i+flowPhase)%cn)/cn, cx=ax+ux*len*t, cy=ay+uy*len*t;
+      ctx.beginPath(); ctx.moveTo(cx+ux*ch,cy+uy*ch);
+      ctx.lineTo(cx-ux*ch+px*ch,cy-uy*ch+py*ch); ctx.lineTo(cx-ux*ch-px*ch,cy-uy*ch-py*ch);
+      ctx.closePath(); ctx.fill(); }
+    // arrowhead
+    const hs=w*1.15; ctx.fillStyle=shade(col,0.06);
+    ctx.beginPath(); ctx.moveTo(bx+ux*hs,by+uy*hs);
+    ctx.lineTo(bx-ux*hs+px*hs,by-uy*hs+py*hs); ctx.lineTo(bx-ux*hs-px*hs,by-uy*hs-py*hs);
     ctx.closePath(); ctx.fill();
   }
-  function drawFlag(cx,topY,col){ const ph=Math.max(8,baseR*0.5);
-    ctx.strokeStyle='#5a4a36'; ctx.lineWidth=2;
+  function drawFlag(cx,topY,col,u){ const ph=u*0.8;
+    ctx.strokeStyle='#6b5740'; ctx.lineWidth=Math.max(1.5,u*0.07);
     ctx.beginPath(); ctx.moveTo(cx,topY); ctx.lineTo(cx,topY-ph); ctx.stroke();
-    const w=Math.sin(fcount*0.14)*ph*0.18;
-    ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(cx,topY-ph);
-    ctx.lineTo(cx+ph*0.85+w, topY-ph+ph*0.2); ctx.lineTo(cx, topY-ph+ph*0.42); ctx.closePath(); ctx.fill();
+    const w=Math.sin(fcount*0.13)*ph*0.16;
+    ctx.fillStyle=col; ctx.strokeStyle=shade(col,-0.25); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(cx,topY-ph);
+    ctx.lineTo(cx+ph*0.7+w, topY-ph+ph*0.18); ctx.lineTo(cx, topY-ph+ph*0.36); ctx.closePath();
+    ctx.fill(); ctx.stroke();
   }
-  function drawTower(cx,groundY,w,h,col,roof){
-    const left=cx-w/2, top=groundY-h;
-    ctx.fillStyle='#c3c8d2'; ctx.strokeStyle='#737988'; ctx.lineWidth=2;
-    rr(left,top,w,h,3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='rgba(70,75,90,.15)'; ctx.fillRect(left+w*0.63,top,w*0.37,h);
-    ctx.strokeStyle='rgba(92,98,112,.35)'; ctx.lineWidth=1;
-    for(let yy=top+h*0.32; yy<groundY-2; yy+=Math.max(6,h*0.26)){ ctx.beginPath(); ctx.moveTo(left+1.5,yy); ctx.lineTo(left+w-1.5,yy); ctx.stroke(); }
-    if(roof){ const rh=h*0.4;
-      ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(left-2,top+1); ctx.lineTo(cx,top-rh); ctx.lineTo(left+w+2,top+1); ctx.closePath(); ctx.fill();
-      ctx.fillStyle='rgba(0,0,0,.17)'; ctx.beginPath(); ctx.moveTo(cx,top-rh); ctx.lineTo(left+w+2,top+1); ctx.lineTo(cx,top+1); ctx.closePath(); ctx.fill();
-      drawFlag(cx,top-rh,col);
-    } else { ctx.fillStyle='#c3c8d2'; const cn=3, cw=w/(cn*2-1);
-      for(let i=0;i<cn;i++) ctx.fillRect(left+i*2*cw, top-cw*0.7, cw, cw*0.7); }
+  // stacked-cylinder tower; height grows with troops, width with level
+  function drawStackTower(cx,groundY,rw,segs,col){
+    const sh=Math.max(6,baseR*0.26), ry=rw*0.4, bodyH=segs*sh, topY=groundY-bodyH;
+    ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(cx,groundY+ry*0.18,rw*1.12,ry*0.95,0,0,7); ctx.fill();
+    ctx.fillStyle=shade(col,-0.3); ctx.beginPath(); ctx.ellipse(cx,groundY,rw,ry,0,0,7); ctx.fill();
+    const gr=ctx.createLinearGradient(cx-rw,0,cx+rw,0);
+    gr.addColorStop(0,shade(col,0.2)); gr.addColorStop(.5,col); gr.addColorStop(1,shade(col,-0.22));
+    ctx.fillStyle=gr; ctx.fillRect(cx-rw, topY, rw*2, bodyH);
+    ctx.strokeStyle=shade(col,-0.16); ctx.lineWidth=Math.max(1,sh*0.16);
+    for(let i=1;i<segs;i++){ const yy=groundY-i*sh; ctx.beginPath(); ctx.ellipse(cx,yy,rw,ry,0,0,Math.PI); ctx.stroke(); }
+    ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(cx-rw*0.82, topY, rw*0.3, bodyH);
+    ctx.strokeStyle=shade(col,-0.28); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(cx-rw,topY); ctx.lineTo(cx-rw,groundY); ctx.moveTo(cx+rw,topY); ctx.lineTo(cx+rw,groundY); ctx.stroke();
+    ctx.fillStyle=shade(col,0.24); ctx.beginPath(); ctx.ellipse(cx,topY,rw,ry,0,0,7); ctx.fill();
+    ctx.strokeStyle=shade(col,-0.1); ctx.lineWidth=1.5; ctx.beginPath(); ctx.ellipse(cx,topY,rw,ry,0,0,7); ctx.stroke();
+    return topY;
   }
   function drawBuilding(n){
-    const x=n.x, y=n.y, col=COL[n.o], u=nodeR(n);
-    const groundY=y+u*0.5;
-    const shake = n.atk>0 ? Math.sin(fcount*0.7)*1.8 : 0;
-    ctx.fillStyle='rgba(0,0,0,.20)'; ctx.beginPath(); ctx.ellipse(x,groundY+3,u*0.98,u*0.34,0,0,7); ctx.fill();
-    ctx.save(); ctx.translate(shake,0);
-    ctx.fillStyle='#9aa0ad'; ctx.strokeStyle='#6b7180'; ctx.lineWidth=2;
-    rr(x-u*0.92,groundY-u*0.16,u*1.84,u*0.4,4); ctx.fill(); ctx.stroke();
-    if(n.l>=4){ drawTower(x-u*1.22,groundY,u*0.4,u*0.55,col,true); drawTower(x+u*1.22,groundY,u*0.4,u*0.55,col,true); }
-    if(n.l>=2) drawTower(x-u*0.8,groundY,u*0.5,u*0.72,col,true);
-    if(n.l>=3) drawTower(x+u*0.8,groundY,u*0.5,u*0.72,col,true);
-    drawTower(x,groundY,u*0.94,u*(0.95+(n.l-1)*0.16),col,true);
+    const col=COL[n.o], u=nodeR(n);
+    const segs=Math.max(2, Math.min(10, Math.round(2 + n.t/6)));
+    const rw=u*(0.58+n.l*0.1);
+    const cx=n.x + (n.atk>0?Math.sin(fcount*0.8)*2:0);
+    const groundY=n.y+u*0.45;
     if(n.atk>0){ ctx.fillStyle='rgba(226,59,78,'+(0.18+0.12*Math.sin(fcount*0.5))+')';
-      ctx.beginPath(); ctx.arc(x,y,u*1.1,0,7); ctx.fill(); }
-    ctx.restore();
-    // troop banner
-    const num=String(Math.floor(n.t)); const fs=Math.max(11,baseR*0.6);
+      ctx.beginPath(); ctx.ellipse(cx,groundY+2,rw*1.5,rw*0.62,0,0,7); ctx.fill(); }
+    const topY=drawStackTower(cx,groundY,rw,segs,col);
+    drawFlag(cx,topY,col,u);
+    // number badge on the cap
+    const num=String(Math.floor(n.t)), fs=Math.max(11,baseR*0.56);
     ctx.font='800 '+Math.round(fs)+'px Inter, system-ui, sans-serif';
-    const bw=Math.max(fs*1.8, ctx.measureText(num).width+fs*0.95), bh=fs*1.45;
-    rr(x-bw/2, groundY+u*0.28, bw, bh, bh/2);
-    ctx.fillStyle='rgba(20,17,30,.82)'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=col; ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(num, x, groundY+u*0.28+bh/2+0.5);
+    const bw=Math.max(fs*1.7, ctx.measureText(num).width+fs*0.8), bh=fs*1.36, by=topY+rw*0.32;
+    rr(cx-bw/2, by-bh/2, bw, bh, bh/2);
+    ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=2.5; ctx.strokeStyle=shade(col,-0.12); ctx.stroke();
+    ctx.fillStyle=shade(col,-0.5); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(num, cx, by+0.5);
   }
 
   function render(){
     fcount++; flowPhase=(flowPhase+0.05)%1;
-    // grass field
+    // bright cartoon grass
     const g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,'#5e9e57'); g.addColorStop(1,'#3f7a3f');
+    g.addColorStop(0,'#79c759'); g.addColorStop(1,'#52a247');
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-    const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.32, W/2,H/2,Math.max(W,H)*0.72);
-    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.24)');
+    const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.32, W/2,H/2,Math.max(W,H)*0.74);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,40,0,0.20)');
     ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
 
     for(const d of decor){ d.type==='tree' ? drawTree(d) : drawRock(d); }
-    for(const L of links) drawRoad(L);
+    for(const L of links) drawBand(L);
 
     if(drag){ const a=nodes[drag.fromId];
-      ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=2.5; ctx.setLineDash([7,7]);
+      ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=Math.max(5,baseR*0.34); ctx.lineCap='round';
+      ctx.setLineDash([3,12]); ctx.lineDashOffset=-flowPhase*48;
       ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(drag.x,drag.y); ctx.stroke(); ctx.setLineDash([]);
       const hov=nodeAt(drag.x,drag.y);
-      if(hov && hov.id!==drag.fromId){ ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=3;
-        ctx.beginPath(); ctx.arc(hov.x,hov.y,nodeR(hov)+10,0,7); ctx.stroke(); }
+      if(hov && hov.id!==drag.fromId){ ctx.strokeStyle='#fff'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.ellipse(hov.x,hov.y+nodeR(hov)*0.45,nodeR(hov)*1.1,nodeR(hov)*0.5,0,0,7); ctx.stroke(); }
     }
 
     for(const s of soldiers){ const col=COL[s.o];
-      ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(s.x,s.y+2,3,0,7); ctx.fill();
-      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(s.x,s.y,3.2,0,7); ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(s.x-0.8,s.y-0.8,1.1,0,7); ctx.fill(); }
+      ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(s.x,s.y+1.5,2.6,0,7); ctx.fill();
+      ctx.fillStyle=shade(col,0.12); ctx.beginPath(); ctx.arc(s.x,s.y,2.8,0,7); ctx.fill(); }
 
     for(const n of [...nodes].sort((a,b)=>a.y-b.y)) drawBuilding(n);
 
     for(let i=pulses.length-1;i>=0;i--){ const p=pulses[i]; p.t++;
       const k=p.t/p.life; if(k>=1){ pulses.splice(i,1); continue; }
-      ctx.strokeStyle=withAlpha(COL[p.o], (1-k)*0.75); ctx.lineWidth=3;
-      ctx.beginPath(); ctx.arc(p.x,p.y, p.r0*(1+k*1.7), 0,7); ctx.stroke();
+      ctx.strokeStyle=withAlpha(COL[p.o], (1-k)*0.8); ctx.lineWidth=3.5;
+      ctx.beginPath(); ctx.ellipse(p.x,p.y, p.r0*(1+k*1.7), p.r0*(1+k*1.7)*0.5, 0,0,7); ctx.stroke();
     }
     const c=counts(); $('cntP').textContent=c.p; $('cntE').textContent=c.e;
   }

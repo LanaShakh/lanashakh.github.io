@@ -24,7 +24,7 @@
 <body>
   <div id="app"></div>
   <div class="vignette"></div>
-  <div class="tag">Образец: Tower Defense Kit 🗼<small>башни-герои + плитки + декор (Kenney CC0)</small></div>
+  <div class="tag">Образец: Tower Defense Kit 🗼<small>башни-герои + остров-диорама</small></div>
   <div class="hint">Башни в фокусе. Покрути пальцем/мышью.</div>
   <div id="loading">Сборка локации…</div>
   <div id="err"></div>
@@ -50,7 +50,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 let renderer, scene, camera, controls, composer;
 const TEAM={p:0x3b82f6,e:0xef4444,n:0x9aa3b2};
 function sky(){ const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
-  const g=x.createLinearGradient(0,0,0,256); g.addColorStop(0,'#bfe4f6'); g.addColorStop(.55,'#a9d6ec'); g.addColorStop(1,'#8fc4de');
+  const g=x.createLinearGradient(0,0,0,256); g.addColorStop(0,'#a9dcf2'); g.addColorStop(.55,'#8ccbe6'); g.addColorStop(1,'#74b8d8');
   x.fillStyle=g; x.fillRect(0,0,4,256); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
 function findMesh(root){ let f=null; root.traverse(o=>{ if(!f&&o.isMesh) f=o; }); return f; }
 
@@ -58,75 +58,98 @@ async function init(){
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.1;
+  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.NoToneMapping;   // keep the kit's vibrant baked colors
   document.getElementById('app').appendChild(renderer.domElement);
 
-  scene=new THREE.Scene(); scene.background=sky(); scene.fog=new THREE.Fog(0xa9d6ec, 30, 75);
-  try{ const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture; }catch(e){}
+  scene=new THREE.Scene(); scene.background=sky(); scene.fog=new THREE.Fog(0x9fd0e6, 34, 85);
+  let env=null; try{ const pm=new THREE.PMREMGenerator(renderer); env=pm.fromScene(new RoomEnvironment(),0.04).texture; scene.environment=env; }catch(e){}
 
-  camera=new THREE.PerspectiveCamera(34, innerWidth/innerHeight, 0.1, 400);
-  camera.position.set(13,11,15);
+  camera=new THREE.PerspectiveCamera(33, innerWidth/innerHeight, 0.1, 400);
+  camera.position.set(14,11,16);
   controls=new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0,1.1,0); controls.enableDamping=true; controls.dampingFactor=0.08;
-  controls.autoRotate=true; controls.autoRotateSpeed=0.38; controls.minDistance=9; controls.maxDistance=42; controls.maxPolarAngle=Math.PI*0.49;
+  controls.target.set(0,1.0,0); controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.autoRotate=true; controls.autoRotateSpeed=0.34; controls.minDistance=9; controls.maxDistance=46; controls.maxPolarAngle=Math.PI*0.49;
 
-  scene.add(new THREE.HemisphereLight(0xeaf3ff,0x5a7a40,0.55));
-  const sun=new THREE.DirectionalLight(0xfff0d2,2.3); sun.position.set(12,20,8); sun.castShadow=true;
+  // softer, balanced light (no blow-out -> colors stay saturated)
+  scene.add(new THREE.HemisphereLight(0xdfeeff,0x5c7a42,0.5));
+  const sun=new THREE.DirectionalLight(0xfff1d6,1.55); sun.position.set(12,20,8); sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048); const sc=sun.shadow.camera;
-  sc.left=-20;sc.right=20;sc.top=16;sc.bottom=-16;sc.near=1;sc.far=80; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
-  const fill=new THREE.DirectionalLight(0xbcd2ff,0.5); fill.position.set(-15,9,-4); scene.add(fill);
-  const rim=new THREE.DirectionalLight(0xffffff,1.25); rim.position.set(-8,8,-16); scene.add(rim);
+  sc.left=-22;sc.right=22;sc.top=18;sc.bottom=-18;sc.near=1;sc.far=85; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff,0.32); fill.position.set(-15,9,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff,0.7); rim.position.set(-8,8,-16); scene.add(rim);
 
   const loader=new GLTFLoader();
   const load=async f=>{ const g=await loader.loadAsync('models/'+f);
-    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; if(c.material) c.material.metalness=0; } }); return g.scene; };
-  const N={ tile:'tile.glb', dirt:'tile-dirt.glb', ttree:'tile-tree.glb', hill:'tile-hill.glb',
+    g.scene.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true;
+      if(c.material){ c.material.metalness=0; c.material.envMapIntensity=0.55; } } }); return g.scene; };
+  const N={ tile:'tile.glb', dirt:'tile-dirt.glb', hill:'tile-hill.glb',
     tree:'detail-tree.glb', treeL:'detail-tree-large.glb', rocks:'detail-rocks.glb', crystal:'detail-crystal.glb',
     structure:'wood-structure-high.glb', tb:'tower-round-build-b.glb', tc:'tower-round-build-c.glb', td:'tower-round-build-d.glb', tf:'tower-round-build-f.glb' };
   const M={}; await Promise.all(Object.entries(N).map(async([k,f])=>{ M[k]=await load(f); }));
+  const tmesh=findMesh(M.tile); tmesh.geometry.computeBoundingBox(); const bb=tmesh.geometry.boundingBox;
+  const TOP=bb.max.y, TH=bb.max.y-bb.min.y;   // tile top, tile height (for stacking elevation)
 
-  // tile top height (place objects on top of tiles)
-  const tm=findMesh(M.tile); tm.geometry.computeBoundingBox(); const TOP=tm.geometry.boundingBox.max.y;
+  let s=20240604; const rng=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
 
-  // ---- tiled island ----
-  const COLS=11, ROWS=8, ox=(COLS-1)/2, oz=(ROWS-1)/2;
+  // ---------- island as an irregular blob (in the sea) ----------
+  const COLS=14, ROWS=11, ox=(COLS-1)/2, oz=(ROWS-1)/2;
+  const land={}, isLand=(cx,cz)=>land[cx+','+cz];
+  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
+    const dx=(cx-ox)/(COLS*0.46), dz=(cz-oz)/(ROWS*0.46);
+    if(dx*dx+dz*dz < 0.85 + (rng()-0.5)*0.18) land[cx+','+cz]=true;
+  }
+  const put=(m,cx,cz,y,ry=0,sc=1)=>{ const o=m.clone(true); o.position.set(cx-ox,y,cz-oz); o.rotation.y=ry; o.scale.setScalar(sc); scene.add(o); return o; };
+
+  // winding dirt path
+  const onPath=(cx,cz)=> cx===Math.round(ox + 2.4*Math.sin(cz*0.6));
+  // raised plateau region (a corner cluster)
+  const onPlateau=(cx,cz)=> isLand(cx,cz) && cx>=COLS-5 && cz<=4;
+
+  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
+    if(!isLand(cx,cz)) continue;
+    const base = onPath(cx,cz)? M.dirt : M.tile;
+    put(base,cx,cz,0);
+    if(onPlateau(cx,cz)) put(M.tile,cx,cz,TOP);   // second layer -> cliff/plateau
+  }
+  const groundY=(cx,cz)=> onPlateau(cx,cz)? TOP+TH : TOP;
+
+  // sea
+  const sea=new THREE.Mesh(new THREE.PlaneGeometry(300,300).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x3aa0d6, roughness:0.35, metalness:0.0}));
+  sea.position.y=TOP*0.45; scene.add(sea);
+
+  // ---------- TOWERS = heroes (level growth b->c->d->f), team rings ----------
   const used=new Set();
-  const put=(m,cx,cz,y=0,ry=0,s=1)=>{ const o=m.clone(true); o.position.set(cx-ox,y,cz-oz); o.rotation.y=ry; o.scale.setScalar(s); scene.add(o); return o; };
-  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
-    let m=M.tile;
-    if(cz===4) m=M.dirt;                                    // a path across
-    else if((cx+cz)%9===0) m=M.hill;                        // occasional hill
-    put(m,cx,cz,0);
+  const heroes=[ {m:M.tb,cx:4,cz:7,t:'p',s:1.0}, {m:M.tc,cx:6,cz:8,t:'p',s:1.06},
+                 {m:M.td,cx:5,cz:5,t:'n',s:1.12},
+                 {m:M.tf,cx:COLS-3,cz:2,t:'e',s:1.2} /* on plateau */, {m:M.tc,cx:COLS-2,cz:4,t:'e',s:1.06} ];
+  for(const h of heroes){ if(!isLand(h.cx,h.cz)) continue; used.add(h.cx+','+h.cz);
+    const gy=groundY(h.cx,h.cz);
+    put(h.m,h.cx,h.cz,gy,0,h.s);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.52,0.075,12,40).rotateX(Math.PI/2),
+      new THREE.MeshStandardMaterial({color:TEAM[h.t], emissive:TEAM[h.t], emissiveIntensity:0.5, roughness:0.5}));
+    ring.position.set(h.cx-ox, gy+0.05, h.cz-oz); ring.scale.setScalar(h.s); scene.add(ring);
   }
+  // a wood structure landmark on the plateau edge
+  put(M.structure, COLS-4, 1, groundY(COLS-4,1), 0.4, 1.0); used.add((COLS-4)+',1');
 
-  // ---- TOWERS = heroes: show level growth b->c->d->f, with team rings ----
-  const heroes=[ {m:M.tb,cx:2,cz:2,team:'p',s:1.0}, {m:M.tc,cx:4,cz:2,team:'p',s:1.05},
-                 {m:M.td,cx:6,cz:6,team:'e',s:1.1}, {m:M.tf,cx:8,cz:6,team:'e',s:1.15},
-                 {m:M.tc,cx:8,cz:2,team:'n',s:1.05} ];
-  for(const h of heroes){ used.add(h.cx+','+h.cz);
-    put(h.m,h.cx,h.cz,TOP,0,h.s);
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.52,0.07,12,36).rotateX(Math.PI/2),
-      new THREE.MeshStandardMaterial({color:TEAM[h.team], emissive:TEAM[h.team], emissiveIntensity:0.4, roughness:0.5}));
-    ring.position.set(h.cx-ox, TOP+0.04, h.cz-oz); ring.scale.setScalar(h.s); scene.add(ring);
-  }
+  // ---------- clustered decor (groves / rock piles / crystals) ----------
+  const clusters=[ {x:2,z:3,k:'tree',n:5}, {x:3,z:9,k:'tree',n:4}, {x:9,z:9,k:'tree',n:5},
+                   {x:7,z:2,k:'rock',n:3}, {x:11,z:7,k:'crystal',n:4}, {x:2,z:6,k:'rock',n:3} ];
+  for(const cl of clusters){ for(let i=0;i<cl.n;i++){
+    const cx=cl.x+Math.round((rng()-0.5)*2.2), cz=cl.z+Math.round((rng()-0.5)*2.2);
+    if(!isLand(cx,cz)||used.has(cx+','+cz)||onPath(cx,cz)) continue;
+    const m = cl.k==='tree'? (rng()<0.5?M.tree:M.treeL) : cl.k==='rock'? M.rocks : M.crystal;
+    put(m,cx,cz,groundY(cx,cz),rng()*6.28, (cl.k==='tree'?0.85:0.8)+rng()*0.4);
+  }}
 
-  // a couple of decorative wood structures on the edge
-  put(M.structure,0,7,TOP,0.3,1.0); put(M.structure,10,1,TOP,-0.5,1.0);
-
-  // ---- decor on free grass tiles ----
-  let s=2024; const rng=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
-  for(let cx=0;cx<COLS;cx++) for(let cz=0;cz<ROWS;cz++){
-    if(cz===4) continue; if(used.has(cx+','+cz)) continue; if(rng()<0.62) continue;
-    const r=rng(); const m = r<0.4?M.tree : r<0.66?M.treeL : r<0.85?M.rocks : M.crystal;
-    put(m,cx,cz,TOP,rng()*6.28, 0.8+rng()*0.5);
-  }
-
+  // ---------- post ----------
   try{
     const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType, samples:8});
     composer=new EffectComposer(renderer,rt);
     composer.addPass(new RenderPass(scene,camera));
     try{ composer.addPass(new GTAOPass(scene,camera,innerWidth,innerHeight)); }catch(e){ console.warn('AO',e); }
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.16,0.6,0.95));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.12,0.6,0.96));
     composer.addPass(new OutputPass());
     try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
   }catch(e){ composer=null; }

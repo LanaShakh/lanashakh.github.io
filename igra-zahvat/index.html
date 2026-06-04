@@ -95,7 +95,7 @@
 (function(){
   "use strict";
   // ---------- config ----------
-  const PROD_BASE = 1.4, CAP_BASE = 24, LINK_RATE = 4.6, MAXLINKS = 3, MAX_LEVEL = 4;
+  const PROD_BASE = 2.2, CAP_BASE = 30, MAX_LEVEL = 4, MAXLINKS = 3;
   const BOT_INTERVAL = 1.45, ARRIVE = 0.62;
   const COL = { 0:'#8b90c0', 1:'#21d4fd', 2:'#ff5c87' };
   const COL_DIM = { 0:'#565a86', 1:'#1789a6', 2:'#a83b5b' };
@@ -136,7 +136,7 @@
   // ---------- state ----------
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
   let W=0,H=0,DPR=1, play={x:0,y:0,w:0,h:0}, baseR=20, speedPx=120;
-  let nodes=[], links=[], soldiers=[];
+  let nodes=[], links=[], soldiers=[], pulses=[];
   let mapIndex=0, running=true, ended=false, speed=1, botTimer=0;
   let drag=null; // {fromId, x, y}
   let progress = +(localStorage.getItem(STORE)||0); // max unlocked index
@@ -162,8 +162,8 @@
 
   function loadMap(i){
     mapIndex=i; const m=MAPS[i];
-    nodes = m.nodes.map((d,idx)=>({ id:idx, nx:d.x, ny:d.y, x:0,y:0, o:d.o, t:d.t, l:d.l||1 }));
-    links=[]; soldiers=[]; drag=null; botTimer=0; ended=false; running=true; speed=1;
+    nodes = m.nodes.map((d,idx)=>({ id:idx, nx:d.x, ny:d.y, x:0,y:0, o:d.o, t:d.t, l:d.l||1, atk:0 }));
+    links=[]; soldiers=[]; pulses=[]; drag=null; botTimer=0; ended=false; running=true; speed=1;
     $('speedBtn').textContent='×1';
     $('mapName').textContent = 'Карта '+(i+1)+' · '+m.name;
     hideOverlay($('ovEnd')); hideOverlay($('ovMenu'));
@@ -178,54 +178,38 @@
     const src=nodes[from];
     const existing = findLink(from,to);
     if(existing){ removeLink(existing); return; }
+    // up to MAXLINKS outgoing per tower; growth is split among them
     const out = links.filter(L=>L.from===from);
-    if(out.length>=MAXLINKS){ // replace oldest
-      removeLink(out[0]);
-    }
+    if(out.length>=MAXLINKS) removeLink(out[0]); // replace the oldest
     links.push({ from, to, o:src.o, accum:0 });
   }
   function removeLink(L){
     const i=links.indexOf(L); if(i<0) return;
-    const src=nodes[L.from];
-    if(src && src.o===L.o) src.t += L.accum; // refund in-transit fraction
     links.splice(i,1);
   }
   function removeLinksFrom(id){ links.filter(L=>L.from===id).forEach(removeLink); }
 
   // ---------- simulation ----------
   function step(dt){
-    // production
+    // growth & flow: a tower with NO outgoing link grows itself;
+    // a tower WITH a link freezes and redirects its growth to the target.
     for(const n of nodes){
-      if(n.o!==0){
-        const c=cap(n);
-        if(n.t < c){ n.t = Math.min(c, n.t + prod(n)*dt); }
-        // level up from over-cap reinforcement
-        if(n.t > c+0.001 && n.l<MAX_LEVEL){ n.l++; }
-      }
-    }
-    // emission along links
-    // group links by source
-    for(const n of nodes){
+      if(n.atk>0) n.atk = Math.max(0, n.atk - dt);
+      if(n.o===0) continue; // neutral towers are static until captured
+      // drop links left over from a previous owner (after capture)
+      links.filter(L=>L.from===n.id && L.o!==n.o).forEach(removeLink);
       const out = links.filter(L=>L.from===n.id);
-      if(!out.length) continue;
-      if(n.o===0){ out.forEach(removeLink); continue; }
-      // sync link owner; drop if source ownership changed
-      let valid=[];
-      for(const L of out){ if(L.o!==n.o){ removeLink(L); } else valid.push(L); }
-      if(!valid.length) continue;
-      const desiredEach = LINK_RATE*dt;
-      const totalDesired = desiredEach*valid.length;
-      const avail = Math.min(n.t, totalDesired);
-      const factor = totalDesired>0 ? avail/totalDesired : 0;
-      for(const L of valid){
-        const amt = desiredEach*factor;
-        n.t -= amt; L.accum += amt;
-        while(L.accum >= 1){
-          L.accum -= 1;
-          spawnSoldier(n, nodes[L.to]);
+      if(out.length===0){
+        const c=cap(n);
+        if(n.t < c && n.atk<=0) n.t = Math.min(c, n.t + prod(n)*dt); // grow self (unless under attack)
+      } else {
+        const per = (prod(n)/out.length)*dt; // redirect growth; source stays frozen
+        for(const L of out){
+          L.accum += per;
+          while(L.accum >= 1){ L.accum -= 1; spawnSoldier(n, nodes[L.to]); }
         }
       }
-      if(n.t<0) n.t=0;
+      if(n.t > cap(n)+0.001 && n.l<MAX_LEVEL) n.l++; // overflow -> level up
     }
     // move soldiers
     for(let i=soldiers.length-1;i>=0;i--){
@@ -255,8 +239,10 @@
     if(node.o===owner){
       node.t += 1; // reinforce (may push over cap -> level up handled in step)
     } else {
+      node.atk = 0.6; // under attack: self-growth suppressed briefly
       node.t -= 1;
-      if(node.t <= 0){ node.o = owner; node.t = -node.t; removeLinksFrom(node.id); }
+      if(node.t <= 0){ node.o = owner; node.t = -node.t; node.atk = 0; removeLinksFrom(node.id);
+        pulses.push({x:node.x, y:node.y, o:owner, t:0, life:26, r0:nodeR(node)}); }
     }
   }
 
@@ -341,14 +327,16 @@
   cv.addEventListener('pointerdown',e=>{
     if(ended) return;
     const p=pointerPos(e); const n=nodeAt(p.x,p.y);
-    if(n && n.o===1){ drag={fromId:n.id, x:p.x, y:p.y}; cv.setPointerCapture(e.pointerId);
+    if(n && n.o===1){ drag={fromId:n.id, x:p.x, y:p.y, sx:p.x, sy:p.y}; cv.setPointerCapture(e.pointerId);
       $('hint').style.opacity='0'; }
   });
   cv.addEventListener('pointermove',e=>{ if(drag){ const p=pointerPos(e); drag.x=p.x; drag.y=p.y; } });
   cv.addEventListener('pointerup',e=>{
     if(!drag) return;
     const p=pointerPos(e); const n=nodeAt(p.x,p.y);
-    if(n && n.id!==drag.fromId){ toggleLink(drag.fromId, n.id); }
+    // require a deliberate drag (not an accidental tap) ending on another tower
+    const movedFar = Math.hypot(p.x-drag.sx, p.y-drag.sy) > 14;
+    if(n && n.id!==drag.fromId && movedFar){ toggleLink(drag.fromId, n.id); }
     drag=null;
   });
   cv.addEventListener('pointercancel',()=>{ drag=null; });
@@ -371,54 +359,80 @@
   }
 
   // ---------- render ----------
+  function withAlpha(hex,a){ const n=parseInt(hex.slice(1),16);
+    return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
+  let flowPhase=0;
+
   function render(){
     ctx.clearRect(0,0,W,H);
-    // links
+    // soft playfield glow
+    const vg=ctx.createRadialGradient(W/2,H*0.42,Math.min(W,H)*0.1, W/2,H/2,Math.max(W,H)*0.72);
+    vg.addColorStop(0,'rgba(124,140,255,0.05)'); vg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    flowPhase=(flowPhase+0.05)%1;
+
+    // links — animated flowing dashes + arrowhead
     for(const L of links){
-      const a=nodes[L.from], b=nodes[L.to];
-      ctx.strokeStyle = COL_DIM[L.o]; ctx.lineWidth=2; ctx.globalAlpha=.55;
+      const a=nodes[L.from], b=nodes[L.to], col=COL[L.o];
+      ctx.save();
+      ctx.strokeStyle=withAlpha(col,.5); ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.setLineDash([2,11]); ctx.lineDashOffset=-flowPhase*52;
       ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-      // arrowhead near target
-      const ang=Math.atan2(b.y-a.y,b.x-a.x), rr=nodeR(b)+4;
+      ctx.restore();
+      const ang=Math.atan2(b.y-a.y,b.x-a.x), rr=nodeR(b)+7;
       const hx=b.x-Math.cos(ang)*rr, hy=b.y-Math.sin(ang)*rr;
-      ctx.fillStyle=COL_DIM[L.o]; ctx.globalAlpha=.8;
-      ctx.beginPath();
-      ctx.moveTo(hx,hy);
-      ctx.lineTo(hx-Math.cos(ang-0.5)*8, hy-Math.sin(ang-0.5)*8);
-      ctx.lineTo(hx-Math.cos(ang+0.5)*8, hy-Math.sin(ang+0.5)*8);
+      ctx.fillStyle=withAlpha(col,.9);
+      ctx.beginPath(); ctx.moveTo(hx,hy);
+      ctx.lineTo(hx-Math.cos(ang-0.42)*10, hy-Math.sin(ang-0.42)*10);
+      ctx.lineTo(hx-Math.cos(ang+0.42)*10, hy-Math.sin(ang+0.42)*10);
       ctx.closePath(); ctx.fill();
     }
-    ctx.globalAlpha=1;
+
     // drag rubber band
     if(drag){ const a=nodes[drag.fromId];
-      ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+      ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2.5; ctx.setLineDash([7,7]);
       ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(drag.x,drag.y); ctx.stroke(); ctx.setLineDash([]);
       const hov=nodeAt(drag.x,drag.y);
-      if(hov && hov.id!==drag.fromId){ ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=3;
-        ctx.beginPath(); ctx.arc(hov.x,hov.y,nodeR(hov)+6,0,7); ctx.stroke(); }
+      if(hov && hov.id!==drag.fromId){ ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(hov.x,hov.y,nodeR(hov)+8,0,7); ctx.stroke(); }
     }
-    // soldiers
-    for(const s of soldiers){ ctx.fillStyle=COL[s.o];
-      ctx.beginPath(); ctx.arc(s.x,s.y,3.1,0,7); ctx.fill(); }
+
+    // capture pulses
+    for(let i=pulses.length-1;i>=0;i--){ const p=pulses[i]; p.t++;
+      const k=p.t/p.life; if(k>=1){ pulses.splice(i,1); continue; }
+      ctx.strokeStyle=withAlpha(COL[p.o], (1-k)*0.7); ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(p.x,p.y, p.r0*(1+k*1.7), 0,7); ctx.stroke();
+    }
+
+    // soldiers — glowing dots
+    for(const s of soldiers){ const col=COL[s.o];
+      ctx.fillStyle=withAlpha(col,.22); ctx.beginPath(); ctx.arc(s.x,s.y,6,0,7); ctx.fill();
+      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(s.x,s.y,3,0,7); ctx.fill(); }
+
     // nodes
     for(const n of nodes){
-      const r=nodeR(n);
-      // body
-      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,7);
-      ctx.fillStyle='rgba(15,18,38,.85)'; ctx.fill();
-      ctx.lineWidth=3.5; ctx.strokeStyle=COL[n.o]; ctx.stroke();
-      // level pips ring
-      if(n.l>1){ ctx.lineWidth=2; ctx.strokeStyle=COL_DIM[n.o];
-        ctx.beginPath(); ctx.arc(n.x,n.y,r-6,0,7); ctx.stroke(); }
-      // count
-      ctx.fillStyle=COL[n.o]; ctx.font='800 '+Math.round(r*0.82)+'px Inter, sans-serif';
+      const r=nodeR(n), col=COL[n.o];
+      // outer glow
+      ctx.fillStyle=withAlpha(col,.14); ctx.beginPath(); ctx.arc(n.x,n.y,r+8,0,7); ctx.fill();
+      // body gradient
+      const bg=ctx.createRadialGradient(n.x-r*0.35,n.y-r*0.4,r*0.15, n.x,n.y,r);
+      bg.addColorStop(0, withAlpha(col,.34)); bg.addColorStop(1,'rgba(13,16,34,.94)');
+      ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(n.x,n.y,r,0,7); ctx.fill();
+      // fill ring (troops / capacity)
+      const frac=Math.max(0,Math.min(1, n.t/cap(n)));
+      ctx.strokeStyle=withAlpha(col,.22); ctx.lineWidth=4;
+      ctx.beginPath(); ctx.arc(n.x,n.y,r-2.5,0,7); ctx.stroke();
+      ctx.strokeStyle=col; ctx.lineWidth=4; ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(n.x,n.y,r-2.5, -Math.PI/2, -Math.PI/2 + frac*Math.PI*2); ctx.stroke();
+      ctx.lineCap='butt';
+      // troop count
+      ctx.fillStyle='#fff'; ctx.font='800 '+Math.round(r*0.78)+'px Inter, system-ui, sans-serif';
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(String(Math.floor(n.t)), n.x, n.y+1);
-      // level badge
-      if(n.l>1){ ctx.fillStyle=COL[n.o]; ctx.font='800 '+Math.round(r*0.42)+'px Inter, sans-serif';
-        ctx.fillText('lv'+n.l, n.x, n.y - r - 9); }
+      // level stars
+      if(n.l>1){ ctx.fillStyle=col; ctx.font='700 '+Math.round(r*0.42)+'px Inter, system-ui, sans-serif';
+        ctx.fillText('★'.repeat(n.l-1), n.x, n.y - r - 9); }
     }
-    // counts hud
     const c=counts(); $('cntP').textContent=c.p; $('cntE').textContent=c.e;
   }
 

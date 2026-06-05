@@ -202,13 +202,16 @@ async function init(){
     tree:'nat/tree_oak.glb', tree2:'nat/tree_default.glb', tree3:'nat/tree_fat.glb', pine:'nat/tree_pineRoundA.glb', pine2:'nat/tree_pineDefaultA.glb',
     bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb', grass:'nat/grass.glb', grassL:'nat/grass_large.glb',
     fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb', fP:'nat/flower_purpleB.glb',
-    rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb' };
+    rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb',
+    fence:'nat/fence_simple.glb', fenceP:'nat/fence_planks.glb', fenceG:'nat/fence_gate.glb', camp:'nat/campfire_logs.glb', campS:'nat/campfire_stones.glb', sign:'nat/sign.glb', logS:'nat/log_stack.glb', vlg:'nat/villager.glb',
+    h1:'vil/house1.glb', h2:'vil/house2.glb', h3:'vil/house3.glb', h4:'vil/house4.glb', h5:'vil/house5.glb', h6:'vil/house6.glb' };
   const entries = await Promise.all(Object.entries(names).map(async ([k,f])=>{
     const g = await loader.loadAsync('models/'+f); return [k, g.scene];
   }));
   for(const [k,s] of entries) MODELS[k]=s;
 
   buildGround();
+  buildScenery();
   document.getElementById('loading').style.display='none';
 
   // drag line
@@ -227,8 +230,7 @@ function setupPost(){
     const rt=new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type:THREE.HalfFloatType });
     composer=new EffectComposer(renderer, rt);
     composer.addPass(new RenderPass(scene,camera));
-    try{ gtaoPass=new GTAOPass(scene,camera,innerWidth,innerHeight); composer.addPass(gtaoPass); }
-    catch(e){ console.warn('AO off',e); gtaoPass=null; }
+    gtaoPass=null;   // GTAO disabled — it produced a stray dark quad artifact
     bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.14, 0.6, 0.96);
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
@@ -264,12 +266,40 @@ function buildGround(){
   }
 }
 function findMesh(root){ let found=null; root.traverse(o=>{ if(!found && o.isMesh) found=o; }); return found; }
+// auto-normalize a character: stand up + scale to height + drop feet to ground
+function addChar(model,x,z,h,ry){ const m=model.clone(true); let box=new THREE.Box3().setFromObject(m); const sz=new THREE.Vector3(); box.getSize(sz);
+  if(sz.y<Math.max(sz.x,sz.z)*0.6){ m.rotation.x=-Math.PI/2; box=new THREE.Box3().setFromObject(m); box.getSize(sz); }
+  m.scale.multiplyScalar(h/Math.max(1e-4,sz.y)); box=new THREE.Box3().setFromObject(m); m.position.set(x,-box.min.y,z); m.rotation.y=ry;
+  m.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } }); scene.add(m); }
+function buildScenery(){
+  const ribbon=(pts,w,col,flat)=>{ const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p[0],0.03,p[1])));
+    const geo=new THREE.TubeGeometry(curve,64,w,10,false); const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,roughness:1})); mesh.scale.y=flat; mesh.position.y=0.02; mesh.receiveShadow=true; scene.add(mesh); return curve; };
+  const roadCurve=ribbon([[-26,9],[-13,7.5],[-2,9],[10,7.5],[26,9]],1.3,0x9c7b4a,0.05);   // road (south)
+  ribbon([[-26,-9],[-12,-7.5],[2,-9.5],[14,-7.5],[26,-9]],1.7,0x49a9d8,0.05);              // river (north)
+  const onRoad=t=>{ const p=roadCurve.getPointAt(t),tan=roadCurve.getTangentAt(t).normalize(); return {p,tan,perp:new THREE.Vector3(-tan.z,0,tan.x)}; };
+  // fence along the road
+  const N=Math.max(10,Math.round(roadCurve.getLength()/1.0)), off=1.95;
+  for(let i=0;i<=N;i++){ const t=i/N, o=onRoad(t); const x=o.p.x+o.perp.x*off,z=o.p.z+o.perp.z*off,yaw=Math.atan2(-o.tan.z,o.tan.x);
+    if(Math.abs(t-0.5)<0.04){ const g=MODELS.fenceG.clone(true); g.position.set(x,0,z); g.rotation.y=yaw; g.scale.setScalar(0.95); scene.add(g); continue; }
+    const m=((i%6===0)?MODELS.fenceP:MODELS.fence).clone(true); m.position.set(x,0,z); m.rotation.y=yaw; m.scale.setScalar(0.95); scene.add(m); }
+  // houses set back, facing the road
+  const hm=[MODELS.h1,MODELS.h2,MODELS.h3,MODELS.h4,MODELS.h5,MODELS.h6];
+  [0.30,0.38,0.46,0.54,0.62,0.70].forEach((t,i)=>{ const o=onRoad(t); const x=o.p.x+o.perp.x*4.4,z=o.p.z+o.perp.z*4.4;
+    const h=hm[i].clone(true); h.position.set(x,0,z); h.rotation.y=Math.atan2(-o.perp.x,-o.perp.z); h.scale.setScalar(1.4);
+    h.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } }); scene.add(h); });
+  // campfire, sign, villagers
+  { const o=onRoad(0.5); const a=MODELS.campS.clone(true); a.position.set(o.p.x+o.perp.x*2.8,0,o.p.z+o.perp.z*2.8); a.scale.setScalar(0.6); scene.add(a);
+    const b=MODELS.camp.clone(true); b.position.copy(a.position); b.scale.setScalar(0.5); scene.add(b); }
+  { const o=onRoad(0.04); const s=MODELS.sign.clone(true); s.position.set(o.p.x+o.perp.x*0.95,0,o.p.z+o.perp.z*0.95); s.rotation.y=Math.atan2(-o.perp.x,-o.perp.z); s.scale.setScalar(0.9); scene.add(s); }
+  [0.32,0.5,0.7].forEach(t=>{ const o=onRoad(t); addChar(MODELS.vlg,o.p.x+o.perp.x*1.5,o.p.z+o.perp.z*1.5,1.6,Math.random()*6.28); });
+}
 
 // ---------------- map / nodes ----------------
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[];
-  const fits=(x,z,r)=> out.every(d=>Math.hypot(x-d.x,z-d.z)>=r+(d.r||0.4)) && nodes.every(n=>Math.hypot(x-n.x,z-n.z)>=r+1.9);
+  const inBand=z=> (z>5.5 && z<13) || (z<-5 && z>-13);   // keep road/village + river bands clear
+  const fits=(x,z,r)=> !inBand(z) && out.every(d=>Math.hypot(x-d.x,z-d.z)>=r+(d.r||0.4)) && nodes.every(n=>Math.hypot(x-n.x,z-n.z)>=r+1.9);
   const TR=['tree','tree2','tree3','pine','pine2'];
   // tree groves toward the edges (glade kept open)
   for(let g=0; g<14; g++){ const a=rng()*6.283, gr=8+rng()*8, gx=Math.cos(a)*gr, gz=Math.sin(a)*gr*0.82;

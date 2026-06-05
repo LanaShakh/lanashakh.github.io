@@ -159,7 +159,7 @@ async function init(){
   renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12;
+  renderer.toneMapping = THREE.NoToneMapping;   // keep the kit's vibrant baked colors
   document.getElementById('app').appendChild(renderer.domElement);
 
   labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
@@ -178,15 +178,14 @@ async function init(){
   camera.position.set(18, 21, 18); camera.lookAt(0, 0.4, 0);
 
   // lights (IBL provides ambient; sun gives shape + shadows)
-  scene.add(new THREE.HemisphereLight(0xeaf3ff, 0x55703f, 0.5));
-  const sun = new THREE.DirectionalLight(0xfff4dd, 2.1);
-  sun.position.set(13, 24, 9); sun.castShadow = true;
+  scene.add(new THREE.HemisphereLight(0xdfeeff, 0x5c7a42, 0.5));
+  const sun = new THREE.DirectionalLight(0xfff1d6, 1.6);
+  sun.position.set(13, 22, 9); sun.castShadow = true;
   sun.shadow.mapSize.set(2048,2048);
-  const sc=sun.shadow.camera; sc.left=-18; sc.right=18; sc.top=13; sc.bottom=-13; sc.near=1; sc.far=80;
-  sun.shadow.bias=-0.0004; sun.shadow.radius=4; scene.add(sun);
-  // cool fill (softens shadow side) + bright rim from behind (edge highlight = premium silhouette)
-  const fill=new THREE.DirectionalLight(0xbcd2ff, 0.5); fill.position.set(-14,9,-4); scene.add(fill);
-  const rim=new THREE.DirectionalLight(0xffffff, 1.2); rim.position.set(-7,7,-15); scene.add(rim);
+  const sc=sun.shadow.camera; sc.left=-18; sc.right=18; sc.top=14; sc.bottom=-14; sc.near=1; sc.far=80;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff, 0.32); fill.position.set(-14,9,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff, 0.7); rim.position.set(-7,7,-15); scene.add(rim);
 
   raycaster = new THREE.Raycaster();
   groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(200,200).rotateX(-Math.PI/2),
@@ -198,8 +197,12 @@ async function init(){
 
   // load models
   const loader = new GLTFLoader();
-  const names = { base:'c-base.glb', mid:'c-mid.glb', top:'c-top.glb', flag:'c-flag.glb',
-                  tree:'c-tree.glb', tree2:'c-tree2.glb', rock:'c-rock.glb', rock2:'c-rock2.glb' };
+  const names = {
+    tb:'td/tower-round-build-b.glb', tc:'td/tower-round-build-c.glb', td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb',
+    tree:'nat/tree_oak.glb', tree2:'nat/tree_default.glb', tree3:'nat/tree_fat.glb', pine:'nat/tree_pineRoundA.glb', pine2:'nat/tree_pineDefaultA.glb',
+    bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb', grass:'nat/grass.glb', grassL:'nat/grass_large.glb',
+    fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb', fP:'nat/flower_purpleB.glb',
+    rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb' };
   const entries = await Promise.all(Object.entries(names).map(async ([k,f])=>{
     const g = await loader.loadAsync('models/'+f); return [k, g.scene];
   }));
@@ -226,7 +229,7 @@ function setupPost(){
     composer.addPass(new RenderPass(scene,camera));
     try{ gtaoPass=new GTAOPass(scene,camera,innerWidth,innerHeight); composer.addPass(gtaoPass); }
     catch(e){ console.warn('AO off',e); gtaoPass=null; }
-    bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.3, 0.7, 0.88);
+    bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.14, 0.6, 0.96);
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
     try{ composer.addPass(new SMAAPass(innerWidth, innerHeight)); }catch(e){}
@@ -249,8 +252,8 @@ function makeStripeTexture(){
 function buildGround(){
   GROUND_TOP = 0;
   // one continuous world, fills the screen (no grid)
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),
-    new THREE.MeshStandardMaterial({color:0x6cbb57, roughness:1, metalness:0}));
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(180,180).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x77c24e, roughness:1, metalness:0}));
   g.position.y=0; g.receiveShadow=true; scene.add(g);
   // soft mottled patches for depth (deterministic, no grid)
   const rng=mulberry32(98765);
@@ -265,17 +268,23 @@ function findMesh(root){ let found=null; root.traverse(o=>{ if(!found && o.isMes
 // ---------------- map / nodes ----------------
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[]; let tries=0;
-  // dense forest/rock frame around the edges, central glade kept mostly clear
-  while(out.length<60 && tries<5000){ tries++;
-    const x=(rng()*2-1)*16, z=(rng()*2-1)*11;
-    if(Math.abs(x)<7.5 && Math.abs(z)<5 && rng()<0.85) continue;   // keep the glade open
-    let ok=true;
-    for(const n of nodes){ if(Math.hypot(x-n.x, z-n.z)<2.6){ ok=false; break; } }
-    if(ok) for(const d of out){ if(Math.hypot(x-d.x, z-d.z)<0.85){ ok=false; break; } }
-    if(ok){ const r=rng(); const type = r<0.46?'tree': r<0.72?'tree2': r<0.88?'rock2':'rock';
-      out.push({ x, z, type, rot:rng()*6.28, s:(type[0]==='t'?0.7:0.8)+rng()*0.45 }); }
-  }
+function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[];
+  const fits=(x,z,r)=> out.every(d=>Math.hypot(x-d.x,z-d.z)>=r+(d.r||0.4)) && nodes.every(n=>Math.hypot(x-n.x,z-n.z)>=r+1.9);
+  const TR=['tree','tree2','tree3','pine','pine2'];
+  // tree groves toward the edges (glade kept open)
+  for(let g=0; g<14; g++){ const a=rng()*6.283, gr=8+rng()*8, gx=Math.cos(a)*gr, gz=Math.sin(a)*gr*0.82;
+    const sp=TR[(rng()*TR.length)|0], n=3+((rng()*4)|0);
+    for(let i=0;i<n;i++){ const x=gx+(rng()-0.5)*4, z=gz+(rng()-0.5)*4;
+      if(Math.abs(x)<7 && Math.abs(z)<4.6) continue; const s=0.8+rng()*0.5, r=0.8*s;
+      if(fits(x,z,r)) out.push({x,z,type:sp,rot:rng()*6.28,s,r}); } }
+  const scatter=(cnt,types,smin,smax,r,minRad)=>{ for(let i=0;i<cnt;i++){ const a=rng()*6.283, gr=minRad+rng()*12, x=Math.cos(a)*gr, z=Math.sin(a)*gr*0.82;
+    if(Math.abs(x)<6.5 && Math.abs(z)<4.2 && rng()<0.7) continue;
+    if(fits(x,z,r)) out.push({x,z,type:types[(rng()*types.length)|0],rot:rng()*6.28,s:smin+rng()*(smax-smin),r}); } };
+  scatter(36,['bush','bushL'],0.7,1.1,0.5,5);
+  scatter(48,['grass','grassL'],0.7,1.2,0.25,3);
+  scatter(28,['fR','fY','fP'],0.7,1.1,0.3,4);
+  scatter(16,['rock','rock2'],0.7,1.1,0.5,6);
+  scatter(10,['mush'],0.6,0.9,0.3,6);
   return out;
 }
 
@@ -310,43 +319,28 @@ function loadMap(i){
   for(const n of nodes) buildTower(n);
 }
 
-const SEG=1.01; // height of a castle base/mid segment
+const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group); }
-  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(0.82);
-  // round grass platform + team ring (ownership)
-  const plat=new THREE.Mesh(new THREE.CylinderGeometry(1.55,1.72,0.4,36),
-    new THREE.MeshStandardMaterial({ color:0x6bb04c, roughness:1 }));
-  plat.position.y=-0.2; plat.receiveShadow=true; group.add(plat);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.1,12,44).rotateX(Math.PI/2),
-    new THREE.MeshStandardMaterial({ color:SOLID[n.o], emissive:SOLID[n.o], emissiveIntensity:0.35, roughness:0.5 }));
-  ring.position.y=0.04; group.add(ring);
-  // castle stack: base + (level-1) mids + crenellated top  (grows with level)
-  const mids=Math.max(0,n.l-1); let y=0;
-  const addPiece=src=>{ const p=src.clone(true);
-    p.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
-    p.position.y=y; group.add(p); };
-  addPiece(MODELS.base); y+=SEG;
-  for(let i=0;i<mids;i++){ addPiece(MODELS.mid); y+=SEG; }
-  addPiece(MODELS.top);
-  const crown=y+0.3;
-  // flags = link capacity, team-colored
-  const fc=linkCap(n), fr=0.34;
-  for(let i=0;i<fc;i++){ const fl=MODELS.flag.clone(true);
-    fl.traverse(c=>{ if(c.isMesh){ c.material=c.material.clone(); c.material.color=new THREE.Color(SOLID[n.o]); c.castShadow=true; } });
-    const ang=(i/Math.max(1,fc))*Math.PI*2 + 0.4;
-    fl.position.set(Math.cos(ang)*fr, y-0.02, Math.sin(ang)*fr); fl.rotation.y=Math.PI/2-ang; fl.scale.setScalar(0.8);
-    group.add(fl); }
+  const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.0);
+  // team ring on the ground (ownership)
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.085,12,40).rotateX(Math.PI/2),
+    new THREE.MeshStandardMaterial({ color:SOLID[n.o], emissive:SOLID[n.o], emissiveIntensity:0.5, roughness:0.5 }));
+  ring.position.y=0.05; group.add(ring);
+  // TD-kit tower model, grows by level (b->c->d->f)
+  const tow=MODELS[TOWER[Math.min(4,n.l)]].clone(true);
+  tow.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
+  tow.scale.setScalar(1.15); group.add(tow);
   // L4 synergy glow
-  if(synergyOn(n)){ const halo=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.07,10,28).rotateX(Math.PI/2),
+  if(synergyOn(n)){ const halo=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.06,10,28).rotateX(Math.PI/2),
       new THREE.MeshStandardMaterial({ color:0xffe08a, emissive:0xffd166, emissiveIntensity:1.0, roughness:0.4 }));
-    halo.position.y=crown+0.2; group.add(halo); }
+    halo.position.y=1.55; group.add(halo); }
   // invisible easy-tap target
-  const pick=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,crown+0.8,12), new THREE.MeshBasicMaterial({visible:false}));
-  pick.position.y=(crown+0.8)/2; pick.userData.nodeId=n.id; group.add(pick);
+  const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,2.2,12), new THREE.MeshBasicMaterial({visible:false}));
+  pick.position.y=1.1; pick.userData.nodeId=n.id; group.add(pick);
   // number label
   const div=document.createElement('div'); div.className='tlabel';
-  const label=new CSS2DObject(div); label.position.set(0, crown+0.7, 0); group.add(label);
+  const label=new CSS2DObject(div); label.position.set(0, 2.0, 0); group.add(label);
   nodeGroup.add(group);
   n.view={group, div, label}; n.lr=n.l; n.or=n.o;
 }

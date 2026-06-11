@@ -16,7 +16,7 @@
   <meta property="og:url" content="https://lanashakh.github.io/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css">
   <script type="application/ld+json">
   {
@@ -50,19 +50,23 @@
 
   <main>
     <div class="container">
-      <section class="hero">
-        <h1>Контент, который приводит органический трафик.<br><span class="dim">От темы до публикации.</span></h1>
-        <p class="lead">Контент-менеджер и SEO-копирайтер. 5 лет в SEO и редактуре: запускаю блоги с нуля, пишу и редактирую, выстраиваю выпуск контента с AI-инструментами.</p>
-        <div class="pills">
-          <span class="pill">AI / tech</span>
-          <span class="pill">iGaming</span>
-          <span class="pill">fintech</span>
-          <span class="pill">crypto</span>
-          <span class="pill">RU / EN</span>
-        </div>
-        <div class="hero-actions">
-          <a class="btn-primary" href="cases.html">Смотреть кейсы</a>
-          <a class="btn-ghost" href="cv/Shakhova-Svetlana-CV.pdf" download>Скачать CV (PDF)</a>
+      <section class="hero hero-anim">
+        <canvas id="letters" class="hero-canvas" aria-hidden="true"
+          data-phrases='["живой текст","SEO без воды","+30% органики","блог с нуля","рост трафика","тексты для людей","тон бренда","контент работает","чистая структура","RU и EN","AI + редактура","смысл прежде слов"]'></canvas>
+        <div class="hero-inner">
+          <h1>Контент, который приводит <span class="mark">органический трафик</span>.<br><span class="dim">От темы до публикации.</span></h1>
+          <p class="lead">Контент-менеджер и SEO-копирайтер. 5 лет в SEO и редактуре: запускаю блоги с нуля, пишу и редактирую, выстраиваю выпуск контента с AI-инструментами.</p>
+          <div class="pills">
+            <span class="pill">AI / tech</span>
+            <span class="pill">iGaming</span>
+            <span class="pill">fintech</span>
+            <span class="pill">crypto</span>
+            <span class="pill">RU / EN</span>
+          </div>
+          <div class="hero-actions">
+            <a class="btn-primary" href="cases.html">Смотреть кейсы</a>
+            <a class="btn-ghost" href="cv/Shakhova-Svetlana-CV.pdf" download>Скачать CV (PDF)</a>
+          </div>
         </div>
       </section>
 
@@ -145,5 +149,6 @@
       <span>&copy; 2026 Светлана Шахова</span>
     </div>
   </footer>
+  <script src="assets/js/site.js" defer></script>
 </body>
 </html>

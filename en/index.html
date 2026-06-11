@@ -16,7 +16,7 @@
   <meta property="og:url" content="https://lanashakh.github.io/en/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/styles.css">
   <script type="application/ld+json">
   {
@@ -49,19 +49,23 @@
 
   <main>
     <div class="container">
-      <section class="hero">
-        <h1>Content that brings organic traffic.<br><span class="dim">From topic to publication.</span></h1>
-        <p class="lead">Content manager and SEO copywriter. 5 years in SEO and editorial: I launch blogs from scratch, write and edit, and build AI-assisted content pipelines.</p>
-        <div class="pills">
-          <span class="pill">AI / tech</span>
-          <span class="pill">iGaming</span>
-          <span class="pill">fintech</span>
-          <span class="pill">crypto</span>
-          <span class="pill">RU / EN</span>
-        </div>
-        <div class="hero-actions">
-          <a class="btn-primary" href="cases.html">View case studies</a>
-          <a class="btn-ghost" href="../cv/Shakhova-Svetlana-CV.pdf" download>Download CV (PDF)</a>
+      <section class="hero hero-anim">
+        <canvas id="letters" class="hero-canvas" aria-hidden="true"
+          data-phrases='["human voice","SEO, no fluff","+30% organic","blog from zero","traffic growth","texts for people","brand tone","content that works","clean structure","RU and EN","AI + editing","meaning first"]'></canvas>
+        <div class="hero-inner">
+          <h1>Content that brings <span class="mark">organic traffic</span>.<br><span class="dim">From topic to publication.</span></h1>
+          <p class="lead">Content manager and SEO copywriter. 5 years in SEO and editorial: I launch blogs from scratch, write and edit, and build AI-assisted content pipelines.</p>
+          <div class="pills">
+            <span class="pill">AI / tech</span>
+            <span class="pill">iGaming</span>
+            <span class="pill">fintech</span>
+            <span class="pill">crypto</span>
+            <span class="pill">RU / EN</span>
+          </div>
+          <div class="hero-actions">
+            <a class="btn-primary" href="cases.html">View case studies</a>
+            <a class="btn-ghost" href="../cv/Shakhova-Svetlana-CV.pdf" download>Download CV (PDF)</a>
+          </div>
         </div>
       </section>
 
@@ -144,5 +148,6 @@
       <span>&copy; 2026 Svetlana Shakhova</span>
     </div>
   </footer>
+  <script src="../assets/js/site.js" defer></script>
 </body>
 </html>

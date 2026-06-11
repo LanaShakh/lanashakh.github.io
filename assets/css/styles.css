@@ -8,6 +8,7 @@
   --accent: #0A7D52;
   --dark: #111111;
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --display: "Space Grotesk", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -25,7 +26,7 @@ html, body {
 
 ::selection { background: var(--dark); color: #fff; }
 
-h1, h2, h3 { line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
 h1 { font-size: clamp(2.1rem, 5vw, 3.2rem); font-weight: 600; }
 h1 .dim { color: var(--soft); }
 h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 600; margin-bottom: 0.6rem; }
@@ -44,7 +45,7 @@ p a:hover, .prose a:hover { border-bottom-color: var(--accent); }
 
 .site-header { padding: 1.3rem 0; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
-.brand { font-weight: 600; font-size: 1.05rem; letter-spacing: -0.01em; }
+.brand { font-family: var(--display); font-weight: 600; font-size: 1.05rem; letter-spacing: -0.01em; }
 .nav-list { list-style: none; display: flex; align-items: center; gap: 1.4rem; margin: 0; padding: 0; font-size: 0.92rem; }
 .nav-link { color: var(--muted); }
 .nav-link:hover, .nav-link.active { color: var(--text); }
@@ -69,7 +70,7 @@ main { padding: 3.5rem 0 5rem; }
 
 .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 2.5rem 0; }
 .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.3rem; }
-.metric-num { font-size: 1.7rem; font-weight: 600; color: var(--accent); letter-spacing: -0.02em; }
+.metric-num { font-family: var(--display); font-size: 1.7rem; font-weight: 600; color: var(--accent); letter-spacing: -0.02em; }
 .metric-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
 
 .section { margin-top: 4rem; }
@@ -87,7 +88,7 @@ main { padding: 3.5rem 0 5rem; }
 .case-card:hover { border-color: #C8C8C8; transform: translateY(-2px); color: var(--text); }
 .case-card .meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
 .case-card .title { font-size: 1.05rem; font-weight: 600; }
-.case-card .num { font-size: 1.5rem; font-weight: 600; color: var(--accent); margin-top: 0.8rem; letter-spacing: -0.02em; }
+.case-card .num { font-family: var(--display); font-size: 1.5rem; font-weight: 600; color: var(--accent); margin-top: 0.8rem; letter-spacing: -0.02em; }
 .case-card .num span { font-size: 0.82rem; color: var(--muted); font-weight: 400; }
 .case-card.dark { background: var(--dark); border-color: var(--dark); color: #fff; }
 .case-card.dark .meta, .case-card.dark .num span { color: #AAA; }
@@ -141,7 +142,26 @@ main { padding: 3.5rem 0 5rem; }
 .site-footer { border-top: 1px solid var(--border); padding: 2rem 0 3rem; color: var(--muted); font-size: 0.88rem; }
 .site-footer .container { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 
+.mark { background: linear-gradient(transparent 62%, #B6F2D4 62%); }
+
+.hero-anim { position: relative; }
+.hero-anim .hero-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.hero-anim .hero-inner { position: relative; z-index: 2; max-width: 58%; }
+
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+.metric-card, .sample-card, .stack-card { transition: transform 0.18s ease, border-color 0.18s ease; }
+.metric-card:hover, .stack-card:hover { transform: translateY(-2px); }
+.sample-card:hover { transform: translateY(-3px); }
+
 @media (max-width: 760px) {
+  .hero-anim .hero-canvas { position: static; display: block; width: 100%; height: 150px; margin-top: 1rem; }
+  .hero-anim .hero-inner { max-width: 100%; }
+
   body { font-size: 16px; }
   main { padding: 2.5rem 0 4rem; }
   .metrics, .services { grid-template-columns: 1fr; }

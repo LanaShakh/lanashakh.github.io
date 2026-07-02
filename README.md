@@ -1,21 +1,18 @@
-# Svetlana Shakhova — Content Portfolio
+# Svetlana Shakhova — Content Manager & SEO Copywriter
 
-Static portfolio website for a content manager and SEO copywriter, hosted on GitHub Pages.
+Portfolio: **https://lanashakh.github.io/** (RU / EN)
 
-## Pages
+Single-page static site — no frameworks, no build step. Semantic HTML + CSS, vanilla JS for the language toggle and interactions. Hosted on GitHub Pages.
 
-- `index.html` — Home: offer, key metrics, featured cases, testimonials, CTA
-- `cases.html` — Full case breakdowns
-- `about.html` — About, stack, education
-- `contact.html` — Telegram, email, CV download
+## Structure
 
-## Assets
+- `index.html` — the portfolio (RU/EN, all content inline)
+- `assets/` — images
+- `cv/` — CV in PDF
+- `favicon.svg`, `og.png` — icon and social preview
+- `robots.txt`, `sitemap.xml`
+- Legacy URLs redirect to the root page (portfolio.html, cases.html, about.html, contact.html, writing.html).
 
-- `assets/css/styles.css` — all styling
-- `assets/js/main.js` — language toggle (RU / EN), case filters
-- `assets/img/photo.jpg` — author photo (replace with actual file)
-- `cv/Shakhova-Svetlana-CV.pdf` — downloadable CV
+## Contact
 
-## Deploy
-
-Published via GitHub Pages at `https://lanashakh.github.io/`.
+Telegram: https://t.me/LanaShakh · Email: dena.sssd@gmail.com

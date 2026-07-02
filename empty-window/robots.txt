@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://lanashakh.github.io/sitemap.xml

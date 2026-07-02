@@ -1,53 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://lanashakh.github.io/</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/cases.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/cases.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/cases.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/writing.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/writing.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/writing.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/about.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/about.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/about.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/contact.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/contact.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/contact.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/en/</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/en/cases.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/cases.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/cases.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/en/writing.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/writing.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/writing.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/en/about.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/about.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/about.html"/>
-  </url>
-  <url>
-    <loc>https://lanashakh.github.io/en/contact.html</loc>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://lanashakh.github.io/contact.html"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://lanashakh.github.io/en/contact.html"/>
   </url>
 </urlset>

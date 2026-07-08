@@ -15,4 +15,4 @@ Single-page static site — no frameworks, no build step. Semantic HTML + CSS, v
 
 ## Contact
 
-Telegram: https://t.me/LanaShakh · Email: dena.sssd@gmail.com
+Telegram: https://t.me/LanaShakh · Email: svetla.shakh@gmail.com

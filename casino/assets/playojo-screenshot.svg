@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="PlayOJO screenshot placeholder">
+<rect width="640" height="360" fill="#161b22"/>
+<rect x="0" y="0" width="640" height="44" fill="#1c232d"/>
+<circle cx="24" cy="22" r="6" fill="#ff6b6b"/><circle cx="46" cy="22" r="6" fill="#ffcf5c"/><circle cx="68" cy="22" r="6" fill="#3ddc97"/>
+<rect x="40" y="90" width="240" height="20" rx="4" fill="#2a323d"/>
+<rect x="40" y="122" width="360" height="12" rx="4" fill="#232b35"/>
+<rect x="40" y="146" width="300" height="12" rx="4" fill="#232b35"/>
+<rect x="40" y="196" width="160" height="90" rx="8" fill="#1c232d" stroke="#2a323d"/>
+<rect x="220" y="196" width="160" height="90" rx="8" fill="#1c232d" stroke="#2a323d"/>
+<rect x="400" y="196" width="160" height="90" rx="8" fill="#1c232d" stroke="#2a323d"/>
+<text x="320" y="330" fill="#a3b0bf" font-family="Arial,Helvetica,sans-serif" font-size="15" text-anchor="middle">PlayOJO — screenshot placeholder</text>
+</svg>

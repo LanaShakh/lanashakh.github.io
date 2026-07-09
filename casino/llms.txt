@@ -1,0 +1,25 @@
+# CasinoScope
+
+> CasinoScope is an independent review site that tests and ranks licensed online casinos for UK and international players (18+). Every operator is verified against its regulator's public register before publication.
+
+## Key pages
+
+- [Best online casinos 2026 (home)](https://lanashakh.github.io/casino/): Ranked, reviewed list of all 6 licensed casinos with ratings, bonuses and a comparison table.
+- [Casino comparison](https://lanashakh.github.io/casino/compare/): Side-by-side table of every reviewed casino — rating, founding year, licences, best use and welcome bonus.
+- [About & methodology](https://lanashakh.github.io/casino/about/): Who we are, our six-criteria scoring framework, editorial policy and author team.
+- [Contact](https://lanashakh.github.io/casino/contact/): How to reach the team or report an inaccuracy.
+
+## Casino reviews
+
+- [Bet365 Casino review 2026](https://lanashakh.github.io/casino/reviews/bet365-casino/): Rated 4.7/5. Best for live casino and fast, reliable payouts. Founded 2000, licensed by UK Gambling Commission and Malta Gaming Authority.
+- [LeoVegas review 2026](https://lanashakh.github.io/casino/reviews/leovegas/): Rated 4.6/5. Best for mobile-first play and slick app experience. Founded 2011, licensed by UK Gambling Commission and Malta Gaming Authority.
+- [888 Casino review 2026](https://lanashakh.github.io/casino/reviews/888-casino/): Rated 4.5/5. Best for long-established brand and exclusive in-house games. Founded 1997, licensed by UK Gambling Commission and Gibraltar.
+- [PlayOJO review 2026](https://lanashakh.github.io/casino/reviews/playojo/): Rated 4.5/5. Best for wager-free bonuses and transparent terms. Founded 2017, licensed by UK Gambling Commission and Malta Gaming Authority.
+- [Betway Casino review 2026](https://lanashakh.github.io/casino/reviews/betway-casino/): Rated 4.4/5. Best for combined sports and casino play. Founded 2006, licensed by UK Gambling Commission and Malta Gaming Authority.
+- [Casumo review 2026](https://lanashakh.github.io/casino/reviews/casumo/): Rated 4.3/5. Best for gamified, playful casino experience. Founded 2012, licensed by UK Gambling Commission and Malta Gaming Authority.
+
+## Notes
+
+- All reviewed casinos hold licences from strict regulators (e.g. UK Gambling Commission, Malta Gaming Authority).
+- Content is 18+ and includes responsible-gambling guidance.
+- Last updated: 9 July 2026.

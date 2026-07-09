@@ -8,26 +8,35 @@ Claude, Gemini).
 Everything in this folder is the deployable site. It was authored with a local Python
 generator (kept outside the repo); the committed output has zero runtime dependencies.
 
-## Live test vs production
+## Viewing the site
 
-- **Test host (now):** GitHub Pages subfolder → `https://lanashakh.github.io/casino/`
-- **Production:** a dedicated domain with the site at the **root**.
+Internal links and assets are **relative**, so the site works three ways with no
+config:
 
-### Moving to production (one find/replace)
+- **Just open the file:** double-click `casino/index.html` — it opens in your browser
+  fully styled, and you can click through every page (`file://`, no server needed).
+- **Local server** (optional, closest to production): from the repo root run
+  `python3 -m http.server 8000`, then open `http://localhost:8000/casino/`.
+- **GitHub Pages:** merge to `main` (or point Pages at this branch) to serve it at
+  `https://lanashakh.github.io/casino/`.
 
-All internal links and assets use the `/casino` path prefix and the test domain. To go
-live on a dedicated domain at the root:
+## Moving to production (a dedicated domain, at the root)
 
-1. Replace the domain `https://lanashakh.github.io` → `https://YOUR-DOMAIN` in every
-   file (canonical, Open Graph, `sitemap.xml`, `robots.txt`, `llms.txt`, JSON-LD).
-2. Replace the path prefix `/casino/` → `/` (and `"/casino"` → `""`) in every file.
-3. Move `robots.txt`, `sitemap.xml` and `llms.txt` to the **true site root** (crawlers
-   only read `robots.txt`/`llms.txt` from the domain root, not a subfolder).
-4. On the production root, `404.html` becomes the host's custom 404 automatically
+Because links/assets are relative, **you do not need to touch any internal paths.**
+The only absolute URLs are the ones that must be absolute — `canonical`, Open Graph,
+`sitemap.xml`, `robots.txt`, `llms.txt` and JSON-LD. To go live:
+
+1. Replace the domain + base `https://lanashakh.github.io/casino` → `https://YOUR-DOMAIN`
+   in those files (the generator centralises this as `DOMAIN` + `BASE`; rebuild with
+   `DOMAIN="https://YOUR-DOMAIN"`, `BASE=""`).
+2. Move `robots.txt`, `sitemap.xml` and `llms.txt` to the **true site root** (crawlers
+   read `robots.txt`/`llms.txt` only from the domain root, not a subfolder).
+3. On the production root, `404.html` becomes the host's custom 404 automatically
    (GitHub Pages serves the *root* `404.html`, so a subfolder copy is test-only).
 
-> The generator centralises these as `DOMAIN` and `BASE` constants, so a rebuild with
-> `DOMAIN="https://YOUR-DOMAIN"` and `BASE=""` produces the production tree directly.
+> Note: internal links point at explicit `.../index.html` files so `file://` browsing
+> works. Canonicals use clean directory URLs (`/reviews/bet365-casino/`), which is what
+> search engines index.
 
 ## Pages
 

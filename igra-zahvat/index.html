@@ -125,10 +125,12 @@
 
   <div id="loading"><div class="spinner"></div><div>Загружаем 3D-мир…</div><div id="err"></div></div>
 
+<!-- SDK Яндекс Игр: на их хостинге /sdk.js существует, на своём сайте просто 404 и игра идёт дальше -->
+<script src="/sdk.js" onerror="void 0"></script>
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three": "./vendor/three.module.js",
+  "three/addons/": "./vendor/jsm/"
 }}
 </script>
 <script type="module">
@@ -146,6 +148,15 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 const $ = id => document.getElementById(id);
 function fail(msg){ const e=document.getElementById('err'); e.style.display='block';
   e.textContent = msg + ' Обнови страницу или попробуй другой браузер.'; }
+
+// ---------------- платформа (Яндекс Игры и т.п.) ----------------
+let ysdk=null;
+async function initPlatform(){
+  try{ if(window.YaGames) ysdk=await window.YaGames.init(); }catch(e){ ysdk=null; }
+}
+function platformReady(){ try{ ysdk && ysdk.features.LoadingAPI && ysdk.features.LoadingAPI.ready(); }catch(e){} }
+function gpStart(){ try{ ysdk && ysdk.features.GameplayAPI && ysdk.features.GameplayAPI.start(); }catch(e){} }
+function gpStop(){ try{ ysdk && ysdk.features.GameplayAPI && ysdk.features.GameplayAPI.stop(); }catch(e){} }
 
 // ---------------- game constants & data ----------------
 const PROD_BASE=2.2, CAP_BASE=30, MAX_LEVEL=4, MAXLINKS=3, BOT_INTERVAL=1.45;
@@ -297,6 +308,7 @@ function camViewSize(){ const aspect=innerWidth/innerHeight;
   return Math.max(halfH, halfW/aspect)*1.06; }
 
 async function init(){
+  await initPlatform();
   renderer = new THREE.WebGLRenderer({ antialias:true });
   renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -366,6 +378,7 @@ async function init(){
   bindInput();
   loadMap(0);
   setupPost();
+  platformReady();
   renderer.setAnimationLoop(frame);
 }
 
@@ -535,6 +548,7 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
+  gpStart();
 }
 
 const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
@@ -637,7 +651,7 @@ function counts(){ let p=0,e=0; for(const n of nodes){ if(n.o===1)p++; else if(n
 function checkEnd(){ if(ended) return; const {p,e}=counts();
   const pS=soldiers.some(s=>s.o===1), eS=soldiers.some(s=>s.o===2);
   if(e===0 && !eS) endGame(true); else if(p===0 && !pS) endGame(false); }
-function endGame(win){ ended=true; running=false;
+function endGame(win){ ended=true; running=false; gpStop();
   if(tutStep>=0){ tutHide(); if(win){ localStorage.setItem(TUT_KEY,'1'); tutStep=-1; } }
   sfx(win?'win':'lose'); buzz(win?[60,50,60,50,120]:180); if(win) confetti();
   const ov=document.getElementById('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
@@ -651,7 +665,7 @@ function endGame(win){ ended=true; running=false;
       document.getElementById('ovSub').textContent='Раунд '+endlessRound+' пройден за '+Math.round(simTime)+' с · Рекорд: '+bestEndless+
         (HLVL>prevH?' · 🦉 Филин — новый уровень!':'');
       addBtn(row,'Раунд '+(endlessRound+1),'primary',()=>loadEndless(endlessRound+1));
-      addBtn(row,'Поделиться','',shareResult);
+      if(!ysdk) addBtn(row,'Поделиться','',shareResult);
       addBtn(row,'Заново','',()=>loadEndless(endlessRound));
     } else { document.getElementById('ovStars').innerHTML='';
       document.getElementById('ovSub').textContent='Это был раунд '+endlessRound+' · Рекорд: '+bestEndless;
@@ -669,7 +683,7 @@ function endGame(win){ ended=true; running=false;
       (HLVL>prevH?' · 🦉 Филин — новый уровень!':'');
     if(next<MAPS.length) addBtn(row,'Следующая','primary',()=>loadMap(next));
     else addBtn(row,'∞ Бесконечный','primary',()=>loadEndless(1));
-    addBtn(row,'Поделиться','',shareResult);
+    if(!ysdk) addBtn(row,'Поделиться','',shareResult);
     addBtn(row,'Заново','',()=>loadMap(mapIndex));
   } else { document.getElementById('ovStars').innerHTML='';
     document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
@@ -766,8 +780,8 @@ function bindInput(){
   sndBtn.onclick=()=>{ muted=!muted; localStorage.setItem('g_zahvat_mute',muted?'1':'0');
     sndBtn.textContent = muted?'🔇':'🔊'; if(!muted) sfx('step'); };
   document.getElementById('speedBtn').onclick=()=>{ speed=speed===1?2:1; document.getElementById('speedBtn').textContent='×'+speed; };
-  document.getElementById('menuBtn').onclick=()=>{ running=false; openMenu(); };
-  document.getElementById('closeMenu').onclick=()=>{ hideOverlay('ovMenu'); if(!ended) running=true; };
+  document.getElementById('menuBtn').onclick=()=>{ running=false; gpStop(); openMenu(); };
+  document.getElementById('closeMenu').onclick=()=>{ hideOverlay('ovMenu'); if(!ended){ running=true; gpStart(); } };
   addEventListener('resize',onResize);
 }
 function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHTML='';

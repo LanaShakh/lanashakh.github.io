@@ -73,6 +73,23 @@
   .tut .txt b{color:#ffd166;}
   #confetti{position:fixed; inset:0; z-index:35; pointer-events:none;}
 
+  .rush{position:fixed; right:16px; bottom:max(16px,env(safe-area-inset-bottom)); z-index:11; display:none;
+    width:58px; height:58px; border-radius:50%; border:2px solid rgba(255,255,255,.25); cursor:pointer;
+    background:linear-gradient(140deg,#7c5cff,#a17bff); color:#fff; font-size:24px; font-weight:800; font-family:inherit;
+    box-shadow:0 8px 22px rgba(124,92,255,.45);}
+  .rush.cd{background:rgba(15,18,38,.6); box-shadow:none; font-size:17px; color:#a7adda;}
+  .rush.on{background:linear-gradient(140deg,#ffd166,#ff9f43); box-shadow:0 0 26px rgba(255,209,102,.8); animation:rushPulse .5s ease infinite alternate;}
+  @keyframes rushPulse{from{transform:scale(1);}to{transform:scale(1.09);}}
+  .rush:active{transform:translateY(2px);}
+
+  .heroCard{background:var(--panel); border:1px solid rgba(255,255,255,.14); border-radius:14px;
+    padding:12px 14px; max-width:min(92vw,340px); text-align:left; font-size:13px; max-height:38vh; overflow-y:auto;}
+  .heroCard .hh{display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; margin-bottom:8px;}
+  .heroCard .hh .hst{margin-left:auto; color:#ffd166; font-weight:800;}
+  .heroCard .hrow{display:flex; align-items:center; gap:8px; padding:4px 0; color:#dfe2ff;}
+  .heroCard .hrow.locked{opacity:.42;}
+  .heroCard .hrow .hn{margin-left:auto; color:var(--muted); font-size:11.5px; white-space:nowrap;}
+
   #loading{ position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
     background:linear-gradient(160deg,#0f1226,#171a3a); color:#cfe0ff; }
   .spinner{width:42px;height:42px;border-radius:50%;border:4px solid rgba(255,255,255,.18); border-top-color:#7c5cff; animation:spin 1s linear infinite;}
@@ -101,7 +118,10 @@
   <canvas id="confetti"></canvas>
 
   <div class="overlay" id="ovEnd"><div class="big" id="ovTitle"></div><div class="stars" id="ovStars"></div><div class="sub" id="ovSub"></div><div class="row" id="ovRow"></div></div>
-  <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div><div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
+  <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div>
+    <div class="heroCard" id="heroCard"></div>
+    <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
+  <button class="rush" id="rushBtn">⚡</button>
 
   <div id="loading"><div class="spinner"></div><div>Загружаем 3D-мир…</div><div id="err"></div></div>
 
@@ -208,6 +228,7 @@ function sfx(n){ if(muted || !audio()) return;
     case 'cap':    tone(392,392,0.10,'triangle',0.2); tone(523,523,0.12,'triangle',0.2,0.09); tone(659,659,0.16,'triangle',0.2,0.18); break;
     case 'lost':   tone(392,180,0.30,'sawtooth',0.07); break;
     case 'lvl':    tone(523,523,0.08,'square',0.05); tone(659,659,0.08,'square',0.05,0.07); tone(784,784,0.12,'square',0.05,0.14); break;
+    case 'rush':   tone(392,784,0.18,'sawtooth',0.1); tone(784,1568,0.22,'sawtooth',0.08,0.12); break;
     case 'win':    [523,659,784,1047].forEach((f,i)=>tone(f,f,0.22,'triangle',0.18,i*0.13)); break;
     case 'lose':   [392,330,262,196].forEach((f,i)=>tone(f,f*0.94,0.30,'sine',0.14,i*0.16)); break;
   } }
@@ -252,7 +273,22 @@ function tutTick(){ if(tutStep<0) return;
     if(tutStep>=TUT_STEPS.length){ tutStep=-1; tutHide(); }
     else { sfx('step'); tutShow(); } } }
 
-const cap=n=>CAP_BASE*n.l, prod=n=>PROD_BASE*n.l;
+// ---------------- герой: комендант Филин, прокачка за звёзды ----------------
+const HERO_LEVELS=[
+  { need:3,  icon:'⚙️', name:'Производство +10%' },
+  { need:6,  icon:'⚡', name:'Активка «Рывок»: ×2 поток на 5 с' },
+  { need:9,  icon:'🪖', name:'+6 войск на старте' },
+  { need:12, icon:'💨', name:'Скорость войск +15%' },
+  { need:15, icon:'📦', name:'Ёмкость башен +20%' },
+  { need:18, icon:'🌟', name:'«Рывок» ×3 и перезарядка 15 с' },
+];
+let HLVL=0, rushT=0, rushCD=0;
+function totalStars(){ let s=bestEndless|0; for(const k in bestStars) s+=bestStars[k]|0; return s; }
+function refreshHero(){ const t=totalStars(); HLVL=0; for(const h of HERO_LEVELS){ if(t>=h.need) HLVL++; } }
+
+function cap(n){ let c=CAP_BASE*n.l; if(n.o===1 && HLVL>=5) c*=1.2; return c; }
+function prod(n){ let p=PROD_BASE*n.l;
+  if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); } return p; }
 function linkCap(n){ return n.l>=3 ? 4 : n.l; }   // L1=1, L2=2, L3=4, L4=4 outgoing links
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
@@ -481,6 +517,8 @@ function startMap(m, seed, label){
 
   nodes = m.nodes.map((d,idx)=>{ const p=worldPos(d.x,d.y);
     return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, view:null, lr:-1, or:-1 }; });
+  refreshHero(); rushT=0; rushCD=0;
+  if(HLVL>=3) for(const n of nodes){ if(n.o===1) n.t+=6; }   // 🪖 стартовый бонус героя
   links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1; simTime=0;
   document.getElementById('speedBtn').textContent='×1';
   document.getElementById('mapName').textContent=label+' · '+biome.label;
@@ -544,6 +582,7 @@ function applyArrival(node, owner){
 
 function step(dt){
   simTime+=dt;
+  rushT=Math.max(0,rushT-dt); rushCD=Math.max(0,rushCD-dt);
   tutTick();
   for(const n of nodes){
     if(n.atk>0) n.atk=Math.max(0,n.atk-dt);
@@ -556,11 +595,10 @@ function step(dt){
     if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1) sfx('lvl'); }
   }
   // soldiers move in world (x,z)
-  const SP=4.0*Math.max(1,1);
   for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
     const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
     if(d<=0.5){ applyArrival(tn,s.o); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
-    const v=SP*dt; s.x+=dx/d*v; s.z+=dz/d*v;
+    const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
   botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL; botThink(); }
   checkEnd();
@@ -605,11 +643,15 @@ function endGame(win){ ended=true; running=false;
   const ov=document.getElementById('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
   document.getElementById('ovTitle').textContent = win?'Победа! 🎉':'Поражение';
   const row=document.getElementById('ovRow'); row.innerHTML='';
+  const prevH=HLVL;
   if(endless){
     if(win){ if(endlessRound>bestEndless){ bestEndless=endlessRound; localStorage.setItem('g_zahvat_endless',bestEndless); }
+      refreshHero();
       document.getElementById('ovStars').innerHTML=starsMarkup(starsFor(simTime));
-      document.getElementById('ovSub').textContent='Раунд '+endlessRound+' пройден за '+Math.round(simTime)+' с · Рекорд: '+bestEndless;
+      document.getElementById('ovSub').textContent='Раунд '+endlessRound+' пройден за '+Math.round(simTime)+' с · Рекорд: '+bestEndless+
+        (HLVL>prevH?' · 🦉 Филин — новый уровень!':'');
       addBtn(row,'Раунд '+(endlessRound+1),'primary',()=>loadEndless(endlessRound+1));
+      addBtn(row,'Поделиться','',shareResult);
       addBtn(row,'Заново','',()=>loadEndless(endlessRound));
     } else { document.getElementById('ovStars').innerHTML='';
       document.getElementById('ovSub').textContent='Это был раунд '+endlessRound+' · Рекорд: '+bestEndless;
@@ -619,12 +661,15 @@ function endGame(win){ ended=true; running=false;
   }
   if(win){ const s=starsFor(simTime);
     if((bestStars[mapIndex]|0)<s){ bestStars[mapIndex]=s; localStorage.setItem(STARS_KEY,JSON.stringify(bestStars)); }
+    refreshHero();
     document.getElementById('ovStars').innerHTML=starsMarkup(s);
     const next=mapIndex+1; if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
     document.getElementById('ovSub').textContent = 'Время: '+Math.round(simTime)+' с · '+
-      (next<MAPS.length?'Карта зачищена. Дальше?':'Все карты пройдены! 🏆');
+      (next<MAPS.length?'Карта зачищена. Дальше?':'Все карты пройдены! 🏆')+
+      (HLVL>prevH?' · 🦉 Филин — новый уровень!':'');
     if(next<MAPS.length) addBtn(row,'Следующая','primary',()=>loadMap(next));
     else addBtn(row,'∞ Бесконечный','primary',()=>loadEndless(1));
+    addBtn(row,'Поделиться','',shareResult);
     addBtn(row,'Заново','',()=>loadMap(mapIndex));
   } else { document.getElementById('ovStars').innerHTML='';
     document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
@@ -654,6 +699,12 @@ function syncVisuals(){
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }
   const c=counts(); document.getElementById('cntP').textContent=c.p; document.getElementById('cntE').textContent=c.e;
+  // кнопка «Рывок»
+  const rb=document.getElementById('rushBtn');
+  rb.style.display=(HLVL>=2 && !ended)?'block':'none';
+  if(rushT>0){ rb.className='rush on'; rb.textContent='⚡'; }
+  else if(rushCD>0){ rb.className='rush cd'; rb.textContent=Math.ceil(rushCD); }
+  else { rb.className='rush'; rb.textContent='⚡'; }
 }
 
 let flowTexes=[];
@@ -709,6 +760,8 @@ function bindInput(){
     downXY=null; });
   el.addEventListener('pointercancel',()=>{ drag=null; dragLine.visible=false; downXY=null; });
 
+  document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
+    rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };
   const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';
   sndBtn.onclick=()=>{ muted=!muted; localStorage.setItem('g_zahvat_mute',muted?'1':'0');
     sndBtn.textContent = muted?'🔇':'🔊'; if(!muted) sfx('step'); };
@@ -725,7 +778,27 @@ function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHT
   const inf=document.createElement('div'); inf.className='lvl inf';
   inf.innerHTML='<span>∞</span>'+(bestEndless?'<span class="st">рекорд '+bestEndless+'</span>':'');
   inf.onclick=()=>{ hideOverlay('ovMenu'); loadEndless(1); }; grid.appendChild(inf);
+  renderHero();
   document.getElementById('ovMenu').className='overlay show'; }
+
+function renderHero(){ refreshHero(); const t=totalStars();
+  let h='<div class="hh"><span style="font-size:22px">🦉</span> Филин · ур. '+HLVL+'<span class="hst">⭐ '+t+'</span></div>';
+  HERO_LEVELS.forEach((lv,i)=>{ const got=t>=lv.need;
+    h+='<div class="hrow'+(got?'':' locked')+'"><span>'+lv.icon+'</span><span>'+lv.name+'</span>'+
+       '<span class="hn">'+(got?'✓':'⭐ '+lv.need)+'</span></div>'; });
+  h+='<div class="hrow" style="color:var(--muted)">⭐ = сумма лучших звёзд за карты + рекорд ∞</div>';
+  document.getElementById('heroCard').innerHTML=h; }
+
+function shareResult(){
+  const url='https://lanashakh.github.io/igra-zahvat/';
+  const txt = endless
+    ? 'Захват: раунд '+endlessRound+' в бесконечном режиме! Сыграешь? '+url
+    : 'Захват: карта «'+curMap.name+'» за '+Math.round(simTime)+' с '+'★'.repeat(starsFor(simTime))+' Сыграешь? '+url;
+  if(navigator.share){ navigator.share({text:txt}).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(()=>{
+    const s=document.getElementById('ovSub'), old=s.textContent;
+    s.textContent='Скопировано — вставь другу в чат 😉'; setTimeout(()=>{ s.textContent=old; },1800); }).catch(()=>{}); }
+}
 
 function onResize(){ const aspect=innerWidth/innerHeight, vs=camViewSize();
   camera.left=-vs*aspect; camera.right=vs*aspect; camera.top=vs; camera.bottom=-vs; camera.updateProjectionMatrix();

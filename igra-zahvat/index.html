@@ -20,6 +20,8 @@
   .tlabel{ background:#fff; border:2.5px solid #888; border-radius:999px; color:#333;
     font-weight:800; font-size:14px; padding:1px 9px; transform:translate(-50%,-50%);
     box-shadow:0 3px 8px rgba(0,0,0,.25); white-space:nowrap; }
+  .tlabel.en{ border-radius:7px; }              /* врага отличает и форма, не только цвет */
+  .tlabel.nt{ border-style:dashed; }
 
   .hud{ position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:10px;
     padding:max(10px,env(safe-area-inset-top)) 14px 10px; z-index:10; }
@@ -52,6 +54,7 @@
   .lvl{width:56px;height:56px;border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.14);
     display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; cursor:pointer; color:var(--ink);}
   .lvl.locked{opacity:.35; cursor:default;} .lvl.done{border-color:#2bffb0; color:#2bffb0;}
+  .lvl.inf{border-color:#7c5cff; color:#cdbcff;}
   .ovh{font-size:13px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; font-weight:700;}
 
   .stars{font-size:30px; letter-spacing:5px; color:#ffd166; text-shadow:0 2px 12px rgba(255,209,102,.45); min-height:36px;}
@@ -185,7 +188,7 @@ const pointer=new THREE.Vector2();
 // ---------------- stars (1-3 за карту, по времени) ----------------
 const STARS_KEY='g_zahvat_stars';
 let bestStars={}; try{ bestStars=JSON.parse(localStorage.getItem(STARS_KEY)||'{}')||{}; }catch(e){ bestStars={}; }
-function starsFor(i,t){ const par=MAPS[i].par||60; return t<=par?3 : t<=par*1.8?2 : 1; }
+function starsFor(t){ const par=(curMap && curMap.par)||60; return t<=par?3 : t<=par*1.8?2 : 1; }
 function starsMarkup(s){ return [1,2,3].map(k=>`<span${k<=s?'':' class="off"'}>★</span>`).join(''); }
 
 // ---------------- sound (WebAudio, без ассетов) ----------------
@@ -208,6 +211,8 @@ function sfx(n){ if(muted || !audio()) return;
     case 'win':    [523,659,784,1047].forEach((f,i)=>tone(f,f,0.22,'triangle',0.18,i*0.13)); break;
     case 'lose':   [392,330,262,196].forEach((f,i)=>tone(f,f*0.94,0.30,'sine',0.14,i*0.16)); break;
   } }
+
+function buzz(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 
 // ---------------- confetti (победа) ----------------
 function confetti(){ const cv=$('confetti'), ctx=cv.getContext('2d');
@@ -348,10 +353,12 @@ function makeSky(cols){ cols=cols||['#d3ecf6','#bfe2f0','#a3cfe4'];
   x.fillStyle=g; x.fillRect(0,0,4,256);
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
 function makeStripeTexture(){
+  // шевроны остриём к верху канвы (v=1) — поток бежит от источника к цели
   const c=document.createElement('canvas'); c.width=16; c.height=64; const x=c.getContext('2d');
   x.clearRect(0,0,16,64);
-  x.fillStyle='rgba(255,255,255,0.9)';
-  for(let i=0;i<2;i++){ const y=i*32; x.beginPath(); x.moveTo(2,y+6); x.lineTo(14,y+16); x.lineTo(2,y+26); x.lineTo(2,y+20); x.lineTo(9,y+16); x.lineTo(2,y+12); x.closePath(); x.fill(); }
+  x.fillStyle='#fff';
+  for(let i=0;i<2;i++){ const y=i*32;
+    x.beginPath(); x.moveTo(2,y+20); x.lineTo(8,y+8); x.lineTo(14,y+20); x.lineTo(14,y+27); x.lineTo(8,y+15); x.lineTo(2,y+27); x.closePath(); x.fill(); }
   const t=new THREE.CanvasTexture(c); t.wrapS=THREE.RepeatWrapping; t.wrapT=THREE.RepeatWrapping; return t;
 }
 
@@ -433,8 +440,34 @@ function genDecor(seed,b){ const rng=mulberry32(seed*131+7), out=[];
 let nodeGroup=null, decorGroup=null, soldierGroup=null, linkGroup=null;
 function clearGroup(g){ if(!g) return; while(g.children.length) g.remove(g.children[0]); }
 
-function loadMap(i){
-  mapIndex=i; const m=MAPS[i];
+// ---------------- бесконечный режим: карты по правилам ----------------
+let curMap=null, endless=false, endlessRound=1,
+    bestEndless=+(localStorage.getItem('g_zahvat_endless')||0);
+function genEndless(r){
+  const rng=mulberry32(r*7919+13);
+  const bioKeys=Object.keys(BIOMES), biome=bioKeys[(r-1)%bioKeys.length];
+  const nodes=[ {x:.12,y:.5,o:1,t:24,l:1},
+                {x:.88,y:.5,o:2,t:Math.min(60,22+r*3),l:r>=5?2:1} ];
+  const pts=[{x:.12,y:.5},{x:.88,y:.5}];
+  const far=(x,y)=>pts.every(p=>Math.hypot((x-p.x)*12.6,(y-p.y)*8.4)>=2.3);
+  const pairs=Math.min(5,1+Math.ceil(r/2));   // нейтралы зеркальными парами — честный старт
+  for(let k=0;k<pairs;k++){
+    let x,y,tries=0;
+    do{ x=.2+rng()*.6; y=.14+rng()*.72; tries++; }
+    while(tries<80 && !(far(x,y) && far(1-x,1-y) && Math.hypot((2*x-1)*12.6,(2*y-1)*8.4)>=2.3));
+    if(tries>=80) continue;
+    const t=8+((rng()*10)|0), l=(r>=4 && rng()<0.3)?2:1;
+    nodes.push({x,y,o:0,t,l});         pts.push({x,y});
+    nodes.push({x:1-x,y:1-y,o:0,t,l}); pts.push({x:1-x,y:1-y});
+  }
+  if(rng()<0.5 && far(.5,.5)) nodes.push({x:.5,y:.5,o:0,t:14+((rng()*8)|0),l:1});
+  return { name:'Раунд '+r, biome, par:60+nodes.length*9, aggro:Math.min(0.85,0.38+r*0.05), nodes };
+}
+function loadMap(i){ endless=false; mapIndex=i; startMap(MAPS[i], i, (i+1)+'. '+MAPS[i].name); }
+function loadEndless(r){ endless=true; endlessRound=r; startMap(genEndless(r), 100+r, '∞ Раунд '+r); }
+
+function startMap(m, seed, label){
+  curMap=m;
   // reset groups
   if(nodeGroup) scene.remove(nodeGroup); if(decorGroup) scene.remove(decorGroup);
   if(soldierGroup) scene.remove(soldierGroup); if(linkGroup) scene.remove(linkGroup);
@@ -450,14 +483,14 @@ function loadMap(i){
     return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, view:null, lr:-1, or:-1 }; });
   links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1; simTime=0;
   document.getElementById('speedBtn').textContent='×1';
-  document.getElementById('mapName').textContent=(i+1)+'. '+m.name+' · '+biome.label;
+  document.getElementById('mapName').textContent=label+' · '+biome.label;
   hideOverlay('ovEnd'); hideOverlay('ovMenu');
-  if(i===0 && !localStorage.getItem(TUT_KEY)){ tutStep=0; tutShow(); }
+  if(!endless && mapIndex===0 && !localStorage.getItem(TUT_KEY)){ tutStep=0; tutShow(); }
   else { tutStep=-1; tutHide(); }
-  document.getElementById('hint').style.opacity = (i===0 && tutStep<0)?'1':'0';
+  document.getElementById('hint').style.opacity = (!endless && mapIndex===0 && tutStep<0)?'1':'0';
 
   // decor
-  decor=genDecor(i,biome);
+  decor=genDecor(seed,biome);
   for(const d of decor){ const src=MODELS[d.type]; const o=src.clone(true);
     o.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
     o.position.set(d.x,GROUND_TOP,d.z); o.rotation.y=d.rot; o.scale.setScalar(d.s);
@@ -470,8 +503,8 @@ const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group); }
   const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.0);
-  // team ring on the ground (ownership)
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.085,12,40).rotateX(Math.PI/2),
+  // team ring on the ground (ownership); у врага — шестигранник (форма, не только цвет)
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.085,12,n.o===2?6:40).rotateX(Math.PI/2),
     new THREE.MeshStandardMaterial({ color:SOLID[n.o], emissive:SOLID[n.o], emissiveIntensity:0.5, roughness:0.5 }));
   ring.position.y=0.05; group.add(ring);
   // TD-kit tower model, grows by level (b->c->d->f)
@@ -486,7 +519,7 @@ function buildTower(n){
   const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,2.2,12), new THREE.MeshBasicMaterial({visible:false}));
   pick.position.y=1.1; pick.userData.nodeId=n.id; group.add(pick);
   // number label
-  const div=document.createElement('div'); div.className='tlabel';
+  const div=document.createElement('div'); div.className='tlabel'+(n.o===2?' en':n.o===0?' nt':'');
   const label=new CSS2DObject(div); label.position.set(0, 2.0, 0); group.add(label);
   nodeGroup.add(group);
   n.view={group, div, label}; n.lr=n.l; n.or=n.o;
@@ -506,7 +539,7 @@ function applyArrival(node, owner){
   if(node.o===owner){ node.t+=1; }
   else { node.atk=0.6; node.t-=1; if(node.t<=0){ const prev=node.o;
     node.o=owner; node.t=-node.t; node.atk=0; removeLinksFrom(node.id);
-    if(owner===1) sfx('cap'); else if(prev===1) sfx('lost'); } }
+    if(owner===1){ sfx('cap'); buzz(30); } else if(prev===1){ sfx('lost'); buzz([40,40,40]); } } }
 }
 
 function step(dt){
@@ -534,8 +567,18 @@ function step(dt){
 }
 
 function botThink(){
-  const aggro=MAPS[mapIndex].aggro, mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
+  const aggro=curMap.aggro, mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
   for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
+  // защита: соседи подкрепляют свою башню под атакой
+  for(const n of mine){
+    const threat=soldiers.filter(s=>s.o===1 && s.tid===n.id).length;
+    if(threat<3 && n.atk<=0) continue;
+    for(const src of mine){ if(src===n || src.t<12) continue;
+      if(Math.hypot(src.x-n.x,src.z-n.z)>8) continue;
+      if(findLink(src.id,n.id)) continue;
+      if(links.filter(L=>L.from===src.id).length>=linkCap(src)) continue;
+      links.push({from:src.id,to:n.id,o:2,accum:0}); break; }
+  }
   const sorted=[...mine].sort((a,b)=>b.t-a.t);
   for(const src of sorted){
     if(src.t<10) continue;
@@ -558,17 +601,30 @@ function checkEnd(){ if(ended) return; const {p,e}=counts();
   if(e===0 && !eS) endGame(true); else if(p===0 && !pS) endGame(false); }
 function endGame(win){ ended=true; running=false;
   if(tutStep>=0){ tutHide(); if(win){ localStorage.setItem(TUT_KEY,'1'); tutStep=-1; } }
-  sfx(win?'win':'lose'); if(win) confetti();
+  sfx(win?'win':'lose'); buzz(win?[60,50,60,50,120]:180); if(win) confetti();
   const ov=document.getElementById('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
   document.getElementById('ovTitle').textContent = win?'Победа! 🎉':'Поражение';
   const row=document.getElementById('ovRow'); row.innerHTML='';
-  if(win){ const s=starsFor(mapIndex,simTime);
+  if(endless){
+    if(win){ if(endlessRound>bestEndless){ bestEndless=endlessRound; localStorage.setItem('g_zahvat_endless',bestEndless); }
+      document.getElementById('ovStars').innerHTML=starsMarkup(starsFor(simTime));
+      document.getElementById('ovSub').textContent='Раунд '+endlessRound+' пройден за '+Math.round(simTime)+' с · Рекорд: '+bestEndless;
+      addBtn(row,'Раунд '+(endlessRound+1),'primary',()=>loadEndless(endlessRound+1));
+      addBtn(row,'Заново','',()=>loadEndless(endlessRound));
+    } else { document.getElementById('ovStars').innerHTML='';
+      document.getElementById('ovSub').textContent='Это был раунд '+endlessRound+' · Рекорд: '+bestEndless;
+      addBtn(row,'Ещё раз','primary',()=>loadEndless(endlessRound));
+      addBtn(row,'С начала','',()=>loadEndless(1)); }
+    return;
+  }
+  if(win){ const s=starsFor(simTime);
     if((bestStars[mapIndex]|0)<s){ bestStars[mapIndex]=s; localStorage.setItem(STARS_KEY,JSON.stringify(bestStars)); }
     document.getElementById('ovStars').innerHTML=starsMarkup(s);
     const next=mapIndex+1; if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
     document.getElementById('ovSub').textContent = 'Время: '+Math.round(simTime)+' с · '+
       (next<MAPS.length?'Карта зачищена. Дальше?':'Все карты пройдены! 🏆');
     if(next<MAPS.length) addBtn(row,'Следующая','primary',()=>loadMap(next));
+    else addBtn(row,'∞ Бесконечный','primary',()=>loadEndless(1));
     addBtn(row,'Заново','',()=>loadMap(mapIndex));
   } else { document.getElementById('ovStars').innerHTML='';
     document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
@@ -593,15 +649,17 @@ function syncVisuals(){
   for(const s of soldiers){ if(!s.mesh){ s.mesh=new THREE.Mesh(
       new THREE.SphereGeometry(0.19,12,10), new THREE.MeshStandardMaterial({color:SOLID[s.o], roughness:0.4, emissive:SOLID[s.o], emissiveIntensity:0.15}));
       s.mesh.castShadow=true; soldierGroup.add(s.mesh); }
-    s.mesh.position.set(s.x, GROUND_TOP+0.32, s.z); }
+    s.mesh.position.set(s.x, GROUND_TOP+0.32+Math.sin(performance.now()*0.012+(s.x+s.z)*3)*0.07, s.z); }
   // links — rebuild ribbon meshes when set changes
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }
   const c=counts(); document.getElementById('cntP').textContent=c.p; document.getElementById('cntE').textContent=c.e;
 }
 
+let flowTexes=[];
 function rebuildLinks(){
   clearGroup(linkGroup);
+  flowTexes.forEach(t=>t.dispose()); flowTexes=[];
   const up=new THREE.Vector3(0,1,0);
   for(const L of links){ const a=nodes[L.from], b=nodes[L.to];
     const A=new THREE.Vector3(a.x,GROUND_TOP+0.22,a.z), B=new THREE.Vector3(b.x,GROUND_TOP+0.22,b.z);
@@ -614,6 +672,12 @@ function rebuildLinks(){
     tube.quaternion.setFromUnitVectors(up, seg.clone().normalize());
     tube.position.copy(start).add(end).multiplyScalar(0.5);
     tube.userData.link=L; linkGroup.add(tube);
+    // бегущие шевроны — видно направление потока
+    const ftex=stripeTex.clone(); ftex.needsUpdate=true; ftex.repeat.set(1, Math.max(1,Math.round(L2/1.1)));
+    const over=new THREE.Mesh(new THREE.CylinderGeometry(0.165,0.165,L2,12,1,true),
+      new THREE.MeshBasicMaterial({ color:0xffffff, alphaMap:ftex, transparent:true, opacity:0.85, depthWrite:false }));
+    over.quaternion.copy(tube.quaternion); over.position.copy(tube.position);
+    over.userData.link=L; linkGroup.add(over); flowTexes.push(ftex);
     const cone=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.5,14), mat);
     cone.quaternion.setFromUnitVectors(up, u); cone.position.copy(end); cone.userData.link=L; linkGroup.add(cone);
   }
@@ -658,6 +722,9 @@ function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHT
     el.className='lvl'+(locked?' locked':'')+(i<progress?' done':'');
     el.innerHTML='<span>'+(i+1)+'</span>'+(bestStars[i]?'<span class="st">'+starsMarkup(bestStars[i])+'</span>':'');
     if(!locked) el.onclick=()=>{ hideOverlay('ovMenu'); loadMap(i); }; grid.appendChild(el); });
+  const inf=document.createElement('div'); inf.className='lvl inf';
+  inf.innerHTML='<span>∞</span>'+(bestEndless?'<span class="st">рекорд '+bestEndless+'</span>':'');
+  inf.onclick=()=>{ hideOverlay('ovMenu'); loadEndless(1); }; grid.appendChild(inf);
   document.getElementById('ovMenu').className='overlay show'; }
 
 function onResize(){ const aspect=innerWidth/innerHeight, vs=camViewSize();
@@ -671,7 +738,7 @@ let last=performance.now();
 function frame(){
   const now=performance.now(); let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
   if(running && !ended) step(dt*speed);
-  stripeTex.offset.y = (stripeTex.offset.y - dt*0.9) % 1;
+  for(const t of flowTexes) t.offset.y = (t.offset.y - dt*1.5) % 1;
   syncVisuals();
   if(composer) composer.render(); else renderer.render(scene,camera);
   labelRenderer.render(scene,camera);

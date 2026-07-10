@@ -611,7 +611,8 @@ function chooseShow(card,el,target){
   }else{
     target.box=Math.max(0,target.box-1); save();
     el.classList.add('wrong'); sndWrong(); showHint.textContent='🔊 Послушай ещё раз';
-    setTimeout(()=>el.classList.remove('wrong'),500); setTimeout(()=>playCard(target),550);
+    setTimeout(()=>el.classList.remove('wrong'),500);
+    setTimeout(()=>say('Послушай ещё раз.'),450); setTimeout(()=>playCard(target),2000);
   }
 }
 speakBtn.onclick=()=>{ if(curShow){ speakBtn.classList.remove('pulse'); playCard(curShow); } };

@@ -147,14 +147,6 @@
   .key.ok { background:#2ecc71; box-shadow:0 5px 0 #27ae60; }
   .key.del { background:#ff9f1c; box-shadow:0 5px 0 #c77f00; }
 
-  .next-wrap { margin-top:14px; }
-  .next-btn {
-    width:100%; background:linear-gradient(90deg,#4361ee,#38ef7d); color:#fff; border:none;
-    border-radius:18px; padding:15px; font-size:22px; font-family:inherit; font-weight:bold;
-    cursor:pointer; box-shadow:0 5px 0 #2a3eaa; animation: glow 1.2s ease-in-out infinite;
-  }
-  .next-btn:active { transform:translateY(3px); box-shadow:0 2px 0 #2a3eaa; }
-
   .medal { text-align:center; font-size: 84px; margin: 2px 0; animation: bounce 1s infinite; }
   @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-13px)} }
   .result-text { text-align: center; font-size: 19px; margin-bottom: 6px; }
@@ -362,8 +354,6 @@
     50%     { box-shadow:0 6px 0 #2a3eaa, 0 0 0 13px rgba(67,97,238,0); }
   }
   .play-btn:active { animation:none; }
-  .voice-pick { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:14px; font-weight:700; color:#4a4a6a; }
-  .voice-pick select { flex:1; font-family:inherit; font-size:14px; font-weight:700; color:#3046b5; background:#eef2ff; border:2px solid #b9c5ff; border-radius:12px; padding:8px 10px; }
 </style>
 </head>
 <body>
@@ -853,7 +843,7 @@
   var save  = { total:0, wallet:0, hints:0, pieces:0, robotIndex:0, gallery:[],
                 mascot:"🤖", mascots:["🤖"], games:[], bestLadder:0, stats:{ solved:0, correct:0, wrong:0 },
                 theme:"space", themes:["space"], powerups:{ x2:0, shield:0, skip:0 },
-                daily:{ day:"", streak:0, solved:0, goalReached:false, giftClaimed:false }, storyRead:[], voice:true, voiceName:"" };
+                daily:{ day:"", streak:0, solved:0, goalReached:false, giftClaimed:false }, storyRead:[], voice:true };
   var skill = { 10:1, 20:1, 100:1 };
   function loadSave(){
     try {
@@ -877,7 +867,6 @@
       var dl=localStorage.getItem("robomath_daily"); if(dl){ var do2=JSON.parse(dl)||{}; save.daily.day=do2.day||""; save.daily.streak=do2.streak||0; save.daily.solved=do2.solved||0; save.daily.goalReached=!!do2.goalReached; save.daily.giftClaimed=!!do2.giftClaimed; }
       var sr=localStorage.getItem("robomath_story"); if(sr){ var sa=JSON.parse(sr); if(Array.isArray(sa)) save.storyRead=sa; }
       var vo=localStorage.getItem("robomath_voice"); if(vo!==null) save.voice = (vo==="1");
-      var vn=localStorage.getItem("robomath_voicename"); if(vn!==null) save.voiceName = vn;
     } catch(e){}
   }
   function persist(){
@@ -900,7 +889,6 @@
       localStorage.setItem("robomath_daily", JSON.stringify(save.daily));
       localStorage.setItem("robomath_story", JSON.stringify(save.storyRead));
       localStorage.setItem("robomath_voice", save.voice ? "1" : "0");
-      localStorage.setItem("robomath_voicename", save.voiceName || "");
     } catch(e){}
   }
   function levelOf(s){ return Math.floor(s/STARS_PER_LEVEL)+1; }
@@ -923,7 +911,7 @@
       el("goalTeaser").textContent = homeTeaser();
     }
     if (el("homeBubble")) el("homeBubble").textContent = homeGuideLine();
-    updateVoiceButtons(); populateVoiceSelect();
+    updateVoiceButtons();
     el("sk10").textContent  = "· ступень "+skill[10]+"/"+MAXSKILL;
     el("sk20").textContent  = "· ступень "+skill[20]+"/"+MAXSKILL;
     el("sk100").textContent = "· ступень "+skill[100]+"/"+MAXSKILL;
@@ -1000,7 +988,6 @@
                             : { day:"", streak:0, solved:0, goalReached:false, giftClaimed:false };
           save.storyRead  = Array.isArray(d.save.storyRead) ? d.save.storyRead : [];
           save.voice      = (d.save.voice !== false);
-          save.voiceName  = d.save.voiceName || "";
         }
         if (d && d.skill){
           skill[10]  = parseInt(d.skill[10],10)  || 1;
@@ -1040,62 +1027,6 @@
   function soundWin(){ var n=[523.25,659.25,783.99,1046.5]; n.forEach(function(f,i){ tone(f,i*0.14,0.32,0.30,"triangle"); }); tone(1046.5,0.62,0.5,0.26,"sine"); }
   function soundChime(){ tone(1318.5,0,0.5,0.22,"sine"); tone(1760,0.08,0.5,0.20,"sine"); tone(2093,0.16,0.6,0.20,"sine"); }
   function soundClick(){ tone(587.33,0,0.07,0.18,"sine"); }
-
-  // ---------- ГОЛОС РОБОТА (синтез речи) ----------
-  var ruVoice = null, allVoices = [], ruVoices = [];
-  function rankVoice(v){
-    var n = (v.name || "").toLowerCase(); var s = 0;
-    if (/natural|neural/.test(n)) s += 100;   // нейросетевые — самые приятные
-    if (/google/.test(n)) s += 80;            // Google-голоса — хорошие
-    if (/(milena|alena|alyona|svetlana|tatyana|tatiana|katja|dariya|maxim|yuri|pavel|alice|алис)/.test(n)) s += 40;
-    if (/irina|microsoft/.test(n)) s += 5;    // старые системные — в последнюю очередь
-    if (v.localService === false) s += 8;      // онлайн-голоса обычно лучше
-    return s;
-  }
-  function refreshVoices(){
-    if (!('speechSynthesis' in window)) return;
-    allVoices = window.speechSynthesis.getVoices() || [];
-    ruVoices = allVoices.filter(function(v){ return /^ru/i.test(v.lang); });
-    ruVoices.sort(function(a,b){ return rankVoice(b) - rankVoice(a); });
-    ruVoice = ruVoices[0] || null;
-    populateVoiceSelect();
-  }
-  if ('speechSynthesis' in window){
-    refreshVoices();
-    window.speechSynthesis.onvoiceschanged = refreshVoices;
-  }
-  function chosenVoice(){
-    if (save.voiceName){
-      for (var i=0;i<allVoices.length;i++){ if (allVoices[i].name === save.voiceName) return allVoices[i]; }
-    }
-    return ruVoice;
-  }
-  function speak(text){
-    if (!save.voice || !text) return;
-    if (!('speechSynthesis' in window)) return;
-    text = String(text).replace(/[^0-9A-Za-zА-Яа-яЁё \-,.!?]/g, " ").replace(/\s+/g, " ").trim();
-    if (!text) return;
-    try {
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
-      u.lang = "ru-RU"; u.rate = 0.95; u.pitch = 1.0;
-      var v = chosenVoice(); if (v) u.voice = v;
-      window.speechSynthesis.speak(u);
-    } catch(e){}
-  }
-  function populateVoiceSelect(){
-    var sel = el("voiceSelect"); if (!sel) return;
-    var cur = save.voiceName || "";
-    var html = '<option value="">Авто (лучший)</option>';
-    ruVoices.forEach(function(v){
-      html += '<option value="'+v.name.replace(/"/g,'')+'"'+(v.name===cur?' selected':'')+'>'+v.name+'</option>';
-    });
-    sel.innerHTML = html;
-  }
-  function speakQuestion(q){
-    var w = (q.sign === "+") ? " плюс " : " минус ";
-    speak("Сколько будет " + q.a + w + q.b + "?");
-  }
 
   // ---------- ГОТОВАЯ ОЗВУЧКА (записанный голос) ----------
   var VOICE_BASE = "voices_pack/";

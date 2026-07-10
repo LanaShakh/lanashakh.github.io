@@ -54,6 +54,22 @@
   .lvl.locked{opacity:.35; cursor:default;} .lvl.done{border-color:#2bffb0; color:#2bffb0;}
   .ovh{font-size:13px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; font-weight:700;}
 
+  .stars{font-size:30px; letter-spacing:5px; color:#ffd166; text-shadow:0 2px 12px rgba(255,209,102,.45); min-height:36px;}
+  .stars .off{color:rgba(255,255,255,.22); text-shadow:none;}
+  .lvl{flex-direction:column; gap:2px;}
+  .lvl .st{font-size:10px; color:#ffd166; letter-spacing:1px; line-height:1; font-weight:400;}
+  .lvl .st .off{color:rgba(255,255,255,.22);}
+
+  .tut{position:fixed; left:50%; transform:translateX(-50%); bottom:16px; z-index:12; display:none; align-items:center; gap:11px;
+    background:rgba(15,18,38,.8); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(8px);
+    border-radius:16px; padding:11px 15px; max-width:min(92%,430px); box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .tut.show{display:flex; animation:tutIn .35s ease;}
+  @keyframes tutIn{from{opacity:0; transform:translate(-50%,10px);} to{opacity:1; transform:translate(-50%,0);}}
+  .tut .ava{font-size:28px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));}
+  .tut .txt{font-size:13.5px; line-height:1.45; color:#eaf0ff;}
+  .tut .txt b{color:#ffd166;}
+  #confetti{position:fixed; inset:0; z-index:35; pointer-events:none;}
+
   #loading{ position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
     background:linear-gradient(160deg,#0f1226,#171a3a); color:#cfe0ff; }
   .spinner{width:42px;height:42px;border-radius:50%;border:4px solid rgba(255,255,255,.18); border-top-color:#7c5cff; animation:spin 1s linear infinite;}
@@ -71,13 +87,17 @@
     <div class="counts">
       <div class="pill"><span class="dot p"></span><span id="cntP">0</span></div>
       <div class="pill"><span class="dot e"></span><span id="cntE">0</span></div>
+      <button class="iconbtn" id="sndBtn">🔊</button>
       <button class="iconbtn" id="speedBtn">×1</button>
       <button class="iconbtn" id="menuBtn">☰</button>
     </div>
   </div>
   <div class="hint" id="hint">Тяни от своей башни к другой — создать связь. Убрать: тапни по линии.</div>
 
-  <div class="overlay" id="ovEnd"><div class="big" id="ovTitle"></div><div class="sub" id="ovSub"></div><div class="row" id="ovRow"></div></div>
+  <div class="tut" id="tut"><div class="ava">🦉</div><div class="txt" id="tutTxt"></div></div>
+  <canvas id="confetti"></canvas>
+
+  <div class="overlay" id="ovEnd"><div class="big" id="ovTitle"></div><div class="stars" id="ovStars"></div><div class="sub" id="ovSub"></div><div class="row" id="ovRow"></div></div>
   <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div><div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
 
   <div id="loading"><div class="spinner"></div><div>Загружаем 3D-мир…</div><div id="err"></div></div>
@@ -114,24 +134,40 @@ const TINT= { 0:0xffffff, 1:0xd2e2ff, 2:0xffd6dc };        // (unused now) gentl
 const CSS = { 0:'#64748b', 1:'#3b82f6', 2:'#ef4444' };
 const STORE='g_zahvat_progress';
 
+// biomes: 1 движок → много миров (см. /igra-zahvat/plan/, раздел 1)
+const BIOMES = {
+  meadow:{ label:'🌿 Луга', ground:0x77c24e, pA:0x5fae4e, pB:0x7cca64, sky:['#d3ecf6','#bfe2f0','#a3cfe4'], fog:0xc7e6f2,
+    groves:10, trees:['tree','tree2','tree3','pine'], bushes:30, grassN:52, flowersN:40, rocksN:12, mushN:6, logsN:4 },
+  sparse:{ label:'⛰ Редколесье', ground:0x8dbb58, pA:0x79a84c, pB:0x9cc768, sky:['#d9f0f8','#c8e6f2','#b0d6e8'], fog:0xd0e8f0,
+    groves:7, trees:['tree2','pine','pine2'], bushes:20, grassN:44, flowersN:16, rocksN:30, mushN:4, logsN:8 },
+  autumn:{ label:'🍂 Осенний лес', ground:0x9caf4b, pA:0x88a03f, pB:0xb0bf5b, sky:['#f6e8cf','#ecdabd','#d9c5a4'], fog:0xe8dcc0,
+    groves:15, trees:['treeF','tree2F','tree3F','tree'], bushes:26, grassN:38, flowersN:14, rocksN:14, mushN:16, logsN:10, mush:'mushT' },
+  pines:{ label:'🌲 Сосновый бор', ground:0x5da354, pA:0x4c9147, pB:0x6cb463, sky:['#cfe6f2','#b8d8ea','#9cc4dc'], fog:0xbfdfe8,
+    groves:16, trees:['pine','pine2','pine3'], bushes:20, grassN:34, flowersN:10, rocksN:22, mushN:12, logsN:10 },
+  thicket:{ label:'🌳 Густая чаща', ground:0x4f9c45, pA:0x428c3a, pB:0x5fae4e, sky:['#d0ecdc','#bce0cc','#a2ceb6'], fog:0xbcdcc8,
+    groves:20, trees:['tree','tree2','tree3','pine2'], bushes:34, grassN:44, flowersN:12, rocksN:12, mushN:14, logsN:12 },
+  golden:{ label:'🍁 Золотая долина', ground:0xa8b854, pA:0x93a648, pB:0xbcc964, sky:['#f6eed2','#eadfb8','#d7c99a'], fog:0xe6dab4,
+    groves:9, trees:['treeF','tree3F','tree2'], bushes:24, grassN:46, flowersN:30, rocksN:14, mushN:8, logsN:6, mush:'mushT' },
+};
+
 const MAPS = [
-  { name:'Первый контакт', aggro:0.35, nodes:[
+  { name:'Первый контакт', biome:'meadow', par:45, aggro:0.35, nodes:[
     {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
     {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
-  { name:'Перекрёсток', aggro:0.45, nodes:[
+  { name:'Перекрёсток', biome:'sparse', par:75, aggro:0.45, nodes:[
     {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},{x:.5,y:.5,o:0,t:16,l:1},
     {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},{x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
-  { name:'Клин', aggro:0.5, nodes:[
+  { name:'Клин', biome:'autumn', par:85, aggro:0.5, nodes:[
     {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
     {x:.87,y:.3,o:2,t:24,l:1},{x:.87,y:.7,o:2,t:24,l:1},
     {x:.5,y:.5,o:0,t:18,l:1},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
-  { name:'Окружение', aggro:0.55, nodes:[
+  { name:'Окружение', biome:'pines', par:95, aggro:0.55, nodes:[
     {x:.5,y:.5,o:1,t:28,l:1},{x:.5,y:.16,o:0,t:12,l:1},{x:.5,y:.84,o:0,t:12,l:1},
     {x:.2,y:.3,o:2,t:22,l:1},{x:.2,y:.7,o:0,t:12,l:1},{x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:22,l:1} ] },
-  { name:'Две крепости', aggro:0.6, nodes:[
+  { name:'Две крепости', biome:'thicket', par:110, aggro:0.6, nodes:[
     {x:.15,y:.5,o:1,t:30,l:2},{x:.85,y:.5,o:2,t:34,l:2},
     {x:.4,y:.3,o:0,t:14,l:1},{x:.6,y:.7,o:0,t:14,l:1},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
-  { name:'Архипелаг', aggro:0.68, nodes:[
+  { name:'Архипелаг', biome:'golden', par:130, aggro:0.68, nodes:[
     {x:.1,y:.5,o:1,t:24,l:1},{x:.9,y:.2,o:2,t:22,l:1},{x:.9,y:.8,o:2,t:22,l:1},
     {x:.35,y:.2,o:0,t:10,l:1},{x:.35,y:.8,o:0,t:10,l:1},{x:.55,y:.5,o:0,t:16,l:1},
     {x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},{x:.5,y:.15,o:0,t:9,l:1},{x:.5,y:.85,o:0,t:9,l:1} ] },
@@ -143,8 +179,73 @@ let composer=null, bloomPass=null, gtaoPass=null;
 let MODELS={}, GROUND_TOP=0, stripeTex;
 let nodes=[], links=[], soldiers=[], decor=[];
 let mapIndex=0, running=true, ended=false, speed=1, botTimer=0, progress=+(localStorage.getItem(STORE)||0);
-let drag=null, dragLine=null, linkSig='';
+let drag=null, dragLine=null, linkSig='', simTime=0;
 const pointer=new THREE.Vector2();
+
+// ---------------- stars (1-3 за карту, по времени) ----------------
+const STARS_KEY='g_zahvat_stars';
+let bestStars={}; try{ bestStars=JSON.parse(localStorage.getItem(STARS_KEY)||'{}')||{}; }catch(e){ bestStars={}; }
+function starsFor(i,t){ const par=MAPS[i].par||60; return t<=par?3 : t<=par*1.8?2 : 1; }
+function starsMarkup(s){ return [1,2,3].map(k=>`<span${k<=s?'':' class="off"'}>★</span>`).join(''); }
+
+// ---------------- sound (WebAudio, без ассетов) ----------------
+let AC=null, muted = localStorage.getItem('g_zahvat_mute')==='1';
+function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(AC && AC.state==='suspended') AC.resume(); return AC; }
+function tone(f0,f1,dur,type,vol,at){ const a=AC; if(!a) return;
+  const t=a.currentTime+(at||0); const o=a.createOscillator(), g=a.createGain();
+  o.type=type||'sine'; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(30,f1||f0),t+dur);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol||0.18,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+0.05); }
+function sfx(n){ if(muted || !audio()) return;
+  switch(n){
+    case 'link':   tone(340,660,0.12,'sine',0.15); break;
+    case 'unlink': tone(520,240,0.14,'sine',0.12); break;
+    case 'step':   tone(660,880,0.10,'sine',0.10); break;
+    case 'cap':    tone(392,392,0.10,'triangle',0.2); tone(523,523,0.12,'triangle',0.2,0.09); tone(659,659,0.16,'triangle',0.2,0.18); break;
+    case 'lost':   tone(392,180,0.30,'sawtooth',0.07); break;
+    case 'lvl':    tone(523,523,0.08,'square',0.05); tone(659,659,0.08,'square',0.05,0.07); tone(784,784,0.12,'square',0.05,0.14); break;
+    case 'win':    [523,659,784,1047].forEach((f,i)=>tone(f,f,0.22,'triangle',0.18,i*0.13)); break;
+    case 'lose':   [392,330,262,196].forEach((f,i)=>tone(f,f*0.94,0.30,'sine',0.14,i*0.16)); break;
+  } }
+
+// ---------------- confetti (победа) ----------------
+function confetti(){ const cv=$('confetti'), ctx=cv.getContext('2d');
+  cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#ffd166','#21d4fd','#2bffb0','#7c5cff','#ff5c72','#ffffff'], P=[];
+  for(let i=0;i<150;i++) P.push({ x:innerWidth/2+(Math.random()-0.5)*140, y:innerHeight*0.34,
+    vx:(Math.random()-0.5)*9, vy:-4-Math.random()*7, r:3+Math.random()*4,
+    c:cols[(Math.random()*cols.length)|0], a:Math.random()*6.28, va:(Math.random()-0.5)*0.3 });
+  const t0=performance.now();
+  (function tick(){ const el=(performance.now()-t0)/1000; ctx.clearRect(0,0,cv.width,cv.height);
+    if(el>=2.8) return;
+    for(const p of P){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.25; p.a+=p.va;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a); ctx.globalAlpha=Math.max(0,1-el/2.6);
+      ctx.fillStyle=p.c; ctx.fillRect(-p.r,-p.r*0.6,p.r*2,p.r*1.2); ctx.restore(); }
+    requestAnimationFrame(tick); })(); }
+
+// ---------------- туториал: ведёт комендант Филин 🦉 ----------------
+const TUT_KEY='g_zahvat_tut';
+let tutStep=-1;
+const TUT_STEPS=[
+  { txt:'Привет! Я <b>комендант Филин</b>. Потяни пальцем линию от <b>синей</b> башни к серой — отправим войска!',
+    done:()=>links.some(L=>L.o===1) },
+  { txt:'Пошли! Когда у серой башни кончатся защитники — она станет нашей. Подожди чуть-чуть…',
+    done:()=>nodes.filter(n=>n.o===1).length>=2 },
+  { txt:'Отлично! 🎉 Пока башня ни с кем не воюет, войска в ней растут. Захвати и вторую серую башню.',
+    done:()=>nodes.filter(n=>n.o===1).length>=3 },
+  { txt:'Когда войск много — башня растёт в уровне и держит больше связей. Теперь тяни линию к <b>красной</b> башне!',
+    done:()=>links.some(L=>L.o===1 && nodes[L.to] && nodes[L.to].o===2) },
+  { txt:'В атаку! Захвати все красные башни — и карта наша. ⚔️ Лишнюю связь можно убрать: тапни по линии.',
+    done:()=>false },
+];
+function tutShow(){ const el=$('tut'); el.classList.remove('show'); void el.offsetWidth;
+  el.classList.add('show'); $('tutTxt').innerHTML=TUT_STEPS[tutStep].txt; }
+function tutHide(){ $('tut').classList.remove('show'); }
+function tutTick(){ if(tutStep<0) return;
+  if(TUT_STEPS[tutStep].done()){ tutStep++;
+    if(tutStep>=TUT_STEPS.length){ tutStep=-1; tutHide(); }
+    else { sfx('step'); tutShow(); } } }
 
 const cap=n=>CAP_BASE*n.l, prod=n=>PROD_BASE*n.l;
 function linkCap(n){ return n.l>=3 ? 4 : n.l; }   // L1=1, L2=2, L3=4, L4=4 outgoing links
@@ -200,6 +301,8 @@ async function init(){
   const names = {
     tb:'td/tower-round-build-b.glb', tc:'td/tower-round-build-c.glb', td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb',
     tree:'nat/tree_oak.glb', tree2:'nat/tree_default.glb', tree3:'nat/tree_fat.glb', pine:'nat/tree_pineRoundA.glb', pine2:'nat/tree_pineDefaultA.glb',
+    pine3:'nat/tree_pineRoundC.glb', treeF:'nat/tree_oak_fall.glb', tree2F:'nat/tree_default_fall.glb', tree3F:'nat/tree_fat_fall.glb',
+    mushT:'nat/mushroom_tanGroup.glb', logD:'nat/log.glb', stump:'nat/stump_old.glb',
     bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb', grass:'nat/grass.glb', grassL:'nat/grass_large.glb',
     fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb', fP:'nat/flower_purpleB.glb',
     rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb',
@@ -238,9 +341,10 @@ function setupPost(){
   }catch(e){ console.warn('post off',e); composer=null; }
 }
 
-function makeSky(){ const c=document.createElement('canvas'); c.width=4; c.height=256; const x=c.getContext('2d');
+function makeSky(cols){ cols=cols||['#d3ecf6','#bfe2f0','#a3cfe4'];
+  const c=document.createElement('canvas'); c.width=4; c.height=256; const x=c.getContext('2d');
   const g=x.createLinearGradient(0,0,0,256);
-  g.addColorStop(0,'#d3ecf6'); g.addColorStop(0.62,'#bfe2f0'); g.addColorStop(1,'#a3cfe4');
+  g.addColorStop(0,cols[0]); g.addColorStop(0.62,cols[1]); g.addColorStop(1,cols[2]);
   x.fillStyle=g; x.fillRect(0,0,4,256);
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
 function makeStripeTexture(){
@@ -251,11 +355,12 @@ function makeStripeTexture(){
   const t=new THREE.CanvasTexture(c); t.wrapS=THREE.RepeatWrapping; t.wrapT=THREE.RepeatWrapping; return t;
 }
 
+let groundMat=null, groundPatches=[];
 function buildGround(){
   GROUND_TOP = 0;
   // one continuous world, fills the screen (no grid)
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(180,180).rotateX(-Math.PI/2),
-    new THREE.MeshStandardMaterial({color:0x77c24e, roughness:1, metalness:0}));
+  groundMat=new THREE.MeshStandardMaterial({color:0x77c24e, roughness:1, metalness:0});
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(180,180).rotateX(-Math.PI/2), groundMat);
   g.position.y=0; g.receiveShadow=true; scene.add(g);
   // soft mottled patches for depth (deterministic, no grid)
   const rng=mulberry32(98765);
@@ -263,7 +368,14 @@ function buildGround(){
     const patch=new THREE.Mesh(new THREE.CircleGeometry(r,20).rotateX(-Math.PI/2),
       new THREE.MeshStandardMaterial({color:col, roughness:1, transparent:true, opacity:0.5, depthWrite:false}));
     patch.position.set((rng()*2-1)*24, 0.01+i*0.0006, (rng()*2-1)*17); scene.add(patch);
+    groundPatches.push(patch);
   }
+}
+function applyBiome(b){
+  if(groundMat) groundMat.color.setHex(b.ground);
+  groundPatches.forEach((p,i)=>p.material.color.setHex(i%2? b.pA : b.pB));
+  scene.background=makeSky(b.sky);
+  if(scene.fog) scene.fog.color.setHex(b.fog);
 }
 function findMesh(root){ let found=null; root.traverse(o=>{ if(!found && o.isMesh) found=o; }); return found; }
 // auto-normalize a character: stand up + scale to height + drop feet to ground
@@ -297,24 +409,24 @@ function buildScenery(){
 // ---------------- map / nodes ----------------
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function genDecor(seed){ const rng=mulberry32(seed*131+7), out=[];
+function genDecor(seed,b){ const rng=mulberry32(seed*131+7), out=[];
   const inBand=z=> (z>5.5 && z<13) || (z<-5 && z>-13);   // keep road/village + river bands clear
   const fits=(x,z,r)=> !inBand(z) && out.every(d=>Math.hypot(x-d.x,z-d.z)>=r+(d.r||0.4)) && nodes.every(n=>Math.hypot(x-n.x,z-n.z)>=r+1.9);
-  const TR=['tree','tree2','tree3','pine','pine2'];
-  // tree groves toward the edges (glade kept open)
-  for(let g=0; g<14; g++){ const a=rng()*6.283, gr=8+rng()*8, gx=Math.cos(a)*gr, gz=Math.sin(a)*gr*0.82;
-    const sp=TR[(rng()*TR.length)|0], n=3+((rng()*4)|0);
+  // tree groves toward the edges (glade kept open); species & density per biome
+  for(let g=0; g<b.groves; g++){ const a=rng()*6.283, gr=8+rng()*8, gx=Math.cos(a)*gr, gz=Math.sin(a)*gr*0.82;
+    const sp=b.trees[(rng()*b.trees.length)|0], n=3+((rng()*4)|0);
     for(let i=0;i<n;i++){ const x=gx+(rng()-0.5)*4, z=gz+(rng()-0.5)*4;
       if(Math.abs(x)<7 && Math.abs(z)<4.6) continue; const s=0.8+rng()*0.5, r=0.8*s;
       if(fits(x,z,r)) out.push({x,z,type:sp,rot:rng()*6.28,s,r}); } }
   const scatter=(cnt,types,smin,smax,r,minRad)=>{ for(let i=0;i<cnt;i++){ const a=rng()*6.283, gr=minRad+rng()*12, x=Math.cos(a)*gr, z=Math.sin(a)*gr*0.82;
     if(Math.abs(x)<6.5 && Math.abs(z)<4.2 && rng()<0.7) continue;
     if(fits(x,z,r)) out.push({x,z,type:types[(rng()*types.length)|0],rot:rng()*6.28,s:smin+rng()*(smax-smin),r}); } };
-  scatter(36,['bush','bushL'],0.7,1.1,0.5,5);
-  scatter(48,['grass','grassL'],0.7,1.2,0.25,3);
-  scatter(28,['fR','fY','fP'],0.7,1.1,0.3,4);
-  scatter(16,['rock','rock2'],0.7,1.1,0.5,6);
-  scatter(10,['mush'],0.6,0.9,0.3,6);
+  scatter(b.bushes,['bush','bushL'],0.7,1.1,0.5,5);
+  scatter(b.grassN,['grass','grassL'],0.7,1.2,0.25,3);
+  scatter(b.flowersN,['fR','fY','fP'],0.7,1.1,0.3,4);
+  scatter(b.rocksN,['rock','rock2'],0.7,1.1,0.5,6);
+  scatter(b.mushN,[b.mush||'mush'],0.6,0.9,0.3,6);
+  scatter(b.logsN,['logD','stump'],0.8,1.1,0.5,6);
   return out;
 }
 
@@ -331,16 +443,21 @@ function loadMap(i){
   // clear labels
   document.getElementById('labels').innerHTML='';
 
+  const biome=BIOMES[m.biome]||BIOMES.meadow;
+  applyBiome(biome);
+
   nodes = m.nodes.map((d,idx)=>{ const p=worldPos(d.x,d.y);
     return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, view:null, lr:-1, or:-1 }; });
-  links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1;
+  links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1; simTime=0;
   document.getElementById('speedBtn').textContent='×1';
-  document.getElementById('mapName').textContent='Карта '+(i+1)+' · '+m.name;
+  document.getElementById('mapName').textContent=(i+1)+'. '+m.name+' · '+biome.label;
   hideOverlay('ovEnd'); hideOverlay('ovMenu');
-  document.getElementById('hint').style.opacity = i===0?'1':'0';
+  if(i===0 && !localStorage.getItem(TUT_KEY)){ tutStep=0; tutShow(); }
+  else { tutStep=-1; tutHide(); }
+  document.getElementById('hint').style.opacity = (i===0 && tutStep<0)?'1':'0';
 
   // decor
-  decor=genDecor(i);
+  decor=genDecor(i,biome);
   for(const d of decor){ const src=MODELS[d.type]; const o=src.clone(true);
     o.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
     o.position.set(d.x,GROUND_TOP,d.z); o.rotation.y=d.rot; o.scale.setScalar(d.s);
@@ -380,17 +497,21 @@ function findLink(f,t){ return links.find(L=>L.from===f && L.to===t); }
 function removeLink(L){ const i=links.indexOf(L); if(i>=0) links.splice(i,1); }
 function removeLinksFrom(id){ links.filter(L=>L.from===id).forEach(removeLink); }
 function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
-  const ex=findLink(from,to); if(ex){ removeLink(ex); return; }
+  const ex=findLink(from,to); if(ex){ removeLink(ex); sfx('unlink'); return; }
   const out=links.filter(L=>L.from===from); if(out.length>=linkCap(src)) removeLink(out[0]);
-  links.push({from,to,o:src.o,accum:0}); }
+  links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
 function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null }); }
 function applyArrival(node, owner){
   if(node.o===owner){ node.t+=1; }
-  else { node.atk=0.6; node.t-=1; if(node.t<=0){ node.o=owner; node.t=-node.t; node.atk=0; removeLinksFrom(node.id); } }
+  else { node.atk=0.6; node.t-=1; if(node.t<=0){ const prev=node.o;
+    node.o=owner; node.t=-node.t; node.atk=0; removeLinksFrom(node.id);
+    if(owner===1) sfx('cap'); else if(prev===1) sfx('lost'); } }
 }
 
 function step(dt){
+  simTime+=dt;
+  tutTick();
   for(const n of nodes){
     if(n.atk>0) n.atk=Math.max(0,n.atk-dt);
     if(n.o===0) continue;
@@ -399,7 +520,7 @@ function step(dt){
     if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
     else { const per=(prod(n)/out.length)*dt;
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
-    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL) n.l++;
+    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1) sfx('lvl'); }
   }
   // soldiers move in world (x,z)
   const SP=4.0*Math.max(1,1);
@@ -436,14 +557,21 @@ function checkEnd(){ if(ended) return; const {p,e}=counts();
   const pS=soldiers.some(s=>s.o===1), eS=soldiers.some(s=>s.o===2);
   if(e===0 && !eS) endGame(true); else if(p===0 && !pS) endGame(false); }
 function endGame(win){ ended=true; running=false;
+  if(tutStep>=0){ tutHide(); if(win){ localStorage.setItem(TUT_KEY,'1'); tutStep=-1; } }
+  sfx(win?'win':'lose'); if(win) confetti();
   const ov=document.getElementById('ovEnd'); ov.className='overlay show '+(win?'win':'lose');
   document.getElementById('ovTitle').textContent = win?'Победа! 🎉':'Поражение';
   const row=document.getElementById('ovRow'); row.innerHTML='';
-  if(win){ const next=mapIndex+1; if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
-    document.getElementById('ovSub').textContent = next<MAPS.length?'Карта зачищена. Дальше?':'Все карты пройдены! 🏆';
+  if(win){ const s=starsFor(mapIndex,simTime);
+    if((bestStars[mapIndex]|0)<s){ bestStars[mapIndex]=s; localStorage.setItem(STARS_KEY,JSON.stringify(bestStars)); }
+    document.getElementById('ovStars').innerHTML=starsMarkup(s);
+    const next=mapIndex+1; if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
+    document.getElementById('ovSub').textContent = 'Время: '+Math.round(simTime)+' с · '+
+      (next<MAPS.length?'Карта зачищена. Дальше?':'Все карты пройдены! 🏆');
     if(next<MAPS.length) addBtn(row,'Следующая','primary',()=>loadMap(next));
     addBtn(row,'Заново','',()=>loadMap(mapIndex));
-  } else { document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
+  } else { document.getElementById('ovStars').innerHTML='';
+    document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
     addBtn(row,'Ещё раз','primary',()=>loadMap(mapIndex)); }
 }
 function addBtn(row,label,cls,fn){ const b=document.createElement('button'); b.className='btn '+cls; b.textContent=label; b.onclick=fn; row.appendChild(b); }
@@ -459,7 +587,7 @@ function syncVisuals(){
     // label
     v.div.textContent = Math.floor(n.t);
     v.div.style.borderColor = CSS[n.o];
-    v.div.style.color = CSS[n.o]==='#7d8499' ? '#444' : CSS[n.o];
+    v.div.style.color = CSS[n.o];
   }
   // soldiers meshes
   for(const s of soldiers){ if(!s.mesh){ s.mesh=new THREE.Mesh(
@@ -506,17 +634,20 @@ function pickLink(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
 let downXY=null;
 function bindInput(){
   const el=renderer.domElement;
-  el.addEventListener('pointerdown',e=>{ if(ended) return; downXY={x:e.clientX,y:e.clientY};
+  el.addEventListener('pointerdown',e=>{ audio(); if(ended) return; downXY={x:e.clientX,y:e.clientY};
     const n=pickNode(e); if(n && n.o===1){ drag={fromId:n.id}; dragLine.visible=true; document.getElementById('hint').style.opacity='0'; } });
   el.addEventListener('pointermove',e=>{ if(!drag) return; const g=pickGround(e); if(!g) return;
     const a=nodes[drag.fromId]; dragLine.geometry.setFromPoints([new THREE.Vector3(a.x,GROUND_TOP+0.4,a.z), new THREE.Vector3(g.x,GROUND_TOP+0.2,g.z)]); });
   el.addEventListener('pointerup',e=>{
     const far = downXY && Math.hypot(e.clientX-downXY.x, e.clientY-downXY.y)>14;
     if(drag){ const n=pickNode(e); if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id); drag=null; dragLine.visible=false; }
-    else if(!far){ const L=pickLink(e); if(L) removeLink(L); }
+    else if(!far){ const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
     downXY=null; });
   el.addEventListener('pointercancel',()=>{ drag=null; dragLine.visible=false; downXY=null; });
 
+  const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';
+  sndBtn.onclick=()=>{ muted=!muted; localStorage.setItem('g_zahvat_mute',muted?'1':'0');
+    sndBtn.textContent = muted?'🔇':'🔊'; if(!muted) sfx('step'); };
   document.getElementById('speedBtn').onclick=()=>{ speed=speed===1?2:1; document.getElementById('speedBtn').textContent='×'+speed; };
   document.getElementById('menuBtn').onclick=()=>{ running=false; openMenu(); };
   document.getElementById('closeMenu').onclick=()=>{ hideOverlay('ovMenu'); if(!ended) running=true; };
@@ -524,7 +655,8 @@ function bindInput(){
 }
 function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHTML='';
   MAPS.forEach((m,i)=>{ const el=document.createElement('div'); const locked=i>progress;
-    el.className='lvl'+(locked?' locked':'')+(i<progress?' done':''); el.textContent=i+1;
+    el.className='lvl'+(locked?' locked':'')+(i<progress?' done':'');
+    el.innerHTML='<span>'+(i+1)+'</span>'+(bestStars[i]?'<span class="st">'+starsMarkup(bestStars[i])+'</span>':'');
     if(!locked) el.onclick=()=>{ hideOverlay('ovMenu'); loadMap(i); }; grid.appendChild(el); });
   document.getElementById('ovMenu').className='overlay show'; }
 

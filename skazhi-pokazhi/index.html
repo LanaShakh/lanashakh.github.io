@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#fef6ec">
 <title>Скажи-Покажи</title>
 <meta name="description" content="Скажи-Покажи — развивающие карточки с озвучкой: понимание речи, называние, доска общения и визуальное расписание. Свои фото и голос, прогресс для родителя. Офлайн.">
+<!-- SDK Яндекс Игр: вне платформы просто 404 и всё работает как обычно -->
+<script src="/sdk.js" onerror="void 0"></script>
 <style>
   :root{
     --bg1:#fef6ec; --bg2:#fde9d6; --ink:#3a2e26; --muted:#9a8a7d;
@@ -551,12 +553,20 @@ function sndRight(){ tone(660,0.12,'triangle',0); tone(880,0.18,'triangle',0.1);
 function sndWrong(){ tone(220,0.18,'sine',0); }
 
 /* ---------- навигация ---------- */
+/* ---------- SDK Яндекс Игр (вне платформы тихо пропускается) ---------- */
+let ysdk=null;
+if(window.YaGames){ window.YaGames.init().then(s=>{ ysdk=s;
+  try{ s.features.LoadingAPI&&s.features.LoadingAPI.ready(); }catch(e){} }).catch(()=>{}); }
+function gpStart(){ try{ ysdk&&ysdk.features.GameplayAPI&&ysdk.features.GameplayAPI.start(); }catch(e){} }
+function gpStop(){ try{ ysdk&&ysdk.features.GameplayAPI&&ysdk.features.GameplayAPI.stop(); }catch(e){} }
+
 const screens={}; ['home','show','say','aac','sched','cards','progress','settings'].forEach(n=>screens[n]=document.getElementById('scr-'+n));
 const homeBtn=document.getElementById('homeBtn');
 function go(name){
   Object.values(screens).forEach(s=>s.classList.remove('show'));
   screens[name].classList.add('show');
   homeBtn.style.display = name==='home'?'none':'';
+  if(name==='show'||name==='say') gpStart(); else gpStop();
   speechSynthesis.cancel?.();
   ({show:startShow, say:startSay, aac:startAac, sched:startSched, cards:renderCards, progress:renderProgress, settings:renderSettings}[name]||function(){})();
 }

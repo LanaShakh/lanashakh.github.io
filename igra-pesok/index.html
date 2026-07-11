@@ -185,21 +185,22 @@
    Сетка клеточного автомата: 0 пусто, 1..4 цветной песок,
    10 стена игрока, 11 препятствие уровня. */
 
-const GW = 120, GH = 208;
+const GW = 150, GH = 260;      // то же соотношение 120/208, но мельче зерно
 const EMPTY = 0, WALL = 10, OBST = 11;
-const CAPTURE_Y = GH - 4;      // с этой строки банки «съедают» песок
-const WALL_MIN_Y = 7, WALL_MAX_Y = GH - 7; // где нельзя рисовать
+const CAPTURE_Y = GH - 5;      // с этой строки банки «съедают» песок
+const WALL_MIN_Y = 9, WALL_MAX_Y = GH - 8; // где нельзя рисовать
 const STEPS_PER_FRAME = 2;
 
 const grid  = new Uint8Array(GW * GH);
 const shade = new Uint8Array(GW * GH);
 
-/* цвета песка: [базовый, светлее, темнее, ещё светлее] */
+/* цвета песка, 5 тонов: [тень, тёмный, базовый, светлый, блик] —
+   поверхность кучи бликует, глубина уходит в тень: даёт объём барханов */
 const PALETTE = {
-  1: ['#ffd24a', '#ffe082', '#eab52c', '#fff0b3'],
-  2: ['#ff6b6b', '#ff9292', '#e84b4b', '#ffb5b5'],
-  3: ['#4aa3ff', '#7dbdff', '#2f86e0', '#a8d2ff'],
-  4: ['#3ddc97', '#71e8b4', '#26bd7c', '#a2f0cd'],
+  1: ['#a8741c', '#cf9a2e', '#eab93f', '#f7d054', '#ffeb96'],
+  2: ['#a33636', '#c94b4b', '#e86060', '#f78383', '#ffb8ab'],
+  3: ['#2059a3', '#3173c7', '#4a90e8', '#72b1ff', '#acd6ff'],
+  4: ['#1e7a50', '#289a61', '#36b87a', '#5ed799', '#a4f1c7'],
 };
 const WALL_COLORS = ['#d9b380', '#e6c493', '#c9a06a', '#f0d5a8'];
 const OBST_COLORS = ['#454c78', '#525a8c', '#3a4066', '#5d66a0'];
@@ -215,29 +216,29 @@ RGB[OBST] = OBST_COLORS.map(hex2rgb);
        w ширина «дождя» (0..1), osc {a амплитуда, p период}
    bins: x0..x1, c цвет   obst: прямоугольник {x0,y0,x1,y1} или линия {ax,ay,bx,by} */
 const LEVELS = [
-  {name:'Первая струйка', ink:300, em:[{x:.28,c:1,n:480}], bins:[{x0:.58,x1:.84,c:1}]},
-  {name:'В другую сторону', ink:300, em:[{x:.74,c:1,n:500}], bins:[{x0:.14,x1:.40,c:1}]},
-  {name:'Двое', ink:430, em:[{x:.30,c:2,n:400},{x:.70,c:3,n:400,delay:300}],
+  {name:'Первая струйка', ink:400, em:[{x:.28,c:1,n:1100}], bins:[{x0:.58,x1:.84,c:1}]},
+  {name:'В другую сторону', ink:400, em:[{x:.74,c:1,n:1150}], bins:[{x0:.14,x1:.40,c:1}]},
+  {name:'Двое', ink:560, em:[{x:.30,c:2,n:920},{x:.70,c:3,n:920,delay:500}],
     bins:[{x0:.56,x1:.80,c:2},{x0:.20,x1:.44,c:3}]},
-  {name:'Козырёк', ink:400, em:[{x:.50,c:1,n:560,osc:{a:.20,p:900}}],
+  {name:'Козырёк', ink:520, em:[{x:.50,c:1,n:1300,osc:{a:.20,p:900}}],
     bins:[{x0:.40,x1:.60,c:1}], obst:[{x0:.28,y0:.34,x1:.72,y1:.355}]},
-  {name:'Крест-накрест', ink:470, em:[{x:.20,c:2,n:420},{x:.80,c:3,n:420}],
+  {name:'Крест-накрест', ink:610, em:[{x:.20,c:2,n:970},{x:.80,c:3,n:970}],
     bins:[{x0:.68,x1:.90,c:2},{x0:.10,x1:.32,c:3}]},
-  {name:'Трио', ink:540, em:[{x:.18,c:2,n:320},{x:.50,c:3,n:320,delay:250},{x:.82,c:4,n:320,delay:500}],
+  {name:'Трио', ink:700, em:[{x:.18,c:2,n:740},{x:.50,c:3,n:740,delay:400},{x:.82,c:4,n:740,delay:800}],
     bins:[{x0:.60,x1:.76,c:2},{x0:.06,x1:.22,c:3},{x0:.34,x1:.50,c:4}]},
-  {name:'Дождик', ink:560, em:[{x:.50,c:1,n:760,r:1.1,w:.72}], bins:[{x0:.42,x1:.58,c:1}]},
-  {name:'Воронка', ink:400, em:[{x:.50,c:4,n:560,osc:{a:.30,p:700}}],
+  {name:'Дождик', ink:730, em:[{x:.50,c:1,n:1750,r:.9,w:.72}], bins:[{x0:.42,x1:.58,c:1}]},
+  {name:'Воронка', ink:520, em:[{x:.50,c:4,n:1300,osc:{a:.30,p:700}}],
     bins:[{x0:.74,x1:.90,c:4}],
     obst:[{ax:.13,ay:.20,bx:.42,by:.34},{ax:.87,ay:.20,bx:.58,by:.34}]},
-  {name:'Под козырьками', ink:520, em:[{x:.30,c:3,n:380},{x:.70,c:2,n:380,delay:200}],
+  {name:'Под козырьками', ink:680, em:[{x:.30,c:3,n:870},{x:.70,c:2,n:870,delay:350}],
     bins:[{x0:.60,x1:.78,c:3},{x0:.22,x1:.40,c:2}],
     obst:[{x0:.20,y0:.30,x1:.44,y1:.315},{x0:.56,y0:.30,x1:.80,y1:.315}]},
-  {name:'Тесновато', ink:520, em:[{x:.35,c:1,n:360},{x:.65,c:4,n:360,delay:150}],
+  {name:'Тесновато', ink:680, em:[{x:.35,c:1,n:830},{x:.65,c:4,n:830,delay:250}],
     bins:[{x0:.62,x1:.72,c:1},{x0:.28,x1:.38,c:4}]},
-  {name:'Почти хаос', ink:640, em:[{x:.50,c:2,n:330,osc:{a:.34,p:800}},{x:.15,c:3,n:310,delay:350},{x:.85,c:4,n:310,delay:650}],
+  {name:'Почти хаос', ink:830, em:[{x:.50,c:2,n:760,osc:{a:.34,p:800}},{x:.15,c:3,n:710,delay:600},{x:.85,c:4,n:710,delay:1100}],
     bins:[{x0:.42,x1:.58,c:2},{x0:.70,x1:.86,c:3},{x0:.14,x1:.30,c:4}],
     obst:[{x0:.40,y0:.28,x1:.60,y1:.295}]},
-  {name:'Большой финал', ink:800, em:[{x:.12,c:1,n:270},{x:.37,c:2,n:270,delay:200},{x:.63,c:3,n:270,delay:400},{x:.88,c:4,n:270,delay:600}],
+  {name:'Большой финал', ink:1040, em:[{x:.12,c:1,n:620},{x:.37,c:2,n:620,delay:350},{x:.63,c:3,n:620,delay:700},{x:.88,c:4,n:620,delay:1000}],
     bins:[{x0:.76,x1:.90,c:1},{x0:.54,x1:.68,c:2},{x0:.32,x1:.46,c:3},{x0:.10,x1:.24,c:4}]},
 ];
 
@@ -250,6 +251,8 @@ let ink = 0, inkMax = 1;
 let correct = 0, wrong = 0, totalPlanned = 0;
 let stepCount = 0, quietSteps = 0, finished = false, spawnBlockedSteps = 0;
 let pouring = false, pourStep = 0;   // песок ждёт, пока игрок нажмёт «Сыпать»
+let pourWait = 0;                    // отсчёт «3-2-1» после нажатия (в шагах)
+const RAMP_STEPS = 360;              // струя разгоняется первые ~3 секунды
 let tool = 'wall';           // wall | erase | pour1..pour4
 let running = false;
 
@@ -316,7 +319,7 @@ function startLevel(i){
   levelIdx = i;
   const L = LEVELS[i];
   mode = 'level'; finished = false; stepCount = 0; quietSteps = 0; spawnBlockedSteps = 0;
-  pouring = false; pourStep = 0;
+  pouring = false; pourStep = 0; pourWait = 0;
   correct = 0; wrong = 0;
   ink = inkMax = L.ink;
   clearField(); clearDom();
@@ -326,8 +329,8 @@ function startLevel(i){
     el.className = 'bin';
     el.style.left = (b.x0*100)+'%';
     el.style.width = ((b.x1-b.x0)*100)+'%';
-    el.style.borderColor = PALETTE[b.c][0];
-    el.style.color = PALETTE[b.c][1];
+    el.style.borderColor = PALETTE[b.c][3];
+    el.style.color = PALETTE[b.c][4];
     el.textContent = '0';
     wrap.appendChild(el);
     return {...b, el, count:0};
@@ -337,10 +340,10 @@ function startLevel(i){
     totalPlanned += e.n;
     const el = document.createElement('div');
     el.className = 'spout';
-    el.style.background = PALETTE[e.c][0];
+    el.style.background = PALETTE[e.c][2];
     el.style.left = (e.x*100)+'%';
     wrap.appendChild(el);
-    return {r:.55, delay:0, w:0, ...e, spawned:0, acc:0, el};
+    return {r:.45, delay:0, w:0, ...e, spawned:0, acc:0, el};
   });
   (L.obst || []).forEach(stampObst);
   buildFloor();
@@ -355,7 +358,7 @@ function startLevel(i){
   $('btnPour').style.display = 'block';
   updateHud();
   if (i === 0 && !localStorage.getItem('pesok_hint')){
-    showHint('Не спеши: сначала нарисуй пальцем линию-жёлоб\nот краника к банке, а потом нажми «Сыпать» 👇');
+    showHint('Не спеши: сначала нарисуй линию-жёлоб от краника\nк банке, потом нажми «Сыпать». Пока палец\nна экране — время замедляется ✨');
     localStorage.setItem('pesok_hint', '1');
   } else showHint(LEVELS[i].hint || '');
 }
@@ -405,7 +408,7 @@ function buildTools(){
     return b;
   };
   if (mode === 'sandbox'){
-    for (let c = 1; c <= 4; c++) mk('pour'+c, '', `radial-gradient(circle at 35% 35%, ${PALETTE[c][1]}, ${PALETTE[c][2]})`);
+    for (let c = 1; c <= 4; c++) mk('pour'+c, '', `radial-gradient(circle at 35% 35%, ${PALETTE[c][4]}, ${PALETTE[c][2]})`);
     mk('wall', '✏️ Стена');
     mk('erase', '🧽');
     mk('clear', '🗑');
@@ -436,13 +439,23 @@ function capture(x, y, c){
 function step(){
   let moved = 0;
 
-  /* эмиттеры — сыплют только после нажатия «Сыпать» */
+  /* отсчёт «3-2-1» после нажатия «Сыпать» */
+  if (pouring && pourWait > 0){
+    pourWait--;
+    const sec = Math.ceil(pourWait / 120);
+    const h = $('hint');
+    if (h.textContent !== String(sec)) { h.textContent = sec || ''; h.classList.remove('hide'); beep(330, .08, 'sine', .05); }
+    if (pourWait === 0){ h.classList.add('hide'); beep(520, .15, 'sine', .08); }
+  }
+
+  /* эмиттеры — сыплют после отсчёта, струя разгоняется постепенно */
   let wantSpawn = false, didSpawn = false;
-  if (pouring) for (const e of emitters){
+  if (pouring && pourWait === 0) for (const e of emitters){
     if (finished || e.spawned >= e.n || pourStep < e.delay) continue;
     wantSpawn = true;
     const off = e.osc ? e.osc.a * Math.sin(pourStep * 2 * Math.PI / e.osc.p) : 0;
-    e.acc += e.r;
+    const ramp = Math.min(1, (pourStep - e.delay + 60) / RAMP_STEPS);
+    e.acc += e.r * ramp;
     const tries = e.acc | 0;
     e.acc -= tries;
     for (let k = 0; k < tries; k++){
@@ -491,9 +504,9 @@ function step(){
   }
 
   stepCount++;
-  if (pouring) pourStep++;
+  if (pouring && pourWait === 0) pourStep++;
 
-  if (mode === 'level' && !finished && pouring){
+  if (mode === 'level' && !finished && pouring && pourWait === 0){
     const allSpawned = emitters.every(e => e.spawned >= e.n);
     if (moved === 0) quietSteps++; else quietSteps = 0;
     if (wantSpawn && !didSpawn) spawnBlockedSteps++; else if (didSpawn) spawnBlockedSteps = 0;
@@ -527,7 +540,18 @@ function render(){
   for (let i = 0, p = 0; i < grid.length; i++, p += 4){
     const c = grid[i];
     if (c === EMPTY){ d[p+3] = 0; continue; }
-    const rgb = RGB[c][shade[i]];
+    let rgb;
+    if (c <= 4){
+      /* объём: блик на поверхности, тень в глубине кучи */
+      const openAbove = i < GW || grid[i - GW] === EMPTY;
+      let t;
+      if (openAbove) t = 3 + (shade[i] & 1);                       // светлый/блик
+      else if (i >= 2*GW && grid[i - 2*GW] !== EMPTY) t = shade[i] & 1; // тень/тёмный
+      else t = 1 + (shade[i] & 1);                                 // спокойная середина
+      rgb = RGB[c][t];
+    } else {
+      rgb = RGB[c][shade[i]];
+    }
     d[p] = rgb[0]; d[p+1] = rgb[1]; d[p+2] = rgb[2]; d[p+3] = 255;
   }
   ctx.putImageData(img, 0, 0);
@@ -538,11 +562,14 @@ function updateHud(){
   $('score').innerHTML = `<span class="ok">✔ ${correct}</span> · <span class="bad">✖ ${wrong}</span>`;
 }
 
-let rafId = 0;
+let rafId = 0, simAcc = 0;
 function loop(){
   rafId = requestAnimationFrame(loop);
   if (mode === 'menu') return;
-  for (let s = 0; s < STEPS_PER_FRAME; s++) step();
+  /* bullet-time: пока палец рисует, песок течёт в 4 раза медленнее */
+  const slow = drawing && mode === 'level' && pouring && pourWait === 0;
+  simAcc += STEPS_PER_FRAME * (slow ? .25 : 1);
+  while (simAcc >= 1){ simAcc--; step(); }
   render();
   if (mode === 'level') updateHud();
 }
@@ -570,8 +597,8 @@ function stampAt(gx, gy){
       }
     }
   } else if (tool === 'erase'){
-    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++){
-      if (dx*dx + dy*dy > 10) continue;
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++){
+      if (dx*dx + dy*dy > 18) continue;
       const x = x0 + dx, y = y0 + dy;
       if (x < 0 || x >= GW || y < 0 || y >= GH) continue;
       const idx = y * GW + x;
@@ -582,8 +609,8 @@ function stampAt(gx, gy){
     }
   } else if (tool.startsWith('pour')){
     const c = +tool[4];
-    for (let k = 0; k < 6; k++){
-      const x = x0 + ((Math.random()*7)|0) - 3, y = y0 + ((Math.random()*5)|0) - 2;
+    for (let k = 0; k < 10; k++){
+      const x = x0 + ((Math.random()*9)|0) - 4, y = y0 + ((Math.random()*7)|0) - 3;
       if (x < 1 || x >= GW-1 || y < 1 || y >= GH-2) continue;
       const idx = y * GW + x;
       if (grid[idx] === EMPTY){ grid[idx] = c; shade[idx] = (Math.random()*4)|0; }
@@ -652,10 +679,10 @@ $('btnNext').onclick = () => startLevel(Math.min(levelIdx + 1, LEVELS.length - 1
 $('btnFinish').onclick = finish;
 $('btnPour').onclick = () => {
   pouring = true;
+  pourWait = 360;                       // отсчёт 3-2-1 (~3 секунды)
+  showHint('');                         // снять таймер подсказки, чтобы не прятал отсчёт
   $('btnPour').style.display = 'none';
-  showHint('');
   audio(); if (AC && AC.state === 'suspended') AC.resume();
-  beep(440, .12, 'sine', .07);
 };
 $('btnSnd').textContent = sndOn ? '🔊' : '🔇';
 $('btnSnd').onclick = () => {

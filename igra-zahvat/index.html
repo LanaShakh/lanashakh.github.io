@@ -73,6 +73,12 @@
   .tut .txt b{color:#ffd166;}
   #confetti{position:fixed; inset:0; z-index:35; pointer-events:none;}
 
+  .spec{position:fixed; z-index:14; display:none; gap:9px; transform:translate(-50%,-135%);}
+  .spec.show{display:flex; animation:tutIn .2s ease;}
+  .spec button{width:48px; height:48px; border-radius:50%; font-size:21px; cursor:pointer;
+    border:2px solid rgba(255,255,255,.4); background:rgba(15,18,38,.88); box-shadow:0 6px 16px rgba(0,0,0,.4);}
+  .spec button:active{transform:scale(.94);}
+
   .rush{position:fixed; right:16px; bottom:max(16px,env(safe-area-inset-bottom)); z-index:11; display:none;
     width:58px; height:58px; border-radius:50%; border:2px solid rgba(255,255,255,.25); cursor:pointer;
     background:linear-gradient(140deg,#7c5cff,#a17bff); color:#fff; font-size:24px; font-weight:800; font-family:inherit;
@@ -122,6 +128,11 @@
     <div class="heroCard" id="heroCard"></div>
     <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
   <button class="rush" id="rushBtn">⚡</button>
+  <div class="spec" id="specMenu">
+    <button data-s="atk" title="Атака">⚔️</button>
+    <button data-s="def" title="Защита">🛡️</button>
+    <button data-s="eco" title="Экономика">⚙️</button>
+  </div>
 
   <div id="loading"><div class="spinner"></div><div>Загружаем 3D-мир…</div><div id="err"></div></div>
 
@@ -348,7 +359,9 @@ function synergy(n){
   return 1;
 }
 function prod(n){ let p=PROD_BASE*n.l*synergy(n);
+  if(n.spec==='eco') p*=1.5;
   if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); } return p; }
+const SPEC_ICON={ atk:'⚔', def:'🛡', eco:'⚙' };
 function linkCap(n){ return n.l>=3 ? 4 : n.l; }   // L1=1, L2=2, L3=4, L4=4 outgoing links
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
@@ -580,7 +593,8 @@ function startMap(m, seed, label){
   applyBiome(biome);
 
   nodes = m.nodes.map((d,idx)=>{ const p=worldPos(d.x,d.y);
-    return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, view:null, lr:-1, or:-1 }; });
+    return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, spec:null, view:null, lr:-1, or:-1 }; });
+  hideSpec();
   refreshHero(); rushT=0; rushCD=0;
   if(HLVL>=3) for(const n of nodes){ if(n.o===1) n.t+=6; }   // 🪖 стартовый бонус героя
   links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1; simTime=0;
@@ -637,11 +651,12 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   const out=links.filter(L=>L.from===from); if(out.length>=linkCap(src)) removeLink(out[0]);
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
-function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null }); }
-function applyArrival(node, owner){
+function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
+  dmg: from.spec==='atk'?1.5:1, fast: from.spec==='atk' }); }
+function applyArrival(node, owner, dmg){
   if(node.o===owner){ node.t+=1; }
-  else { node.atk=0.6; node.t-=1; if(node.t<=0){ const prev=node.o;
-    node.o=owner; node.t=-node.t; node.atk=0; removeLinksFrom(node.id);
+  else { node.atk=0.6; node.t-=(dmg||1)*(node.spec==='def'?0.6:1); if(node.t<=0){ const prev=node.o;
+    node.o=owner; node.t=-node.t; node.atk=0; node.spec=null; removeLinksFrom(node.id);
     if(owner===1){ sfx('cap'); buzz(30); } else if(prev===1){ sfx('lost'); buzz([40,40,40]); } } }
 }
 
@@ -657,13 +672,13 @@ function step(dt){
     if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
     else { const per=(prod(n)/out.length)*dt;
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
-    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1) sfx('lvl'); }
+    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1){ sfx('lvl'); if(n.l===2) specHint(); } }
   }
   // soldiers move in world (x,z)
   for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
     const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
-    if(d<=0.5){ applyArrival(tn,s.o); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
-    const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
+    if(d<=0.5){ applyArrival(tn,s.o,s.dmg); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
+    const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
   botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL; botThink(); }
   checkEnd();
@@ -672,6 +687,12 @@ function step(dt){
 function botThink(){
   const aggro=curMap.aggro, mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
   for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
+  // прокачка: бот выбирает специализации — приграничным бой, тыловым экономика
+  for(const n of mine){
+    if(n.l<2 || n.spec || Math.random()>0.6) continue;
+    let dMin=Infinity; for(const x of nodes){ if(x.o===1){ const d=Math.hypot(x.x-n.x,x.z-n.z); if(d<dMin) dMin=d; } }
+    n.spec = dMin<7 ? (Math.random()<0.5?'atk':'def') : 'eco';
+  }
   // защита: соседи подкрепляют свою башню под атакой
   for(const n of mine){
     const threat=soldiers.filter(s=>s.o===1 && s.tid===n.id).length;
@@ -752,7 +773,7 @@ function syncVisuals(){
     // atk shake
     v.group.position.x = n.x + (n.atk>0?Math.sin(performance.now()*0.03)*0.06:0);
     // label
-    v.div.textContent = Math.floor(n.t);
+    v.div.textContent = (n.spec?SPEC_ICON[n.spec]+' ':'')+Math.floor(n.t);
     v.div.style.borderColor = CSS[n.o];
     v.div.style.color = CSS[n.o];
   }
@@ -800,6 +821,20 @@ function rebuildLinks(){
   }
 }
 
+// ---------------- специализация: выбор по тапу на свою башню ----------------
+let specNode=null;
+function worldToScreen(x,y,z){ const v=new THREE.Vector3(x,y,z).project(camera);
+  return { x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight }; }
+function openSpec(n){ specNode=n; const p=worldToScreen(n.x,2.2,n.z);
+  const m=$('specMenu'); m.style.left=p.x+'px'; m.style.top=p.y+'px'; m.classList.add('show'); }
+function hideSpec(){ specNode=null; const m=$('specMenu'); if(m) m.classList.remove('show'); }
+function specHint(){
+  if(localStorage.getItem('g_zahvat_spec_hint')) return;
+  localStorage.setItem('g_zahvat_spec_hint','1');
+  const h=$('hint'); h.textContent='Башня 2 уровня! Тапни по ней и выбери путь: ⚔ атака · 🛡 защита · ⚙ экономика';
+  h.style.opacity='1'; setTimeout(()=>{ h.style.opacity='0'; }, 7000);
+}
+
 // ---------------- input ----------------
 function setPointer(e){ pointer.x=(e.clientX/innerWidth)*2-1; pointer.y=-(e.clientY/innerHeight)*2+1; }
 function pickNode(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
@@ -815,17 +850,25 @@ function pickLink(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
 let downXY=null;
 function bindInput(){
   const el=renderer.domElement;
-  el.addEventListener('pointerdown',e=>{ audio(); if(ended) return; downXY={x:e.clientX,y:e.clientY};
+  el.addEventListener('pointerdown',e=>{ audio(); hideSpec(); if(ended) return; downXY={x:e.clientX,y:e.clientY};
     const n=pickNode(e); if(n && n.o===1){ drag={fromId:n.id}; dragLine.visible=true; document.getElementById('hint').style.opacity='0'; } });
   el.addEventListener('pointermove',e=>{ if(!drag) return; const g=pickGround(e); if(!g) return;
     const a=nodes[drag.fromId]; dragLine.geometry.setFromPoints([new THREE.Vector3(a.x,GROUND_TOP+0.4,a.z), new THREE.Vector3(g.x,GROUND_TOP+0.2,g.z)]); });
   el.addEventListener('pointerup',e=>{
     const far = downXY && Math.hypot(e.clientX-downXY.x, e.clientY-downXY.y)>14;
-    if(drag){ const n=pickNode(e); if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id); drag=null; dragLine.visible=false; }
-    else if(!far){ const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
+    if(drag){ const n=pickNode(e);
+      if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id);
+      else if(!far){ const src=nodes[drag.fromId];      // тап по своей башне — меню специализации
+        if(src.l>=2 && !src.spec) openSpec(src); else hideSpec(); }
+      drag=null; dragLine.visible=false; }
+    else if(!far){ hideSpec(); const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
     downXY=null; });
   el.addEventListener('pointercancel',()=>{ drag=null; dragLine.visible=false; downXY=null; });
 
+  document.querySelectorAll('#specMenu button').forEach(b=>{
+    b.addEventListener('pointerup',e=>{ e.stopPropagation();
+      if(specNode && specNode.o===1 && !specNode.spec && specNode.l>=2){ specNode.spec=b.dataset.s; sfx('lvl'); buzz(20); }
+      hideSpec(); }); });
   document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
     rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };
   const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';

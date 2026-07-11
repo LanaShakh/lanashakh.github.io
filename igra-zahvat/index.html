@@ -172,7 +172,8 @@
     <div class="menuNote" id="menuNote"></div>
     <div class="diffRow" id="diffRow"></div>
     <div class="heroCard" id="heroCard"></div>
-    <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
+    <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div>
+    <div class="menuNote">версия 3.0</div></div>
   <button class="rush" id="rushBtn">⚡</button>
   <div class="spec" id="specMenu">
     <button data-s="atk" title="Атака">⚔️</button>
@@ -184,7 +185,8 @@
 
   <div id="loading"><div style="font-size:56px">🦉</div>
     <div style="font-size:26px;font-weight:800;letter-spacing:-.5px">Захват</div>
-    <div class="spinner"></div><div style="color:#8f97c9;font-size:13px">Готовим карту…</div><div id="err"></div></div>
+    <div class="spinner"></div><div style="color:#8f97c9;font-size:13px">Готовим карту…</div>
+    <div style="color:#565e8c;font-size:11px">версия 3.0</div><div id="err"></div></div>
 
 <!-- SDK Яндекс Игр: на их хостинге /sdk.js существует, на своём сайте просто 404 и игра идёт дальше -->
 <script src="/sdk.js" onerror="void 0"></script>
@@ -284,19 +286,19 @@ const GAMBITS={
 // порядок и цифры выверены симулятором (~5000 матчей): плавная кривая сложности
 // винрейт эвристики среднего игрока на «Норме»: 100 → 72 → 69 → 65 → 51 → 42 %
 const MAPS = [
-  { name:'Первый контакт', biome:'meadow', par:70, aggro:0.35, nodes:[
-    {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
+  { name:'Первый контакт', biome:'meadow', par:60, aggro:0.32, nodes:[
+    {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:20,l:1},
     {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
   { name:'Перекрёсток', biome:'sparse', par:45, aggro:0.36, cmd:'greed', nodes:[
     {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:20,l:1},{x:.5,y:.5,o:0,t:16,l:1,tr:'mill'},
     {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},{x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
-  { name:'Две крепости', biome:'thicket', par:60, aggro:0.72, cmd:'haste', nodes:[
-    {x:.15,y:.5,o:1,t:26,l:1,tr:'fort'},{x:.85,y:.5,o:2,t:34,l:2,tr:'fort'},
-    {x:.4,y:.3,o:0,t:14,l:1,tr:'mill'},{x:.6,y:.7,o:0,t:14,l:1,tr:'fort'},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
-  { name:'Архипелаг', biome:'golden', par:60, aggro:0.60, cmd:'war', nodes:[
+  { name:'Архипелаг', biome:'golden', par:55, aggro:0.60, cmd:'war', nodes:[
     {x:.1,y:.5,o:1,t:24,l:1},{x:.9,y:.2,o:2,t:20,l:1},{x:.9,y:.8,o:2,t:20,l:1},
     {x:.35,y:.2,o:0,t:10,l:1,tr:'mill'},{x:.35,y:.8,o:0,t:10,l:1,tr:'mill'},{x:.55,y:.5,o:0,t:16,l:1,tr:'fort'},
     {x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},{x:.5,y:.15,o:0,t:9,l:1,tr:'beacon'},{x:.5,y:.85,o:0,t:9,l:1,tr:'beacon'} ] },
+  { name:'Две крепости', biome:'thicket', par:50, aggro:0.72, cmd:'haste', nodes:[
+    {x:.15,y:.5,o:1,t:26,l:1,tr:'fort'},{x:.85,y:.5,o:2,t:30,l:2,tr:'fort'},
+    {x:.4,y:.3,o:0,t:14,l:1,tr:'mill'},{x:.6,y:.7,o:0,t:14,l:1,tr:'fort'},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
   { name:'Клин', biome:'autumn', par:50, aggro:0.45, cmd:'forge', nodes:[
     {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
     {x:.87,y:.3,o:2,t:22,l:1},{x:.87,y:.7,o:2,t:22,l:1},
@@ -396,7 +398,7 @@ const TUT_STEPS=[
     done:()=>nodes.filter(n=>n.o===1).length>=2 },
   { txt:'Отлично! 🎉 Пока башня ни с кем не воюет, войска в ней растут. Захвати и вторую серую башню.',
     done:()=>nodes.filter(n=>n.o===1).length>=3 },
-  { txt:'Когда войск много — башня растёт в уровне и держит больше связей. Теперь тяни линию к <b>красной</b> башне!',
+  { txt:'Чем больше войск в башне, тем больше стрелок: от 10 — две, от 30 — три. Теперь тяни линию к <b>красной</b> башне!',
     done:()=>links.some(L=>L.o===1 && nodes[L.to] && nodes[L.to].o===2) },
   { txt:'В атаку! Захвати все красные башни — и карта наша. ⚔️ Лишнюю связь можно убрать: тапни по линии.',
     done:()=>false },
@@ -438,6 +440,7 @@ const TIPS=[
   'сними лишние связи тапом — войска будут копиться дома.',
   'дебют «Фундамент» открывает специализацию с первой секунды.',
   'башня 4 уровня усиливает все связанные с ней башни на +25%.',
+  'мало солдат — стрелки бьют вполсилы: не растягивай слабую башню на две цели.',
 ];
 
 let CMD=null, pTempo=false, eTempo=false;   // командир карты и дебюты «Темп»
@@ -459,7 +462,11 @@ function prod(n){ let p=PROD_BASE*n.l*synergy(n)*millBoost(n);
   else if(n.o===2){ p*=D().prod; if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
   return p; }
 const SPEC_ICON={ atk:'⚔', def:'🛡', eco:'⚙' };
-function linkCap(n){ return (n.l>=3 ? 4 : n.l) + (n.trait==='beacon'?1:0); }   // L1=1, L2=2, L3=4, L4=4; маяк +1
+// стрелки зависят от гарнизона: 10+ → две, 30+ → три, 60+ → четыре (маяк даёт +1)
+function linkCap(n){ return (n.t>=60?4 : n.t>=30?3 : n.t>=10?2 : 1) + (n.trait==='beacon'?1:0); }
+function flowNeed(k){ return k<=1?0 : k===2?10 : k===3?30 : 60; }
+// солдат меньше порога — стрелки остаются, но поток слабеет
+function flowMul(n,k){ const need=flowNeed(k); return (need<=0 || n.t>=need) ? 1 : Math.max(0.35, n.t/need); }
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
 function camViewSize(){ const aspect=innerWidth/innerHeight;
@@ -816,7 +823,34 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
 function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
+  kind: from.spec||'inf',
   dmg: (from.spec==='atk'?1.5:1)*(from.o===2 && CMD==='war'?1.2:1), fast: from.spec==='atk' }); }
+
+// войска разные на вид: пехотинец / танк (⚔) / щитоносец (🛡) / носильщик (⚙) — все в цвет команды
+function makeSoldierMesh(kind,color){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({ color, roughness:0.5, emissive:color, emissiveIntensity:0.12 });
+  if(kind==='atk'){        // танк
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.30,0.14,0.4), mat); body.position.y=0.09; g.add(body);
+    const tur=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.1,0.1,10), mat); tur.position.y=0.2; g.add(tur);
+    const gun=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.24,8).rotateX(Math.PI/2), mat);
+    gun.position.set(0,0.2,0.2); g.add(gun);
+  } else if(kind==='def'){ // щитоносец
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.09,0.14,4,10), mat); body.position.y=0.2; g.add(body);
+    const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.03,12).rotateX(Math.PI/2),
+      new THREE.MeshStandardMaterial({ color:0xdde3ee, roughness:0.35 })); sh.position.set(0,0.18,0.13); g.add(sh);
+  } else if(kind==='eco'){ // носильщик с мешком
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.09,0.12,4,10), mat); body.position.y=0.19; g.add(body);
+    const bag=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),
+      new THREE.MeshStandardMaterial({ color:0xc9a15f, roughness:0.85 })); bag.position.set(0,0.26,-0.11); g.add(bag);
+  } else {                 // пехотинец
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.085,0.13,4,10), mat); body.position.y=0.19; g.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8), mat); head.position.y=0.36; g.add(head);
+  }
+  g.traverse(c=>{ if(c.isMesh) c.castShadow=true; });
+  g.scale.setScalar(1.45);
+  return g;
+}
 function applyArrival(node, owner, dmg){
   if(node.o===owner){ node.t+=1; }
   else { node.atk=0.6;
@@ -836,14 +870,17 @@ function step(dt){
     links.filter(L=>L.from===n.id && L.o!==n.o).forEach(removeLink);
     const out=links.filter(L=>L.from===n.id);
     if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
-    else { const per=(prod(n)/out.length)*dt;
+    else { const per=(prod(n)/out.length)*flowMul(n,out.length)*dt;
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
     if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1){ sfx('lvl'); if(n.l===2 && (endless||mapIndex>0)) specHint(); } }
   }
   // soldiers move in world (x,z)
   for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
     const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
-    if(d<=0.5){ applyArrival(tn,s.o,s.dmg); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
+    if(d<=0.5){ applyArrival(tn,s.o,s.dmg);
+      if(s.mesh){ soldierGroup.remove(s.mesh);
+        s.mesh.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); if(c.material.dispose) c.material.dispose(); } }); }
+      soldiers.splice(i,1); continue; }
     const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
   botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL*(CMD==='haste'?0.65:1)*D().think; botThink(); }
@@ -952,11 +989,11 @@ function syncVisuals(){
     v.div.style.borderColor = CSS[n.o];
     v.div.style.color = CSS[n.o];
   }
-  // soldiers meshes
-  for(const s of soldiers){ if(!s.mesh){ s.mesh=new THREE.Mesh(
-      new THREE.SphereGeometry(0.19,12,10), new THREE.MeshStandardMaterial({color:SOLID[s.o], roughness:0.4, emissive:SOLID[s.o], emissiveIntensity:0.15}));
-      s.mesh.castShadow=true; soldierGroup.add(s.mesh); }
-    s.mesh.position.set(s.x, GROUND_TOP+0.32+Math.sin(performance.now()*0.012+(s.x+s.z)*3)*0.07, s.z); }
+  // soldiers meshes — фигурка по типу, лицом по ходу движения
+  for(const s of soldiers){ if(!s.mesh){ s.mesh=makeSoldierMesh(s.kind, SOLID[s.o]); soldierGroup.add(s.mesh); }
+    const tn=nodes[s.tid];
+    s.mesh.rotation.y=Math.atan2(tn.x-s.x, tn.z-s.z);
+    s.mesh.position.set(s.x, GROUND_TOP+0.06+(s.kind==='atk'?0:Math.abs(Math.sin(performance.now()*0.012+(s.x+s.z)*3))*0.09), s.z); }
   // links — rebuild ribbon meshes when set changes
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }

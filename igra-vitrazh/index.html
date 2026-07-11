@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#100d1d">
+<title>Витраж — головоломка со светом</title>
+<meta name="description" content="Витраж — спокойная логическая игра: поворачивай зеркала, преломляй лучи света и зажги все витражные розы собора. Без таймеров.">
+<!-- SDK Яндекс Игр: вне платформы просто 404 и всё работает как обычно -->
+<script src="/sdk.js" onerror="void 0"></script>
+<style>
+  :root{
+    --ink:#efeaff; --muted:#9d94c9;
+    --panel:rgba(255,255,255,.07); --panel2:rgba(255,255,255,.13);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:ui-rounded,'Nunito','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+    background:#0a0814; color:var(--ink); user-select:none; -webkit-user-select:none;
+    display:flex; align-items:center; justify-content:center; height:100%;
+  }
+  #wrap{
+    position:relative; overflow:hidden;
+    width:min(100vw, calc(100dvh * 9 / 16));
+    height:min(100dvh, calc(100vw * 16 / 9));
+    background:linear-gradient(180deg,#1a1530 0%,#100d1d 55%,#0b0916 100%);
+    touch-action:none;
+  }
+  @media (min-width:520px){ #wrap{border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,.55);} }
+  canvas#board{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none;}
+
+  .hud{
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; gap:8px;
+    padding:calc(8px + env(safe-area-inset-top)) 10px 6px;
+    pointer-events:none;
+  }
+  .hud > *{pointer-events:auto;}
+  .btn{
+    border:0; border-radius:14px; background:var(--panel); color:var(--ink);
+    font:inherit; font-weight:800; font-size:15px; padding:9px 13px; cursor:pointer;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  .btn:active{transform:scale(.95);}
+  .btn.primary{background:linear-gradient(135deg,#b58cff,#7d5cff); color:#14082e; box-shadow:0 8px 24px rgba(140,100,255,.35);}
+  .btn.big{font-size:19px; padding:14px 26px; border-radius:18px;}
+  .lvl-name{font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; text-align:center; text-shadow:0 2px 6px rgba(0,0,0,.5);}
+  .lvl-name small{display:block; font-weight:700; font-size:10.5px; color:var(--muted);}
+
+  .status{
+    position:absolute; bottom:calc(16px + env(safe-area-inset-bottom)); left:0; right:0; z-index:10;
+    text-align:center; font-weight:800; font-size:13.5px; color:var(--muted); pointer-events:none;
+  }
+  .status b{color:var(--ink);}
+
+  .screen{
+    position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:rgba(10,8,20,.8); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    padding:24px; transition:opacity .3s;
+  }
+  .screen.hide{opacity:0; pointer-events:none;}
+  h1{font-size:44px; letter-spacing:-1px; line-height:1;}
+  h1 .lit{background:linear-gradient(120deg,#ffd24a,#ff5c7a 40%,#58a6ff 75%,#46e0a0); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .tagline{color:var(--muted); font-weight:700; font-size:15px; max-width:290px; line-height:1.45;}
+  .lvlgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; width:min(320px,84%); margin-top:6px;}
+  .chip{
+    border:0; border-radius:14px; background:var(--panel); color:var(--ink);
+    font:inherit; font-weight:800; font-size:16px; padding:10px 0 6px; cursor:pointer;
+  }
+  .chip small{display:block; font-size:10px; letter-spacing:1.5px; color:#ffd24a; min-height:13px;}
+  .chip:disabled{opacity:.35;}
+  .chip:active:not(:disabled){transform:scale(.94);}
+  #resStars{font-size:46px; letter-spacing:6px; color:#ffd24a; text-shadow:0 6px 24px rgba(255,210,74,.35);}
+  #resTitle{font-size:30px;}
+  #resSub{font-size:16px; font-weight:800; color:var(--muted);}
+  .row{display:flex; gap:10px;}
+  .hint{
+    position:absolute; left:50%; bottom:calc(48px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:9;
+    background:rgba(0,0,0,.55); border-radius:16px; padding:11px 16px; font-weight:800; font-size:13.5px;
+    max-width:82%; text-align:center; pointer-events:none; transition:opacity .4s; line-height:1.4;
+  }
+  .hint.hide{opacity:0;}
+  .foot{position:absolute; bottom:14px; color:var(--muted); font-size:11.5px; font-weight:700;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="board"></canvas>
+
+  <div class="hud" id="hud" style="display:none">
+    <button class="btn" id="btnMenu">☰</button>
+    <div class="lvl-name" id="lvlName">Уровень 1<small>Первый луч</small></div>
+    <button class="btn" id="btnSnd">🔊</button>
+    <button class="btn" id="btnRestart">↺</button>
+  </div>
+  <div class="status" id="status" style="display:none"></div>
+  <div class="hint hide" id="hint"></div>
+
+  <div class="screen" id="menu">
+    <h1><span class="lit">Витраж</span></h1>
+    <div class="tagline">Поворачивай зеркала и веди лучи света сквозь тьму собора — пока не зажгутся все витражные розы</div>
+    <button class="btn primary big" id="btnPlay">Играть</button>
+    <div class="lvlgrid" id="lvlgrid"></div>
+    <div class="foot">без таймеров — думай сколько хочешь</div>
+  </div>
+
+  <div class="screen hide" id="result">
+    <div id="resStars">★★★</div>
+    <div id="resTitle">Собор озарён!</div>
+    <div id="resSub"></div>
+    <div class="row">
+      <button class="btn big" id="btnAgain">Ещё раз</button>
+      <button class="btn primary big" id="btnNext">Дальше</button>
+    </div>
+    <button class="btn" id="btnResMenu">В меню</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════ «Витраж» — лучи, зеркала и розы ═══════════
+   Сетка 9×12. Направления: 0 →, 1 ↓, 2 ←, 3 ↑.
+   Зеркало o=0 это «/», o=1 это «\».
+   Луч идёт по клеткам; зеркала отражают, призмы-расщепители дают два
+   перпендикулярных луча, цветные стёкла-фильтры перекрашивают,
+   розы-мишени поглощают. Победа: каждая роза получила свой цвет. */
+
+const GRID_W = 9, GRID_H = 12;
+const DX = [1,0,-1,0], DY = [0,1,0,-1];
+const REFL = { 0:[3,2,1,0], 1:[1,0,3,2] };   // o -> (dir -> dir): '/' и '\'
+const BEAM = { w:'#fff6e0', g:'#ffd24a', r:'#ff5c7a', b:'#58a6ff', e:'#46e0a0' };
+const GLASS = { w:'#f4efe2', g:'#e8b93a', r:'#e04a67', b:'#4a90e0', e:'#3bc98d' };
+const CNAME = { w:'белый', g:'золотой', r:'рубиновый', b:'сапфировый', e:'изумрудный' };
+
+/* ═══════════ уровни ═══════════
+   em: излучатель [x,y,dir,color] · mr: поворотное зеркало [x,y,solO,initO]
+   mf: закреплённое зеркало [x,y,o] · sp: расщепитель [x,y]
+   fl: стекло-фильтр [x,y,color] · tg: роза-мишень [x,y,color] · wl: камень [x,y]
+   par — минимум поворотов (число зеркал, где initO≠solO). */
+const LEVELS = [
+  {name:'Первый луч', par:1, items:[
+    ['em',1,2,0,'w'], ['mr',6,2,1,0], ['tg',6,9,'w'],
+    ['wl',3,6],['wl',5,6]]},
+  {name:'Двойной поворот', par:2, items:[
+    ['em',1,9,0,'w'], ['mr',4,9,0,1], ['mr',4,2,1,0], ['tg',1,2,'w'],
+    ['wl',7,5],['wl',7,6]]},
+  {name:'Рубиновое стекло', par:1, items:[
+    ['em',1,2,0,'w'], ['fl',3,2,'r'], ['mr',6,2,1,0], ['tg',6,8,'r'],
+    ['wl',2,6],['wl',6,10]]},
+  {name:'Развилка', par:2, items:[
+    ['em',4,1,1,'w'], ['sp',4,5],
+    ['mr',7,5,1,0], ['tg',7,9,'w'],
+    ['mr',1,5,0,1], ['tg',1,9,'w'],
+    ['wl',4,8]]},
+  {name:'Два цвета', par:2, items:[
+    ['em',1,5,0,'w'], ['sp',4,5],
+    ['fl',4,3,'b'], ['mr',4,1,1,0], ['tg',1,1,'b'],
+    ['fl',4,8,'g'], ['mr',4,10,0,1], ['tg',1,10,'g'],
+    ['wl',7,3],['wl',7,8]]},
+  {name:'Зеркальный зал', par:3, items:[
+    ['em',1,2,0,'w'], ['mr',7,2,1,0], ['mr',7,10,0,1], ['mr',2,10,1,0], ['tg',2,6,'w'],
+    ['wl',4,6],['wl',5,5],['wl',4,4]]},
+  {name:'Витражное трио', par:3, items:[
+    ['em',1,6,0,'w'], ['sp',3,6],
+    ['fl',3,4,'r'], ['mr',3,1,1,0], ['tg',0,1,'r'],
+    ['fl',3,9,'e'], ['mr',3,11,0,1], ['tg',0,11,'e'],
+    ['em',7,1,1,'w'], ['fl',7,4,'b'], ['mr',7,8,0,1], ['tg',5,8,'b'],
+    ['wl',5,3]]},
+  {name:'Каменный лабиринт', par:3, items:[
+    ['em',0,1,0,'w'], ['mr',3,1,1,0], ['mr',3,6,0,1], ['mr',1,6,1,0], ['tg',1,4,'w'],
+    ['wl',1,3],['wl',5,3],['wl',6,4],['wl',5,8],['wl',2,8],
+    ['mr',6,10,0,0]]},
+  {name:'Роза и роза', par:2, items:[
+    ['em',4,2,1,'w'], ['sp',4,6],
+    ['mr',1,6,0,1], ['fl',1,8,'g'], ['tg',1,10,'g'],
+    ['mr',7,6,0,1], ['fl',7,4,'r'], ['tg',7,2,'r'],
+    ['wl',4,9],['mr',6,11,1,1]]},
+  {name:'Большая роза', par:3, items:[
+    ['em',0,6,0,'w'], ['sp',4,6],
+    ['fl',4,4,'b'], ['mr',4,1,1,0], ['tg',1,1,'b'],
+    ['mr',4,9,0,1], ['fl',2,9,'r'], ['tg',0,9,'r'],
+    ['em',8,11,3,'w'], ['mr',8,2,1,0], ['fl',5,2,'g'], ['tg',2,2,'g'],
+    ['wl',6,6],['wl',2,4],['wl',6,9]]},
+];
+
+/* ═══════════ состояние ═══════════ */
+const $ = id => document.getElementById(id);
+const wrap = $('wrap'), cvs = $('board'), ctx = cvs.getContext('2d');
+let levelIdx = 0, items = [], itemAt = {}, segments = [], litMap = {};
+let moves = 0, won = false, mode = 'menu';
+let boardX = 0, boardY = 0, CS = 40, DPR = 1;
+let winFlash = 0;
+
+const stars = JSON.parse(localStorage.getItem('vitrazh_stars') || '[]');
+let sndOn = localStorage.getItem('vitrazh_snd') !== '0';
+
+/* ═══════════ звук ═══════════ */
+let AC = null;
+function audio(){ if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} return AC; }
+function tone(freq, dur, type, vol, when){
+  if (!sndOn || !audio()) return;
+  const t = AC.currentTime + (when || 0), o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol || .08, t + .02);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + dur + .05);
+}
+const clickSnd = () => tone(880, .06, 'triangle', .06);
+const glowSnd  = () => { tone(660, .3, 'sine', .07); tone(990, .4, 'sine', .04, .05); };
+function organSnd(){ [262,330,392,523].forEach((f,i)=>{ tone(f, 1.2, 'sine', .05, i*.06); tone(f*2, .8, 'sine', .02, i*.06); }); }
+
+/* ═══════════ уровень ═══════════ */
+function startLevel(i){
+  levelIdx = i;
+  mode = 'game'; won = false; moves = 0; winFlash = 0;
+  items = LEVELS[i].items.map(it => {
+    const [t, x, y, a, b] = it;
+    const o = { t, x, y };
+    if (t === 'em'){ o.dir = a; o.c = b; }
+    if (t === 'mr'){ o.sol = a; o.o = b; o.rot = true; o.ang = b ? 45 : -45; }
+    if (t === 'mf'){ o.o = a; o.ang = a ? 45 : -45; }
+    if (t === 'fl' || t === 'tg'){ o.c = a; }
+    return o;
+  });
+  itemAt = {};
+  for (const it of items) itemAt[it.x + ',' + it.y] = it;
+  trace();
+  $('lvlName').innerHTML = `Уровень ${i+1}<small>${LEVELS[i].name}</small>`;
+  showScreen(null);
+  $('hud').style.display = 'flex';
+  $('status').style.display = 'block';
+  if (i === 0 && !localStorage.getItem('vitrazh_hint')){
+    showHint('Коснись зеркала в бронзовом кольце —\nоно повернётся и направит луч 💫');
+    localStorage.setItem('vitrazh_hint', '1');
+  }
+  updateStatus();
+}
+
+/* ═══════════ трассировка лучей ═══════════ */
+function trace(){
+  segments = []; litMap = {};
+  const queue = [], seen = new Set();
+  for (const it of items) if (it.t === 'em') queue.push({x:it.x, y:it.y, d:it.dir, c:it.c});
+  let guard = 0;
+  while (queue.length && guard++ < 400){
+    const b = queue.pop();
+    const key = b.x + ',' + b.y + ',' + b.d + ',' + b.c;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    let x = b.x, y = b.y;
+    for (;;){
+      const nx = x + DX[b.d], ny = y + DY[b.d];
+      if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H){
+        segments.push({x0:b.x, y0:b.y, x1:x + DX[b.d]*.5, y1:y + DY[b.d]*.5, c:b.c});
+        break;
+      }
+      const it = itemAt[nx + ',' + ny];
+      if (!it){ x = nx; y = ny; continue; }
+      if (it.t === 'wl' || it.t === 'em'){
+        segments.push({x0:b.x, y0:b.y, x1:nx - DX[b.d]*.45, y1:ny - DY[b.d]*.45, c:b.c});
+        break;
+      }
+      segments.push({x0:b.x, y0:b.y, x1:nx, y1:ny, c:b.c});
+      if (it.t === 'mr' || it.t === 'mf'){
+        queue.push({x:nx, y:ny, d:REFL[it.o][b.d], c:b.c});
+      } else if (it.t === 'sp'){
+        queue.push({x:nx, y:ny, d:(b.d+1)%4, c:b.c});
+        queue.push({x:nx, y:ny, d:(b.d+3)%4, c:b.c});
+      } else if (it.t === 'fl'){
+        queue.push({x:nx, y:ny, d:b.d, c:it.c});
+      } else if (it.t === 'tg'){
+        (litMap[nx + ',' + ny] = litMap[nx + ',' + ny] || new Set()).add(b.c);
+      }
+      break;
+    }
+  }
+}
+function isLit(it){ return !!(litMap[it.x + ',' + it.y] && litMap[it.x + ',' + it.y].has(it.c)); }
+function checkWin(){
+  return items.filter(it => it.t === 'tg').every(isLit);
+}
+
+/* ═══════════ ходы ═══════════ */
+function rotateAt(gx, gy){
+  const it = itemAt[gx + ',' + gy];
+  if (!it || it.t !== 'mr' || won) return;
+  it.o ^= 1;
+  it.targetAng = (it.ang || 0) + 90;
+  moves++;
+  clickSnd();
+  if (navigator.vibrate) navigator.vibrate(6);
+  const litBefore = items.filter(it2 => it2.t === 'tg' && isLit(it2)).length;
+  trace();
+  const litAfter = items.filter(it2 => it2.t === 'tg' && isLit(it2)).length;
+  if (litAfter > litBefore) glowSnd();
+  updateStatus();
+  if (checkWin()){
+    won = true;
+    winFlash = 1;
+    organSnd();
+    setTimeout(showResult, 1300);
+  }
+}
+function showResult(){
+  const par = LEVELS[levelIdx].par;
+  const st = moves <= par + 1 ? 3 : moves <= par + 4 ? 2 : 1;
+  if (st > (stars[levelIdx] || 0)){
+    stars[levelIdx] = st;
+    localStorage.setItem('vitrazh_stars', JSON.stringify(stars));
+  }
+  $('resStars').textContent = '★★★'.slice(0, st);
+  $('resTitle').textContent = st === 3 ? 'Собор озарён!' : 'Свет пришёл!';
+  $('resSub').textContent = `Поворотов: ${moves} · минимум: ${par}`;
+  $('btnNext').style.display = levelIdx < LEVELS.length - 1 ? '' : 'none';
+  showScreen('result');
+}
+function updateStatus(){
+  const total = items.filter(it => it.t === 'tg').length;
+  const lit = items.filter(it => it.t === 'tg' && isLit(it)).length;
+  $('status').innerHTML = `Розы: <b>${lit} / ${total}</b> · поворотов: <b>${moves}</b> · минимум ${LEVELS[levelIdx].par}`;
+}
+
+let hintTimer = 0;
+function showHint(text){
+  const h = $('hint');
+  clearTimeout(hintTimer);
+  if (!text){ h.classList.add('hide'); return; }
+  h.textContent = text;
+  h.classList.remove('hide');
+  hintTimer = setTimeout(() => h.classList.add('hide'), 5000);
+}
+
+/* ═══════════ рендер ═══════════ */
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const r = wrap.getBoundingClientRect();
+  cvs.width = r.width * DPR; cvs.height = r.height * DPR;
+  const topPad = 86, botPad = 64;
+  CS = Math.min((r.width - 20) / GRID_W, (r.height - topPad - botPad) / GRID_H);
+  boardX = (r.width - CS * GRID_W) / 2;
+  boardY = topPad + (r.height - topPad - botPad - CS * GRID_H) / 2;
+}
+addEventListener('resize', resize);
+
+const px = gx => boardX + (gx + .5) * CS;
+const py = gy => boardY + (gy + .5) * CS;
+
+function drawBoard(t){
+  const W = cvs.width / DPR, H = cvs.height / DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  /* готическая арка на заднике */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(160,140,220,.06)';
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(W*.12, H*.9);
+  ctx.quadraticCurveTo(W*.12, H*.16, W*.5, H*.06);
+  ctx.quadraticCurveTo(W*.88, H*.16, W*.88, H*.9);
+  ctx.stroke();
+  ctx.restore();
+
+  /* сетка — едва заметные швы каменного пола */
+  ctx.strokeStyle = 'rgba(180,170,230,.05)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= GRID_W; x++){
+    ctx.beginPath(); ctx.moveTo(boardX + x*CS, boardY); ctx.lineTo(boardX + x*CS, boardY + GRID_H*CS); ctx.stroke();
+  }
+  for (let y = 0; y <= GRID_H; y++){
+    ctx.beginPath(); ctx.moveTo(boardX, boardY + y*CS); ctx.lineTo(boardX + GRID_W*CS, boardY + y*CS); ctx.stroke();
+  }
+
+  /* лучи */
+  ctx.save();
+  ctx.lineCap = 'round';
+  const flow = (t / 50) % 24;
+  for (const s of segments){
+    const c = BEAM[s.c];
+    ctx.shadowColor = c; ctx.shadowBlur = 14;
+    ctx.strokeStyle = c; ctx.globalAlpha = .16; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(px(s.x0), py(s.y0)); ctx.lineTo(px(s.x1), py(s.y1)); ctx.stroke();
+    ctx.globalAlpha = .95; ctx.lineWidth = 2.4; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(px(s.x0), py(s.y0)); ctx.lineTo(px(s.x1), py(s.y1)); ctx.stroke();
+    /* бегущие искры вдоль луча */
+    ctx.globalAlpha = .9; ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 6;
+    const dx = px(s.x1) - px(s.x0), dy = py(s.y1) - py(s.y0);
+    const len = Math.hypot(dx, dy);
+    for (let d = flow; d < len; d += 24){
+      ctx.beginPath();
+      ctx.arc(px(s.x0) + dx/len*d, py(s.y0) + dy/len*d, 1.3, 0, 7);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  /* предметы */
+  for (const it of items){
+    const x = px(it.x), y = py(it.y);
+    if (it.t === 'wl') drawWall(x, y);
+    else if (it.t === 'em') drawEmitter(it, x, y, t);
+    else if (it.t === 'mr' || it.t === 'mf') drawMirror(it, x, y);
+    else if (it.t === 'sp') drawSplitter(x, y, t);
+    else if (it.t === 'fl') drawFilter(it, x, y);
+    else if (it.t === 'tg') drawTarget(it, x, y, t);
+  }
+
+  /* вспышка победы */
+  if (winFlash > 0){
+    ctx.fillStyle = `rgba(255,240,200,${winFlash * .18})`;
+    ctx.fillRect(0, 0, W, H);
+    winFlash = Math.max(0, winFlash - .012);
+  }
+}
+function drawWall(x, y){
+  const s = CS * .82;
+  const g = ctx.createLinearGradient(x, y - s/2, x, y + s/2);
+  g.addColorStop(0, '#4a4468'); g.addColorStop(1, '#2c2844');
+  ctx.fillStyle = g;
+  roundRect(x - s/2, y - s/2, s, s, 5); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.5;
+  roundRect(x - s/2, y - s/2, s, s, 5); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.09)';
+  ctx.beginPath(); ctx.moveTo(x - s/2 + 3, y - s/2 + 2.5); ctx.lineTo(x + s/2 - 3, y - s/2 + 2.5); ctx.stroke();
+}
+function drawEmitter(it, x, y, t){
+  const c = BEAM[it.c];
+  ctx.save();
+  ctx.shadowColor = c; ctx.shadowBlur = 16;
+  const g = ctx.createRadialGradient(x, y, 1, x, y, CS*.34);
+  g.addColorStop(0, '#fffdf4'); g.addColorStop(.45, c); g.addColorStop(1, '#6b5a20');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, CS*.3 + Math.sin(t/400)*.8, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, CS*.3, 0, 7); ctx.stroke();
+  /* носик направления */
+  ctx.fillStyle = '#e8d9a8';
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(it.dir * Math.PI/2);
+  ctx.beginPath(); ctx.moveTo(CS*.3, -CS*.12); ctx.lineTo(CS*.48, 0); ctx.lineTo(CS*.3, CS*.12); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawMirror(it, x, y){
+  /* плавный доворот */
+  const target = it.targetAng !== undefined ? it.targetAng : (it.o ? 45 : -45);
+  it.ang = it.ang === undefined ? target : it.ang + (target - it.ang) * .22;
+  const a = it.ang * Math.PI / 180;
+  const L = CS * .42;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(a);
+  /* рама */
+  ctx.strokeStyle = it.rot ? '#8a6d3a' : '#3d3a52';
+  ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-L, 0); ctx.lineTo(L, 0); ctx.stroke();
+  /* стекло */
+  const g = ctx.createLinearGradient(-L, 0, L, 0);
+  g.addColorStop(0, '#cfd6f2'); g.addColorStop(.5, '#ffffff'); g.addColorStop(1, '#9aa4cf');
+  ctx.strokeStyle = g; ctx.lineWidth = 3.4;
+  ctx.beginPath(); ctx.moveTo(-L, 0); ctx.lineTo(L, 0); ctx.stroke();
+  ctx.restore();
+  /* бронзовое кольцо у поворотных */
+  if (it.rot){
+    ctx.strokeStyle = '#c9932e'; ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(x, y, CS*.46, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+function drawSplitter(x, y, t){
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(Math.PI/4 + Math.sin(t/900)*.05);
+  const s = CS * .26;
+  const g = ctx.createLinearGradient(-s, -s, s, s);
+  g.addColorStop(0, '#e8ecff'); g.addColorStop(.5, '#b9c4f0'); g.addColorStop(1, '#7f8ac2');
+  ctx.fillStyle = g;
+  ctx.shadowColor = '#cfd8ff'; ctx.shadowBlur = 10;
+  ctx.fillRect(-s, -s, s*2, s*2);
+  ctx.restore();
+}
+function drawFilter(it, x, y){
+  const s = CS * .34;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(Math.PI/4);
+  ctx.fillStyle = GLASS[it.c] + 'cc';
+  ctx.shadowColor = BEAM[it.c]; ctx.shadowBlur = 8;
+  ctx.fillRect(-s, -s, s*2, s*2);
+  ctx.strokeStyle = '#3a3550'; ctx.lineWidth = 3;
+  ctx.strokeRect(-s, -s, s*2, s*2);
+  ctx.restore();
+}
+function drawTarget(it, x, y, t){
+  const lit = isLit(it);
+  const R = CS * .4;
+  const c = BEAM[it.c];
+  ctx.save();
+  if (lit){
+    ctx.shadowColor = c; ctx.shadowBlur = 22 + Math.sin(t/300) * 6;
+    const g = ctx.createRadialGradient(x, y, 1, x, y, R);
+    g.addColorStop(0, '#fffdf2'); g.addColorStop(.4, c); g.addColorStop(1, GLASS[it.c]);
+    ctx.fillStyle = g;
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+  }
+  /* роза: 8 лепестков */
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++){
+    const a0 = i * Math.PI/4, a1 = a0 + Math.PI/4;
+    const mx = x + Math.cos(a0 + Math.PI/8) * R * 1.18, my = y + Math.sin(a0 + Math.PI/8) * R * 1.18;
+    if (i === 0) ctx.moveTo(x + Math.cos(a0)*R*.75, y + Math.sin(a0)*R*.75);
+    ctx.quadraticCurveTo(mx, my, x + Math.cos(a1)*R*.75, y + Math.sin(a1)*R*.75);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = lit ? '#f4e8c8' : GLASS[it.c] + '88';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  /* свинцовые спицы */
+  ctx.strokeStyle = lit ? 'rgba(60,40,20,.5)' : 'rgba(255,255,255,.14)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 8; i++){
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(i*Math.PI/4)*R*.75, y + Math.sin(i*Math.PI/4)*R*.75);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function roundRect(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+function loop(t){
+  requestAnimationFrame(loop);
+  if (mode !== 'game') return;
+  drawBoard(t || 0);
+}
+
+/* ═══════════ ввод ═══════════ */
+cvs.addEventListener('pointerdown', ev => {
+  if (mode !== 'game') return;
+  audio(); if (AC && AC.state === 'suspended') AC.resume();
+  const r = cvs.getBoundingClientRect();
+  const gx = Math.floor((ev.clientX - r.left - boardX) / CS);
+  const gy = Math.floor((ev.clientY - r.top - boardY) / CS);
+  if (gx >= 0 && gx < GRID_W && gy >= 0 && gy < GRID_H) rotateAt(gx, gy);
+});
+
+/* ═══════════ экраны ═══════════ */
+function showScreen(name){
+  ['menu','result'].forEach(s => $(s).classList.toggle('hide', s !== name));
+}
+function buildMenu(){
+  const g = $('lvlgrid');
+  g.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const unlocked = i === 0 || (stars[i-1] || 0) > 0;
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.disabled = !unlocked;
+    b.innerHTML = `${i+1}<small>${'★'.repeat(stars[i] || 0)}</small>`;
+    b.onclick = () => startLevel(i);
+    g.appendChild(b);
+  });
+}
+function toMenu(){
+  mode = 'menu';
+  $('hud').style.display = 'none';
+  $('status').style.display = 'none';
+  showHint('');
+  buildMenu();
+  showScreen('menu');
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+}
+$('btnPlay').onclick = () => {
+  let i = 0;
+  while (i < LEVELS.length - 1 && (stars[i] || 0) > 0) i++;
+  startLevel(i);
+};
+$('btnMenu').onclick = toMenu;
+$('btnResMenu').onclick = toMenu;
+$('btnRestart').onclick = () => startLevel(levelIdx);
+$('btnAgain').onclick = () => startLevel(levelIdx);
+$('btnNext').onclick = () => startLevel(Math.min(levelIdx + 1, LEVELS.length - 1));
+$('btnSnd').textContent = sndOn ? '🔊' : '🔇';
+$('btnSnd').onclick = () => {
+  sndOn = !sndOn;
+  localStorage.setItem('vitrazh_snd', sndOn ? '1' : '0');
+  $('btnSnd').textContent = sndOn ? '🔊' : '🔇';
+};
+
+/* для автотестов: расставить решение текущего уровня */
+window.__applySolution = () => {
+  for (const it of items) if (it.t === 'mr' && it.o !== it.sol) rotateAt(it.x, it.y);
+  return checkWin();
+};
+window.__isWin = checkWin;
+window.__startLevel = startLevel;
+
+if (window.YaGames) YaGames.init().then(y => { window.ysdk = y; y.features?.LoadingAPI?.ready?.(); }).catch(()=>{});
+
+resize();
+buildMenu();
+showScreen('menu');
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

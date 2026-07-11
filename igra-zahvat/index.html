@@ -122,6 +122,9 @@
   .heroCard .hrow{display:flex; align-items:center; gap:8px; padding:4px 0; color:#dfe2ff;}
   .heroCard .hrow.locked{opacity:.42;}
   .heroCard .hrow .hn{margin-left:auto; color:var(--muted); font-size:11.5px; white-space:nowrap;}
+  .chip{display:inline-block; background:rgba(124,92,255,.18); border:1px solid rgba(124,92,255,.4);
+    border-radius:999px; padding:3px 9px; font-size:12px; margin:2px 3px 2px 0; color:#dfe2ff;}
+  .menuNote{font-size:12px; color:var(--muted);}
 
   #loading{ position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
     background:linear-gradient(160deg,#0f1226,#171a3a); color:#cfe0ff; }
@@ -160,6 +163,7 @@
     <div class="gambits" id="inGambits"></div>
   </div>
   <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div>
+    <div class="menuNote" id="menuNote"></div>
     <div class="diffRow" id="diffRow"></div>
     <div class="heroCard" id="heroCard"></div>
     <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
@@ -821,7 +825,7 @@ function step(dt){
     if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
     else { const per=(prod(n)/out.length)*dt;
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
-    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1){ sfx('lvl'); if(n.l===2) specHint(); } }
+    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1){ sfx('lvl'); if(n.l===2 && (endless||mapIndex>0)) specHint(); } }
   }
   // soldiers move in world (x,z)
   for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
@@ -836,8 +840,8 @@ function step(dt){
 function botThink(){
   const aggro=curMap.aggro, mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
   for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
-  // прокачка: бот выбирает специализации — приграничным бой, тыловым экономика
-  for(const n of mine){
+  // прокачка: бот выбирает специализации — приграничным бой, тыловым экономика (со 2-й карты)
+  for(const n of (endless || mapIndex>0) ? mine : []){
     if(n.l<2 || n.spec || Math.random()>D().spec) continue;
     let dMin=Infinity; for(const x of nodes){ if(x.o===1){ const d=Math.hypot(x.x-n.x,x.z-n.z); if(d<dMin) dMin=d; } }
     n.spec = dMin<7 ? (Math.random()<0.5?'atk':'def') : 'eco';
@@ -1011,8 +1015,8 @@ function bindInput(){
     const far = downXY && Math.hypot(e.clientX-downXY.x, e.clientY-downXY.y)>14;
     if(drag){ const n=pickNode(e);
       if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id);
-      else if(!far){ const src=nodes[drag.fromId];      // тап по своей башне — меню специализации
-        if(src.l>=2 && !src.spec) openSpec(src); else hideSpec(); }
+      else if(!far){ const src=nodes[drag.fromId];      // тап по своей башне — меню специализации (со 2-й карты)
+        if(src.l>=2 && !src.spec && (endless || mapIndex>0)) openSpec(src); else hideSpec(); }
       drag=null; dragLine.visible=false; }
     else if(!far){ hideSpec(); const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
     downXY=null; });
@@ -1037,9 +1041,13 @@ function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHT
     el.className='lvl'+(locked?' locked':'')+(i<progress?' done':'');
     el.innerHTML='<span>'+(i+1)+'</span>'+(bestStars[i]?'<span class="st">'+starsMarkup(bestStars[i])+'</span>':'');
     if(!locked) el.onclick=()=>{ hideOverlay('ovMenu'); loadMap(i); }; grid.appendChild(el); });
-  const inf=document.createElement('div'); inf.className='lvl inf';
-  inf.innerHTML='<span>∞</span>'+(bestEndless?'<span class="st">рекорд '+bestEndless+'</span>':'');
-  inf.onclick=()=>{ hideOverlay('ovMenu'); loadEndless(1); }; grid.appendChild(inf);
+  const infLocked = progress<3 && !bestEndless;
+  const inf=document.createElement('div'); inf.className='lvl inf'+(infLocked?' locked':'');
+  inf.innerHTML = infLocked ? '<span>∞</span><span class="st">🔒</span>'
+    : '<span>∞</span>'+(bestEndless?'<span class="st">рекорд '+bestEndless+'</span>':'');
+  if(!infLocked) inf.onclick=()=>{ hideOverlay('ovMenu'); loadEndless(1); };
+  grid.appendChild(inf);
+  document.getElementById('menuNote').textContent = infLocked ? '∞ Бесконечный режим откроется после карты 3' : '';
   const dr=document.getElementById('diffRow'); dr.innerHTML='';
   Object.entries(DIFFS).forEach(([k,d])=>{ const b=document.createElement('button');
     b.className='dbtn'+(k===diff?' sel':''); b.textContent=d.label;
@@ -1050,12 +1058,16 @@ function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHT
   document.getElementById('ovMenu').className='overlay show'; }
 
 function renderHero(){ refreshHero(); const t=totalStars();
+  const card=document.getElementById('heroCard');
+  if(t<=0){ card.style.display='none'; return; }   // герой появляется с первой звездой
+  card.style.display='block';
   let h='<div class="hh"><span style="font-size:22px">🦉</span> Филин · ур. '+HLVL+'<span class="hst">⭐ '+t+'</span></div>';
-  HERO_LEVELS.forEach((lv,i)=>{ const got=t>=lv.need;
-    h+='<div class="hrow'+(got?'':' locked')+'"><span>'+lv.icon+'</span><span>'+lv.name+'</span>'+
-       '<span class="hn">'+(got?'✓':'⭐ '+lv.need)+'</span></div>'; });
-  h+='<div class="hrow" style="color:var(--muted)">⭐ = сумма лучших звёзд за карты + рекорд ∞</div>';
-  document.getElementById('heroCard').innerHTML=h; }
+  const got=HERO_LEVELS.filter(lv=>t>=lv.need), next=HERO_LEVELS.find(lv=>t<lv.need);
+  if(got.length) h+='<div>'+got.map(lv=>'<span class="chip">'+lv.icon+' '+lv.name+'</span>').join('')+'</div>';
+  else h+='<div class="hrow" style="color:var(--muted)">Зарабатывай звёзды — Филин будет помогать в бою.</div>';
+  if(next) h+='<div class="hrow locked"><span>'+next.icon+'</span><span>'+next.name+'</span><span class="hn">⭐ '+next.need+'</span></div>';
+  else h+='<div class="hrow" style="color:var(--muted)">Максимальный уровень! 🏆</div>';
+  card.innerHTML=h; }
 
 function shareResult(){
   const url='https://lanashakh.github.io/igra-zahvat/';

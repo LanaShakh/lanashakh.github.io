@@ -79,6 +79,11 @@
     position:absolute; bottom:calc(92px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
     z-index:10; display:none;
   }
+  #btnPour{
+    position:absolute; bottom:calc(100px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+    z-index:10; display:none; animation:pourglow 1.5s ease-in-out infinite;
+  }
+  @keyframes pourglow{50%{box-shadow:0 8px 40px rgba(255,150,60,.75);}}
 
   /* ── банки ── */
   .bin{
@@ -148,6 +153,7 @@
 
   <div class="tools" id="tools" style="display:none"></div>
   <button class="btn primary" id="btnFinish">Завершить</button>
+  <button class="btn primary big" id="btnPour">▶ Сыпать песок</button>
   <div class="hint hide" id="hint"></div>
 
   <!-- меню -->
@@ -219,7 +225,7 @@ const LEVELS = [
     bins:[{x0:.68,x1:.90,c:2},{x0:.10,x1:.32,c:3}]},
   {name:'Трио', ink:540, em:[{x:.18,c:2,n:320},{x:.50,c:3,n:320,delay:250},{x:.82,c:4,n:320,delay:500}],
     bins:[{x0:.60,x1:.76,c:2},{x0:.06,x1:.22,c:3},{x0:.34,x1:.50,c:4}]},
-  {name:'Дождик', ink:560, em:[{x:.50,c:1,n:760,r:2,w:.72}], bins:[{x0:.42,x1:.58,c:1}]},
+  {name:'Дождик', ink:560, em:[{x:.50,c:1,n:760,r:1.1,w:.72}], bins:[{x0:.42,x1:.58,c:1}]},
   {name:'Воронка', ink:400, em:[{x:.50,c:4,n:560,osc:{a:.30,p:700}}],
     bins:[{x0:.74,x1:.90,c:4}],
     obst:[{ax:.13,ay:.20,bx:.42,by:.34},{ax:.87,ay:.20,bx:.58,by:.34}]},
@@ -243,6 +249,7 @@ let bins = [];               // {x0,x1,c,el,count}
 let ink = 0, inkMax = 1;
 let correct = 0, wrong = 0, totalPlanned = 0;
 let stepCount = 0, quietSteps = 0, finished = false, spawnBlockedSteps = 0;
+let pouring = false, pourStep = 0;   // песок ждёт, пока игрок нажмёт «Сыпать»
 let tool = 'wall';           // wall | erase | pour1..pour4
 let running = false;
 
@@ -309,6 +316,7 @@ function startLevel(i){
   levelIdx = i;
   const L = LEVELS[i];
   mode = 'level'; finished = false; stepCount = 0; quietSteps = 0; spawnBlockedSteps = 0;
+  pouring = false; pourStep = 0;
   correct = 0; wrong = 0;
   ink = inkMax = L.ink;
   clearField(); clearDom();
@@ -332,7 +340,7 @@ function startLevel(i){
     el.style.background = PALETTE[e.c][0];
     el.style.left = (e.x*100)+'%';
     wrap.appendChild(el);
-    return {r:1, delay:0, w:0, ...e, spawned:0, el};
+    return {r:.55, delay:0, w:0, ...e, spawned:0, acc:0, el};
   });
   (L.obst || []).forEach(stampObst);
   buildFloor();
@@ -344,9 +352,10 @@ function startLevel(i){
   $('subhud').style.display = 'flex';
   $('tools').style.display = 'flex';
   $('btnFinish').style.display = 'none';
+  $('btnPour').style.display = 'block';
   updateHud();
   if (i === 0 && !localStorage.getItem('pesok_hint')){
-    showHint('Рисуй пальцем линии прямо под струёй —\nпесок покатится по ним в банку 👇');
+    showHint('Не спеши: сначала нарисуй пальцем линию-жёлоб\nот краника к банке, а потом нажми «Сыпать» 👇');
     localStorage.setItem('pesok_hint', '1');
   } else showHint(LEVELS[i].hint || '');
 }
@@ -363,6 +372,7 @@ function startSandbox(){
   $('subhud').style.display = 'none';
   $('tools').style.display = 'flex';
   $('btnFinish').style.display = 'none';
+  $('btnPour').style.display = 'none';
   showHint('Води пальцем — сыпется песок.\nВнизу — цвета, стена и ластик');
 }
 
@@ -426,13 +436,16 @@ function capture(x, y, c){
 function step(){
   let moved = 0;
 
-  /* эмиттеры */
+  /* эмиттеры — сыплют только после нажатия «Сыпать» */
   let wantSpawn = false, didSpawn = false;
-  for (const e of emitters){
-    if (finished || e.spawned >= e.n || stepCount < e.delay) continue;
+  if (pouring) for (const e of emitters){
+    if (finished || e.spawned >= e.n || pourStep < e.delay) continue;
     wantSpawn = true;
-    const off = e.osc ? e.osc.a * Math.sin(stepCount * 2 * Math.PI / e.osc.p) : 0;
-    for (let k = 0; k < e.r; k++){
+    const off = e.osc ? e.osc.a * Math.sin(pourStep * 2 * Math.PI / e.osc.p) : 0;
+    e.acc += e.r;
+    const tries = e.acc | 0;
+    e.acc -= tries;
+    for (let k = 0; k < tries; k++){
       if (e.spawned >= e.n) break;
       let px;
       if (e.w) px = Math.round((e.x + (Math.random()-.5) * e.w) * GW);
@@ -478,8 +491,9 @@ function step(){
   }
 
   stepCount++;
+  if (pouring) pourStep++;
 
-  if (mode === 'level' && !finished){
+  if (mode === 'level' && !finished && pouring){
     const allSpawned = emitters.every(e => e.spawned >= e.n);
     if (moved === 0) quietSteps++; else quietSteps = 0;
     if (wantSpawn && !didSpawn) spawnBlockedSteps++; else if (didSpawn) spawnBlockedSteps = 0;
@@ -619,6 +633,7 @@ function toMenu(){
   clearDom();
   ['hud','subhud','tools'].forEach(id => $(id).style.display = 'none');
   $('btnFinish').style.display = 'none';
+  $('btnPour').style.display = 'none';
   showHint('');
   buildMenu();
   showScreen('menu');
@@ -635,6 +650,13 @@ $('btnRestart').onclick = () => mode === 'sandbox' ? startSandbox() : startLevel
 $('btnAgain').onclick = () => startLevel(levelIdx);
 $('btnNext').onclick = () => startLevel(Math.min(levelIdx + 1, LEVELS.length - 1));
 $('btnFinish').onclick = finish;
+$('btnPour').onclick = () => {
+  pouring = true;
+  $('btnPour').style.display = 'none';
+  showHint('');
+  audio(); if (AC && AC.state === 'suspended') AC.resume();
+  beep(440, .12, 'sine', .07);
+};
 $('btnSnd').textContent = sndOn ? '🔊' : '🔇';
 $('btnSnd').onclick = () => {
   sndOn = !sndOn;

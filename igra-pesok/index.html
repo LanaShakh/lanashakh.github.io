@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12152b">
+<title>Песочек — залипательная песочная головоломка</title>
+<meta name="description" content="Песочек — рисуй пальцем линии и разложи струи цветного песка по банкам. Настоящая песочная физика, 12 уровней и свободная песочница.">
+<!-- SDK Яндекс Игр: вне платформы просто 404 и всё работает как обычно -->
+<script src="/sdk.js" onerror="void 0"></script>
+<style>
+  :root{
+    --ink:#eef0ff; --muted:#9aa2d8;
+    --c1:#ffd24a; --c2:#ff6b6b; --c3:#4aa3ff; --c4:#3ddc97;
+    --wall:#d9b380; --panel:rgba(255,255,255,.07); --panel2:rgba(255,255,255,.12);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:ui-rounded,'Nunito','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+    background:#0c0e1e; color:var(--ink); user-select:none; -webkit-user-select:none;
+    display:flex; align-items:center; justify-content:center; height:100%;
+  }
+  #wrap{
+    position:relative; overflow:hidden; border-radius:0;
+    width:min(100vw, calc(100dvh * 120 / 208));
+    height:min(100dvh, calc(100vw * 208 / 120));
+    background:linear-gradient(180deg,#1b2040 0%,#12152b 55%,#0e1124 100%);
+    touch-action:none;
+  }
+  @media (min-width:520px){ #wrap{border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,.5);} }
+  canvas#sim{
+    position:absolute; inset:0; width:100%; height:100%; display:block;
+    image-rendering:pixelated; image-rendering:crisp-edges; touch-action:none;
+  }
+
+  /* ── HUD ── */
+  .hud{
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; gap:8px;
+    padding:calc(8px + env(safe-area-inset-top)) 10px 6px;
+    pointer-events:none;
+  }
+  .hud > *{pointer-events:auto;}
+  .btn{
+    border:0; border-radius:14px; background:var(--panel); color:var(--ink);
+    font:inherit; font-weight:800; font-size:15px; padding:9px 13px; cursor:pointer;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  .btn:active{transform:scale(.95);}
+  .btn.primary{background:linear-gradient(135deg,#ffb84a,#ff8a3d); color:#3a2200; box-shadow:0 8px 24px rgba(255,150,60,.35);}
+  .btn.big{font-size:19px; padding:14px 26px; border-radius:18px;}
+  .lvl-name{font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; text-align:center; text-shadow:0 2px 6px rgba(0,0,0,.5);}
+  .lvl-name small{display:block; font-weight:700; font-size:10.5px; color:var(--muted);}
+
+  .subhud{
+    position:absolute; top:calc(52px + env(safe-area-inset-top)); left:10px; right:10px; z-index:10;
+    display:flex; align-items:center; gap:10px; pointer-events:none;
+  }
+  .inkwrap{flex:1; height:10px; border-radius:99px; background:rgba(0,0,0,.35); overflow:hidden;}
+  #inkbar{height:100%; width:100%; border-radius:99px; background:linear-gradient(90deg,#d9b380,#f3d9a8); transition:width .15s;}
+  #score{font-weight:800; font-size:13px; white-space:nowrap; text-shadow:0 2px 6px rgba(0,0,0,.5);}
+  #score .ok{color:#7dedb6;} #score .bad{color:#ff9b9b;}
+
+  /* ── инструменты ── */
+  .tools{
+    position:absolute; bottom:calc(34px + env(safe-area-inset-bottom)); left:0; right:0; z-index:10;
+    display:flex; justify-content:center; gap:8px; pointer-events:none;
+  }
+  .tools .tool{
+    pointer-events:auto; border:2px solid transparent; border-radius:16px;
+    background:var(--panel); color:var(--ink); font:inherit; font-weight:800; font-size:14px;
+    padding:9px 14px; cursor:pointer; backdrop-filter:blur(6px);
+  }
+  .tools .tool.on{border-color:#fff; background:var(--panel2);}
+  .tools .tool.color{width:42px; height:42px; padding:0; border-radius:50%;}
+  .tools .tool:active{transform:scale(.93);}
+  #btnFinish{
+    position:absolute; bottom:calc(92px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+    z-index:10; display:none;
+  }
+
+  /* ── банки ── */
+  .bin{
+    position:absolute; bottom:0; height:30px; z-index:6; pointer-events:none;
+    border:2.5px solid; border-bottom:0; border-radius:12px 12px 0 0;
+    background:rgba(0,0,0,.25);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:12px; text-shadow:0 1px 3px rgba(0,0,0,.6);
+  }
+  .bin.pulse{animation:binpulse .25s;}
+  @keyframes binpulse{50%{transform:scale(1.08);}}
+  .spout{
+    position:absolute; top:calc(88px + env(safe-area-inset-top)); width:18px; height:10px; z-index:6;
+    border-radius:0 0 8px 8px; transform:translateX(-50%); pointer-events:none;
+    box-shadow:0 4px 12px rgba(0,0,0,.4);
+  }
+  .spout::after{content:''; position:absolute; left:50%; top:-6px; transform:translateX(-50%);
+    width:26px; height:8px; border-radius:6px; background:inherit; filter:brightness(.8);}
+
+  /* ── экраны ── */
+  .screen{
+    position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:rgba(10,12,26,.78); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    padding:24px; transition:opacity .25s;
+  }
+  .screen.hide{opacity:0; pointer-events:none;}
+  h1{font-size:44px; letter-spacing:-1px; line-height:1;}
+  h1 .sand{background:linear-gradient(180deg,#ffe08a,#ff9a4a); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .tagline{color:var(--muted); font-weight:700; font-size:15px; max-width:280px; line-height:1.45;}
+  .lvlgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; width:min(320px,84%); margin-top:6px;}
+  .chip{
+    border:0; border-radius:14px; background:var(--panel); color:var(--ink);
+    font:inherit; font-weight:800; font-size:16px; padding:10px 0 6px; cursor:pointer;
+  }
+  .chip small{display:block; font-size:11px; letter-spacing:2px; color:#ffd24a; min-height:14px;}
+  .chip:disabled{opacity:.35;}
+  .chip:active:not(:disabled){transform:scale(.94);}
+  #resStars{font-size:46px; letter-spacing:6px; color:#ffd24a; text-shadow:0 6px 24px rgba(255,210,74,.35);}
+  #resPct{font-size:20px; font-weight:800;}
+  #resTitle{font-size:30px;}
+  .row{display:flex; gap:10px;}
+  .hint{
+    position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); z-index:9;
+    background:rgba(0,0,0,.55); border-radius:16px; padding:12px 16px; font-weight:800; font-size:14px;
+    max-width:78%; text-align:center; pointer-events:none; transition:opacity .4s; line-height:1.4;
+  }
+  .hint.hide{opacity:0;}
+  .foot{position:absolute; bottom:14px; color:var(--muted); font-size:11.5px; font-weight:700;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="sim"></canvas>
+
+  <!-- игровой HUD -->
+  <div class="hud" id="hud" style="display:none">
+    <button class="btn" id="btnMenu">☰</button>
+    <div class="lvl-name" id="lvlName">Уровень 1<small>Первая струйка</small></div>
+    <button class="btn" id="btnSnd">🔊</button>
+    <button class="btn" id="btnRestart">↺</button>
+  </div>
+  <div class="subhud" id="subhud" style="display:none">
+    <div class="inkwrap"><div id="inkbar"></div></div>
+    <div id="score"><span class="ok">✔ 0</span> · <span class="bad">✖ 0</span></div>
+  </div>
+
+  <div class="tools" id="tools" style="display:none"></div>
+  <button class="btn primary" id="btnFinish">Завершить</button>
+  <div class="hint hide" id="hint"></div>
+
+  <!-- меню -->
+  <div class="screen" id="menu">
+    <h1><span class="sand">Песочек</span></h1>
+    <div class="tagline">Рисуй пальцем линии-жёлобы и разложи струи цветного песка по банкам своего цвета</div>
+    <button class="btn primary big" id="btnPlay">Играть</button>
+    <button class="btn big" id="btnSandbox">🏖 Песочница</button>
+    <div class="lvlgrid" id="lvlgrid"></div>
+    <div class="foot">прототип · играется одним пальцем</div>
+  </div>
+
+  <!-- результат -->
+  <div class="screen hide" id="result">
+    <div id="resStars">★★★</div>
+    <div id="resTitle">Чисто!</div>
+    <div id="resPct">Собрано 97%</div>
+    <div class="row">
+      <button class="btn big" id="btnAgain">Ещё раз</button>
+      <button class="btn primary big" id="btnNext">Дальше</button>
+    </div>
+    <button class="btn" id="btnResMenu">В меню</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════ «Песочек» — песочная сортировка ═══════════
+   Сетка клеточного автомата: 0 пусто, 1..4 цветной песок,
+   10 стена игрока, 11 препятствие уровня. */
+
+const GW = 120, GH = 208;
+const EMPTY = 0, WALL = 10, OBST = 11;
+const CAPTURE_Y = GH - 4;      // с этой строки банки «съедают» песок
+const WALL_MIN_Y = 7, WALL_MAX_Y = GH - 7; // где нельзя рисовать
+const STEPS_PER_FRAME = 2;
+
+const grid  = new Uint8Array(GW * GH);
+const shade = new Uint8Array(GW * GH);
+
+/* цвета песка: [базовый, светлее, темнее, ещё светлее] */
+const PALETTE = {
+  1: ['#ffd24a', '#ffe082', '#eab52c', '#fff0b3'],
+  2: ['#ff6b6b', '#ff9292', '#e84b4b', '#ffb5b5'],
+  3: ['#4aa3ff', '#7dbdff', '#2f86e0', '#a8d2ff'],
+  4: ['#3ddc97', '#71e8b4', '#26bd7c', '#a2f0cd'],
+};
+const WALL_COLORS = ['#d9b380', '#e6c493', '#c9a06a', '#f0d5a8'];
+const OBST_COLORS = ['#454c78', '#525a8c', '#3a4066', '#5d66a0'];
+
+function hex2rgb(h){ return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+const RGB = {};
+for (const k in PALETTE) RGB[k] = PALETTE[k].map(hex2rgb);
+RGB[WALL] = WALL_COLORS.map(hex2rgb);
+RGB[OBST] = OBST_COLORS.map(hex2rgb);
+
+/* ═══════════ уровни ═══════════
+   em: x, c цвет, n всего песчинок, r скорость (за шаг), delay в шагах,
+       w ширина «дождя» (0..1), osc {a амплитуда, p период}
+   bins: x0..x1, c цвет   obst: прямоугольник {x0,y0,x1,y1} или линия {ax,ay,bx,by} */
+const LEVELS = [
+  {name:'Первая струйка', ink:300, em:[{x:.28,c:1,n:480}], bins:[{x0:.58,x1:.84,c:1}]},
+  {name:'В другую сторону', ink:300, em:[{x:.74,c:1,n:500}], bins:[{x0:.14,x1:.40,c:1}]},
+  {name:'Двое', ink:430, em:[{x:.30,c:2,n:400},{x:.70,c:3,n:400,delay:300}],
+    bins:[{x0:.56,x1:.80,c:2},{x0:.20,x1:.44,c:3}]},
+  {name:'Козырёк', ink:400, em:[{x:.50,c:1,n:560,osc:{a:.20,p:900}}],
+    bins:[{x0:.40,x1:.60,c:1}], obst:[{x0:.28,y0:.34,x1:.72,y1:.355}]},
+  {name:'Крест-накрест', ink:470, em:[{x:.20,c:2,n:420},{x:.80,c:3,n:420}],
+    bins:[{x0:.68,x1:.90,c:2},{x0:.10,x1:.32,c:3}]},
+  {name:'Трио', ink:540, em:[{x:.18,c:2,n:320},{x:.50,c:3,n:320,delay:250},{x:.82,c:4,n:320,delay:500}],
+    bins:[{x0:.60,x1:.76,c:2},{x0:.06,x1:.22,c:3},{x0:.34,x1:.50,c:4}]},
+  {name:'Дождик', ink:560, em:[{x:.50,c:1,n:760,r:2,w:.72}], bins:[{x0:.42,x1:.58,c:1}]},
+  {name:'Воронка', ink:400, em:[{x:.50,c:4,n:560,osc:{a:.30,p:700}}],
+    bins:[{x0:.74,x1:.90,c:4}],
+    obst:[{ax:.13,ay:.20,bx:.42,by:.34},{ax:.87,ay:.20,bx:.58,by:.34}]},
+  {name:'Под козырьками', ink:520, em:[{x:.30,c:3,n:380},{x:.70,c:2,n:380,delay:200}],
+    bins:[{x0:.60,x1:.78,c:3},{x0:.22,x1:.40,c:2}],
+    obst:[{x0:.20,y0:.30,x1:.44,y1:.315},{x0:.56,y0:.30,x1:.80,y1:.315}]},
+  {name:'Тесновато', ink:520, em:[{x:.35,c:1,n:360},{x:.65,c:4,n:360,delay:150}],
+    bins:[{x0:.62,x1:.72,c:1},{x0:.28,x1:.38,c:4}]},
+  {name:'Почти хаос', ink:640, em:[{x:.50,c:2,n:330,osc:{a:.34,p:800}},{x:.15,c:3,n:310,delay:350},{x:.85,c:4,n:310,delay:650}],
+    bins:[{x0:.42,x1:.58,c:2},{x0:.70,x1:.86,c:3},{x0:.14,x1:.30,c:4}],
+    obst:[{x0:.40,y0:.28,x1:.60,y1:.295}]},
+  {name:'Большой финал', ink:800, em:[{x:.12,c:1,n:270},{x:.37,c:2,n:270,delay:200},{x:.63,c:3,n:270,delay:400},{x:.88,c:4,n:270,delay:600}],
+    bins:[{x0:.76,x1:.90,c:1},{x0:.54,x1:.68,c:2},{x0:.32,x1:.46,c:3},{x0:.10,x1:.24,c:4}]},
+];
+
+/* ═══════════ состояние ═══════════ */
+let mode = 'menu';           // menu | level | sandbox
+let levelIdx = 0;
+let emitters = [];           // {x,c,n,r,delay,w,osc,spawned,el}
+let bins = [];               // {x0,x1,c,el,count}
+let ink = 0, inkMax = 1;
+let correct = 0, wrong = 0, totalPlanned = 0;
+let stepCount = 0, quietSteps = 0, finished = false, spawnBlockedSteps = 0;
+let tool = 'wall';           // wall | erase | pour1..pour4
+let running = false;
+
+const $ = id => document.getElementById(id);
+const wrap = $('wrap'), cvs = $('sim'), ctx = cvs.getContext('2d');
+cvs.width = GW; cvs.height = GH;
+const img = ctx.createImageData(GW, GH);
+
+const stars = JSON.parse(localStorage.getItem('pesok_stars') || '[]');
+let sndOn = localStorage.getItem('pesok_snd') !== '0';
+
+/* ═══════════ звук (крошечный WebAudio) ═══════════ */
+let AC = null;
+function audio(){ if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} return AC; }
+function beep(freq, dur, type, vol){
+  if (!sndOn || !audio()) return;
+  const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || .08, t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + dur);
+}
+let lastPop = 0;
+function popSnd(good){
+  const now = performance.now();
+  if (now - lastPop < 60) return;
+  lastPop = now;
+  beep(good ? 660 + Math.random()*220 : 160, .07, good ? 'sine' : 'square', .05);
+}
+function winSnd(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.25,'sine',.1), i*110)); }
+
+/* ═══════════ построение уровня ═══════════ */
+function clearField(){
+  grid.fill(EMPTY);
+  for (let i = 0; i < shade.length; i++) shade[i] = (Math.random()*4)|0;
+}
+function stampObst(o){
+  if (o.x0 !== undefined){
+    const x0=(o.x0*GW)|0, x1=(o.x1*GW)|0, y0=(o.y0*GH)|0, y1=Math.max((o.y1*GH)|0, y0+1);
+    for (let y=y0; y<=y1; y++) for (let x=x0; x<=x1; x++) grid[y*GW+x] = OBST;
+  } else {
+    const ax=o.ax*GW, ay=o.ay*GH, bx=o.bx*GW, by=o.by*GH;
+    const n = Math.ceil(Math.hypot(bx-ax, by-ay));
+    for (let i=0; i<=n; i++){
+      const x = Math.round(ax+(bx-ax)*i/n), y = Math.round(ay+(by-ay)*i/n);
+      for (let dy=0; dy<=1; dy++) for (let dx=-1; dx<=1; dx++){
+        const xx=x+dx, yy=y+dy;
+        if (xx>=0 && xx<GW && yy>=0 && yy<GH) grid[yy*GW+xx] = OBST;
+      }
+    }
+  }
+}
+function buildFloor(){
+  for (let x = 0; x < GW; x++){
+    const rel = x / GW;
+    const inBin = bins.some(b => rel >= b.x0 && rel <= b.x1);
+    if (!inBin) grid[(GH-1)*GW + x] = OBST;
+  }
+}
+function clearDom(){
+  wrap.querySelectorAll('.bin,.spout').forEach(e => e.remove());
+}
+function startLevel(i){
+  levelIdx = i;
+  const L = LEVELS[i];
+  mode = 'level'; finished = false; stepCount = 0; quietSteps = 0; spawnBlockedSteps = 0;
+  correct = 0; wrong = 0;
+  ink = inkMax = L.ink;
+  clearField(); clearDom();
+
+  bins = L.bins.map(b => {
+    const el = document.createElement('div');
+    el.className = 'bin';
+    el.style.left = (b.x0*100)+'%';
+    el.style.width = ((b.x1-b.x0)*100)+'%';
+    el.style.borderColor = PALETTE[b.c][0];
+    el.style.color = PALETTE[b.c][1];
+    el.textContent = '0';
+    wrap.appendChild(el);
+    return {...b, el, count:0};
+  });
+  totalPlanned = 0;
+  emitters = L.em.map(e => {
+    totalPlanned += e.n;
+    const el = document.createElement('div');
+    el.className = 'spout';
+    el.style.background = PALETTE[e.c][0];
+    el.style.left = (e.x*100)+'%';
+    wrap.appendChild(el);
+    return {r:1, delay:0, w:0, ...e, spawned:0, el};
+  });
+  (L.obst || []).forEach(stampObst);
+  buildFloor();
+
+  $('lvlName').innerHTML = `Уровень ${i+1}<small>${L.name}</small>`;
+  tool = 'wall'; buildTools();
+  showScreen(null);
+  $('hud').style.display = 'flex';
+  $('subhud').style.display = 'flex';
+  $('tools').style.display = 'flex';
+  $('btnFinish').style.display = 'none';
+  updateHud();
+  if (i === 0 && !localStorage.getItem('pesok_hint')){
+    showHint('Рисуй пальцем линии прямо под струёй —\nпесок покатится по ним в банку 👇');
+    localStorage.setItem('pesok_hint', '1');
+  } else showHint(LEVELS[i].hint || '');
+}
+function startSandbox(){
+  mode = 'sandbox'; finished = false; stepCount = 0;
+  correct = 0; wrong = 0; totalPlanned = 0;
+  ink = inkMax = 1; emitters = []; bins = [];
+  clearField(); clearDom();
+  for (let x = 0; x < GW; x++) grid[(GH-1)*GW+x] = OBST;
+  $('lvlName').innerHTML = `Песочница<small>сыпь и рисуй сколько хочешь</small>`;
+  tool = 'pour1'; buildTools();
+  showScreen(null);
+  $('hud').style.display = 'flex';
+  $('subhud').style.display = 'none';
+  $('tools').style.display = 'flex';
+  $('btnFinish').style.display = 'none';
+  showHint('Води пальцем — сыпется песок.\nВнизу — цвета, стена и ластик');
+}
+
+let hintTimer = 0;
+function showHint(text){
+  const h = $('hint');
+  clearTimeout(hintTimer);
+  if (!text){ h.classList.add('hide'); return; }
+  h.textContent = text;
+  h.classList.remove('hide');
+  hintTimer = setTimeout(() => h.classList.add('hide'), 4000);
+}
+
+/* ═══════════ инструменты ═══════════ */
+function buildTools(){
+  const t = $('tools');
+  t.innerHTML = '';
+  const mk = (id, label, style) => {
+    const b = document.createElement('button');
+    b.className = 'tool' + (style ? ' color' : '');
+    b.dataset.tool = id;
+    if (style) b.style.background = style; else b.textContent = label;
+    b.onpointerdown = ev => { ev.stopPropagation(); };
+    b.onclick = () => {
+      if (id === 'clear'){ clearField(); for (let x=0;x<GW;x++) grid[(GH-1)*GW+x]=OBST; return; }
+      tool = id;
+      t.querySelectorAll('.tool').forEach(x => x.classList.toggle('on', x.dataset.tool === tool));
+    };
+    t.appendChild(b);
+    return b;
+  };
+  if (mode === 'sandbox'){
+    for (let c = 1; c <= 4; c++) mk('pour'+c, '', `radial-gradient(circle at 35% 35%, ${PALETTE[c][1]}, ${PALETTE[c][2]})`);
+    mk('wall', '✏️ Стена');
+    mk('erase', '🧽');
+    mk('clear', '🗑');
+  } else {
+    mk('wall', '✏️ Стена');
+    mk('erase', '🧽 Ластик');
+  }
+  t.querySelectorAll('.tool').forEach(x => x.classList.toggle('on', x.dataset.tool === tool));
+}
+
+/* ═══════════ симуляция ═══════════ */
+function capture(x, y, c){
+  const rel = x / GW;
+  for (const b of bins){
+    if (rel >= b.x0 && rel <= b.x1){
+      grid[y*GW+x] = EMPTY;
+      if (c === b.c){ correct++; popSnd(true); if (correct % 40 === 0 && navigator.vibrate) navigator.vibrate(8); }
+      else { wrong++; popSnd(false); }
+      b.count++;
+      b.el.textContent = b.count;
+      b.el.classList.remove('pulse'); void b.el.offsetWidth; b.el.classList.add('pulse');
+      return true;
+    }
+  }
+  return false;
+}
+
+function step(){
+  let moved = 0;
+
+  /* эмиттеры */
+  let wantSpawn = false, didSpawn = false;
+  for (const e of emitters){
+    if (finished || e.spawned >= e.n || stepCount < e.delay) continue;
+    wantSpawn = true;
+    const off = e.osc ? e.osc.a * Math.sin(stepCount * 2 * Math.PI / e.osc.p) : 0;
+    for (let k = 0; k < e.r; k++){
+      if (e.spawned >= e.n) break;
+      let px;
+      if (e.w) px = Math.round((e.x + (Math.random()-.5) * e.w) * GW);
+      else px = Math.round((e.x + off) * GW) + ((Math.random()*3)|0) - 1;
+      px = Math.max(1, Math.min(GW-2, px));
+      const idx = 1*GW + px;
+      if (grid[idx] === EMPTY){
+        grid[idx] = e.c;
+        shade[idx] = (Math.random()*4)|0;
+        e.spawned++; didSpawn = true; moved++;
+      }
+    }
+    if (!e.osc && !e.w) continue;
+    e.el.style.left = ((e.x + off) * 100) + '%';
+  }
+
+  /* падение песка: снизу вверх, направление скана чередуем */
+  const ltr = (stepCount & 1) === 0;
+  for (let y = GH - 2; y >= 0; y--){
+    const row = y * GW, below = row + GW;
+    for (let i = 0; i < GW; i++){
+      const x = ltr ? i : GW - 1 - i;
+      const c = grid[row + x];
+      if (c === EMPTY || c >= WALL) continue;
+      /* вниз */
+      if (grid[below + x] === EMPTY){
+        grid[below + x] = c; shade[below + x] = shade[row + x]; grid[row + x] = EMPTY; moved++;
+        if (y + 1 >= CAPTURE_Y) capture(x, y + 1, c);
+        continue;
+      }
+      /* по диагонали */
+      const d = Math.random() < .5 ? 1 : -1;
+      for (const dd of [d, -d]){
+        const nx = x + dd;
+        if (nx < 0 || nx >= GW) continue;
+        if (grid[below + nx] === EMPTY && grid[row + nx] === EMPTY){
+          grid[below + nx] = c; shade[below + nx] = shade[row + x]; grid[row + x] = EMPTY; moved++;
+          if (y + 1 >= CAPTURE_Y) capture(nx, y + 1, c);
+          break;
+        }
+      }
+    }
+  }
+
+  stepCount++;
+
+  if (mode === 'level' && !finished){
+    const allSpawned = emitters.every(e => e.spawned >= e.n);
+    if (moved === 0) quietSteps++; else quietSteps = 0;
+    if (wantSpawn && !didSpawn) spawnBlockedSteps++; else if (didSpawn) spawnBlockedSteps = 0;
+    if (allSpawned && $('btnFinish').style.display === 'none' && correct + wrong > 0)
+      $('btnFinish').style.display = 'block';
+    if ((allSpawned && quietSteps > 240) || spawnBlockedSteps > 600) finish();
+  }
+}
+
+function finish(){
+  if (finished || mode !== 'level') return;
+  finished = true;
+  const pct = totalPlanned ? Math.round(100 * correct / totalPlanned) : 0;
+  const st = pct >= 95 ? 3 : pct >= 80 ? 2 : pct >= 60 ? 1 : 0;
+  if (st > (stars[levelIdx] || 0)){
+    stars[levelIdx] = st;
+    localStorage.setItem('pesok_stars', JSON.stringify(stars));
+  }
+  $('resStars').textContent = st ? '★★★'.slice(0, st) : '·';
+  $('resTitle').textContent = st === 3 ? 'Идеально!' : st === 2 ? 'Отлично!' : st === 1 ? 'Неплохо!' : 'Песок мимо…';
+  $('resPct').textContent = `Собрано ${pct}% · ✔ ${correct} · ✖ ${wrong}`;
+  $('btnNext').style.display = (st > 0 && levelIdx < LEVELS.length - 1) ? '' : 'none';
+  $('btnFinish').style.display = 'none';
+  if (st > 0) winSnd(); else beep(140, .4, 'sawtooth', .07);
+  setTimeout(() => showScreen('result'), 500);
+}
+
+/* ═══════════ рендер ═══════════ */
+function render(){
+  const d = img.data;
+  for (let i = 0, p = 0; i < grid.length; i++, p += 4){
+    const c = grid[i];
+    if (c === EMPTY){ d[p+3] = 0; continue; }
+    const rgb = RGB[c][shade[i]];
+    d[p] = rgb[0]; d[p+1] = rgb[1]; d[p+2] = rgb[2]; d[p+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function updateHud(){
+  $('inkbar').style.width = Math.max(0, 100 * ink / inkMax) + '%';
+  $('score').innerHTML = `<span class="ok">✔ ${correct}</span> · <span class="bad">✖ ${wrong}</span>`;
+}
+
+let rafId = 0;
+function loop(){
+  rafId = requestAnimationFrame(loop);
+  if (mode === 'menu') return;
+  for (let s = 0; s < STEPS_PER_FRAME; s++) step();
+  render();
+  if (mode === 'level') updateHud();
+}
+
+/* ═══════════ ввод: рисование ═══════════ */
+let drawing = false, lastGX = 0, lastGY = 0;
+function toGrid(ev){
+  const r = cvs.getBoundingClientRect();
+  return [
+    Math.max(0, Math.min(GW - 1, (ev.clientX - r.left) / r.width * GW)),
+    Math.max(0, Math.min(GH - 1, (ev.clientY - r.top) / r.height * GH)),
+  ];
+}
+function stampAt(gx, gy){
+  const x0 = Math.round(gx), y0 = Math.round(gy);
+  if (tool === 'wall'){
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+      if (Math.abs(dx) + Math.abs(dy) > 1 && Math.random() < .5) continue;
+      const x = x0 + dx, y = y0 + dy;
+      if (x < 1 || x >= GW-1 || y < WALL_MIN_Y || y > WALL_MAX_Y) continue;
+      const idx = y * GW + x;
+      if (grid[idx] === EMPTY){
+        if (mode === 'level'){ if (ink <= 0) return; ink--; }
+        grid[idx] = WALL; shade[idx] = (Math.random()*4)|0;
+      }
+    }
+  } else if (tool === 'erase'){
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++){
+      if (dx*dx + dy*dy > 10) continue;
+      const x = x0 + dx, y = y0 + dy;
+      if (x < 0 || x >= GW || y < 0 || y >= GH) continue;
+      const idx = y * GW + x;
+      if (grid[idx] === WALL){
+        grid[idx] = EMPTY;
+        if (mode === 'level') ink = Math.min(inkMax, ink + 1);
+      }
+    }
+  } else if (tool.startsWith('pour')){
+    const c = +tool[4];
+    for (let k = 0; k < 6; k++){
+      const x = x0 + ((Math.random()*7)|0) - 3, y = y0 + ((Math.random()*5)|0) - 2;
+      if (x < 1 || x >= GW-1 || y < 1 || y >= GH-2) continue;
+      const idx = y * GW + x;
+      if (grid[idx] === EMPTY){ grid[idx] = c; shade[idx] = (Math.random()*4)|0; }
+    }
+  }
+}
+function drawLine(gx0, gy0, gx1, gy1){
+  const n = Math.max(1, Math.ceil(Math.hypot(gx1-gx0, gy1-gy0)));
+  for (let i = 0; i <= n; i++) stampAt(gx0 + (gx1-gx0)*i/n, gy0 + (gy1-gy0)*i/n);
+}
+cvs.addEventListener('pointerdown', ev => {
+  if (mode === 'menu' || finished) return;
+  audio(); if (AC && AC.state === 'suspended') AC.resume();
+  drawing = true;
+  cvs.setPointerCapture(ev.pointerId);
+  [lastGX, lastGY] = toGrid(ev);
+  stampAt(lastGX, lastGY);
+});
+cvs.addEventListener('pointermove', ev => {
+  if (!drawing) return;
+  const [gx, gy] = toGrid(ev);
+  drawLine(lastGX, lastGY, gx, gy);
+  [lastGX, lastGY] = [gx, gy];
+});
+addEventListener('pointerup', () => drawing = false);
+addEventListener('pointercancel', () => drawing = false);
+
+/* ═══════════ экраны и кнопки ═══════════ */
+function showScreen(name){
+  ['menu', 'result'].forEach(s => $(s).classList.toggle('hide', s !== name));
+}
+function buildMenu(){
+  const g = $('lvlgrid');
+  g.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const unlocked = i === 0 || (stars[i-1] || 0) > 0;
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.disabled = !unlocked;
+    b.innerHTML = `${i+1}<small>${'★'.repeat(stars[i] || 0)}</small>`;
+    b.onclick = () => startLevel(i);
+    g.appendChild(b);
+  });
+}
+function toMenu(){
+  mode = 'menu';
+  clearDom();
+  ['hud','subhud','tools'].forEach(id => $(id).style.display = 'none');
+  $('btnFinish').style.display = 'none';
+  showHint('');
+  buildMenu();
+  showScreen('menu');
+}
+$('btnPlay').onclick = () => {
+  let i = 0;
+  while (i < LEVELS.length - 1 && (stars[i] || 0) > 0) i++;
+  startLevel(i);
+};
+$('btnSandbox').onclick = startSandbox;
+$('btnMenu').onclick = toMenu;
+$('btnResMenu').onclick = toMenu;
+$('btnRestart').onclick = () => mode === 'sandbox' ? startSandbox() : startLevel(levelIdx);
+$('btnAgain').onclick = () => startLevel(levelIdx);
+$('btnNext').onclick = () => startLevel(Math.min(levelIdx + 1, LEVELS.length - 1));
+$('btnFinish').onclick = finish;
+$('btnSnd').textContent = sndOn ? '🔊' : '🔇';
+$('btnSnd').onclick = () => {
+  sndOn = !sndOn;
+  localStorage.setItem('pesok_snd', sndOn ? '1' : '0');
+  $('btnSnd').textContent = sndOn ? '🔊' : '🔇';
+};
+
+/* SDK Яндекс Игр — если есть */
+if (window.YaGames) YaGames.init().then(y => { window.ysdk = y; y.features?.LoadingAPI?.ready?.(); }).catch(()=>{});
+
+buildMenu();
+showScreen('menu');
+loop();
+</script>
+</body>
+</html>

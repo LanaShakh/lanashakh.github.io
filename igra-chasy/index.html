@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14100a">
+<title>Часовщик — головоломка с шестерёнками</title>
+<meta name="description" content="Часовщик — спокойная логическая игра: расставь латунные шестерёнки так, чтобы завод дошёл до стрелки часов, и в нужную сторону. 8 уровней, без таймеров.">
+<!-- SDK Яндекс Игр: вне платформы просто 404 и всё работает как обычно -->
+<script src="/sdk.js" onerror="void 0"></script>
+<style>
+  :root{
+    --ink:#f2e7cd; --muted:#b3a184;
+    --brass1:#e8c65f; --brass2:#c9a227;
+    --panel:rgba(255,232,190,.08); --panel2:rgba(255,232,190,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:ui-rounded,'Nunito','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+    background:#0e0b06; color:var(--ink); user-select:none; -webkit-user-select:none;
+    display:flex; align-items:center; justify-content:center; height:100%;
+  }
+  /* портретная обёртка: поле 3:4 + лоток, итого 300:508 */
+  #wrap{
+    position:relative; overflow:hidden; border-radius:0;
+    width:min(100vw, calc(100dvh * 300 / 508));
+    height:min(100dvh, calc(100vw * 508 / 300));
+    background:linear-gradient(180deg,#221a12 0%,#1a140c 60%,#14100a 100%);
+    touch-action:none;
+  }
+  @media (min-width:520px){ #wrap{border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,.55);} }
+  canvas#cv{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none;}
+
+  /* ── HUD ── */
+  .hud{
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; gap:8px;
+    padding:calc(8px + env(safe-area-inset-top)) 10px 6px;
+    pointer-events:none;
+  }
+  .hud > *{pointer-events:auto;}
+  .btn{
+    border:0; border-radius:14px; background:var(--panel); color:var(--ink);
+    font:inherit; font-weight:800; font-size:15px; padding:9px 13px; cursor:pointer;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    border:1px solid rgba(232,198,95,.14);
+  }
+  .btn:active{transform:scale(.95);}
+  .btn.primary{background:linear-gradient(135deg,#eecb63,#b8912a); color:#2a1f06; box-shadow:0 8px 24px rgba(210,160,50,.30); border:0;}
+  .btn.big{font-size:19px; padding:14px 28px; border-radius:18px;}
+  .lvl-name{
+    font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    flex:1; text-align:center; text-shadow:0 2px 6px rgba(0,0,0,.6);
+    font-family:Georgia,'Times New Roman',serif; letter-spacing:.4px;
+  }
+  .lvl-name small{display:block; font-weight:700; font-size:10.5px; color:var(--muted); font-family:inherit;}
+
+  /* ── сообщения ── */
+  #jam{
+    position:absolute; left:50%; top:31%; transform:translate(-50%,-50%); z-index:9;
+    font-family:Georgia,serif; font-weight:700; font-size:34px; letter-spacing:1px;
+    color:#ff9b7e; text-shadow:0 0 18px rgba(255,110,70,.45), 0 3px 8px rgba(0,0,0,.6);
+    pointer-events:none; animation:jamshake .28s infinite;
+  }
+  #jam.hide{display:none;}
+  @keyframes jamshake{
+    0%,100%{transform:translate(-50%,-50%) rotate(-1.2deg);}
+    25%{transform:translate(calc(-50% + 3px),-50%) rotate(1deg);}
+    75%{transform:translate(calc(-50% - 3px),calc(-50% + 2px)) rotate(-.6deg);}
+  }
+  .hint{
+    position:absolute; left:50%; top:22%; transform:translate(-50%,-50%); z-index:9;
+    background:rgba(20,14,6,.72); border:1px solid rgba(232,198,95,.18);
+    border-radius:16px; padding:12px 16px; font-weight:800; font-size:14px;
+    max-width:80%; text-align:center; pointer-events:none; transition:opacity .4s;
+    line-height:1.45; white-space:pre-line;
+  }
+  .hint.hide{opacity:0;}
+
+  /* ── экраны ── */
+  .screen{
+    position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:rgba(16,11,5,.62); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+    padding:24px; transition:opacity .25s;
+  }
+  .screen.hide{opacity:0; pointer-events:none;}
+  h1{
+    font-family:Georgia,'Times New Roman',serif; font-size:46px; letter-spacing:1px; line-height:1; font-weight:700;
+    background:linear-gradient(180deg,#f7e49c 10%,#e8c65f 45%,#9d7d18 95%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 4px 14px rgba(232,198,95,.25));
+  }
+  .tagline{color:var(--muted); font-weight:700; font-size:15px; max-width:300px; line-height:1.5;}
+  .lvlgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; width:min(320px,84%); margin-top:6px;}
+  .chip{
+    border:1px solid rgba(232,198,95,.14); border-radius:14px; background:var(--panel); color:var(--ink);
+    font:inherit; font-weight:800; font-size:16px; padding:10px 0 6px; cursor:pointer;
+  }
+  .chip small{display:block; font-size:11px; letter-spacing:2px; color:#e8c65f; min-height:14px;}
+  .chip:disabled{opacity:.35;}
+  .chip:active:not(:disabled){transform:scale(.94);}
+  #resStars{font-size:46px; letter-spacing:6px; color:#e8c65f; text-shadow:0 6px 24px rgba(232,198,95,.35);}
+  #resTitle{font-size:30px; font-family:Georgia,serif;}
+  #resInfo{font-size:16px; font-weight:800; color:var(--muted);}
+  .row{display:flex; gap:10px;}
+  .foot{position:absolute; bottom:14px; color:var(--muted); font-size:11.5px; font-weight:700;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+
+  <!-- игровой HUD -->
+  <div class="hud" id="hud" style="display:none">
+    <button class="btn" id="btnMenu">☰</button>
+    <div class="lvl-name" id="lvlName">Уровень 1<small>Первая шестерёнка</small></div>
+    <button class="btn" id="btnSnd">🔊</button>
+    <button class="btn" id="btnRestart">↺</button>
+  </div>
+
+  <div id="jam" class="hide">Клинит!</div>
+  <div class="hint hide" id="hint"></div>
+
+  <!-- меню -->
+  <div class="screen" id="menu">
+    <h1>Часовщик</h1>
+    <div class="tagline">Расставь латунные шестерёнки так, чтобы завод дошёл до стрелки часов — и закрутил её в нужную сторону</div>
+    <button class="btn primary big" id="btnPlay">Играть</button>
+    <div class="lvlgrid" id="lvlgrid"></div>
+    <div class="foot">спокойная головоломка · без таймеров</div>
+  </div>
+
+  <!-- результат -->
+  <div class="screen hide" id="result">
+    <div id="resStars">★★★</div>
+    <div id="resTitle">Механизм пошёл!</div>
+    <div id="resInfo">Шестерён: 1 · пар 1</div>
+    <div class="row">
+      <button class="btn big" id="btnAgain">Ещё раз</button>
+      <button class="btn primary big" id="btnNext">Дальше</button>
+    </div>
+    <button class="btn" id="btnResMenu">В меню</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════ «Часовщик» — механизм из шестерёнок ═══════════
+   Координаты — в долях ширины доски (0..1). Поле портретное:
+   высота = 4/3 ширины, ниже — лоток со свободными шестернями. */
+
+const TAU = Math.PI * 2;
+const SIZES = { S: 0.055, M: 0.075, L: 0.100 };  // радиус делительной окружности
+const MESH_TOL = 0.014;                           // допуск сцепления
+const DRIVER_W = 0.4 * 2 * Math.PI;               // заводная: 0.4 об/с, + = по часовой
+const TEETH = { S: 10, M: 14, L: 18 };            // модуль зуба почти одинаковый
+const FIELD_H = 4 / 3, TRAY_H = 0.36, TOTAL_H = FIELD_H + TRAY_H;
+
+/* ═══════════ уровни ═══════════
+   Позиции штырьков РАССЧИТАНЫ из решений (расстояние центров = r1+r2 ± 0.004)
+   и проверены скриптом check-chasy.js той же логикой сцепления/BFS.
+   Схемы решений (з = заводная, ц = целевая, № — индекс штырька):
+
+   1. з S(0)  ─ S(№2) ─ ц S(1): треугольник 0.11/0.11/0.13; з и ц в 0.13 — сами не сцепляются. 2 сцепл. → ⟳
+   2. з M(0) ─ S(№2) ─ S(№3) ─ ц M(1): цепочка 0.13/0.11/0.13. 3 сцепл. → ⟲
+   3. з L(0) ─ M(№2) ─ ц L(1): 0.175/0.175; S из лотка не дотянется (0.155 ≠ 0.175). 2 сцепл. → ⟳
+   4. з M(0) ─ S(№3) ─ S(№4) ─ ц M(1): нижний путь, 3 сцепл. → ⟲.
+      Ловушка: M на №2 (мост 0.15/0.15) крутит цель по часовой — не туда.
+   5. з M(0) ─ S(№3) ─ S(№4) ─ ц M(1): правая ветка → ⟲.
+      Левая ветка M на №2 — не туда; обе ветки сразу — клин (разное направление у цели).
+   6. з M(0) ─ S(№2) ─ M(№3) ─ S(№4) ─ ц M(1): дуга, все зазоры 0.13. 4 сцепл. → ⟳
+   7. з S(0) ─ M(№2) ─ S(№3) ─ L(№4) ─ S(№5) ─ ц M(1): 0.13/0.13/0.155/0.155/0.13. 5 сцепл. → ⟲
+   8. з L(0) ─ M(№2) ─ S(№3) ─ M(№4) ─ S(№5) ─ M(№6) ─ ц S(1): змейка 0.175/0.13×5. 6 сцепл. → ⟳
+   Остальные штырьки — обманки (любая шестерня на них ни до чего не достаёт). */
+const LEVELS = [
+ {"name":"Первая шестерёнка","dir":1,"par":1,
+  "pegs":[{"x":0.435,"y":0.7},{"x":0.565,"y":0.7},{"x":0.5,"y":0.6113},{"x":0.25,"y":1.02},{"x":0.75,"y":1.02}],
+  "driver":{"peg":0,"size":"S"},"target":{"peg":1,"size":"S"},
+  "tray":["S","M"],"solution":{"2":"S"},
+  "hint":"Коснись шестерёнки в лотке,\nпотом — свободного штырька"},
+ {"name":"Цепочка","dir":-1,"par":2,
+  "pegs":[{"x":0.3,"y":0.62},{"x":0.6483,"y":0.7003},{"x":0.4178,"y":0.6749},{"x":0.5261,"y":0.6558},{"x":0.35,"y":1},{"x":0.68,"y":0.32}],
+  "driver":{"peg":0,"size":"M"},"target":{"peg":1,"size":"M"},
+  "tray":["S","S","M"],"solution":{"2":"S","3":"S"}},
+ {"name":"Кто дотянется","dir":1,"par":1,
+  "pegs":[{"x":0.325,"y":0.72},{"x":0.675,"y":0.72},{"x":0.5,"y":0.72},{"x":0.3,"y":1.06},{"x":0.7,"y":1.06},{"x":0.5,"y":0.38}],
+  "driver":{"peg":0,"size":"L"},"target":{"peg":1,"size":"L"},
+  "tray":["S","M"],"solution":{"2":"M"},
+  "hint":"Маленькая не дотянется —\nпримерь другую"},
+ {"name":"Обратный ход","dir":-1,"par":2,
+  "pegs":[{"x":0.35,"y":0.68},{"x":0.65,"y":0.68},{"x":0.5,"y":0.68},{"x":0.445,"y":0.7687},{"x":0.555,"y":0.7687},{"x":0.5,"y":1.05},{"x":0.26,"y":0.34}],
+  "driver":{"peg":0,"size":"M"},"target":{"peg":1,"size":"M"},
+  "tray":["S","S","M"],"solution":{"3":"S","4":"S"},
+  "hint":"Смотри на стрелку у циферблата:\nважно, куда крутится"},
+ {"name":"Развилка","dir":-1,"par":2,
+  "pegs":[{"x":0.5,"y":0.52},{"x":0.5,"y":0.8},{"x":0.4461,"y":0.66},{"x":0.5919,"y":0.6119},{"x":0.6035,"y":0.7213},{"x":0.24,"y":0.42},{"x":0.78,"y":0.98}],
+  "driver":{"peg":0,"size":"M"},"target":{"peg":1,"size":"M"},
+  "tray":["S","S","M"],"solution":{"3":"S","4":"S"},
+  "hint":"Оба пути сразу — заклинит"},
+ {"name":"По дуге","dir":1,"par":3,
+  "pegs":[{"x":0.26,"y":0.5},{"x":0.325,"y":0.8686},{"x":0.3822,"y":0.5445},{"x":0.4472,"y":0.657},{"x":0.4246,"y":0.7851},{"x":0.72,"y":0.4},{"x":0.76,"y":0.8},{"x":0.28,"y":1.13}],
+  "driver":{"peg":0,"size":"M"},"target":{"peg":1,"size":"M"},
+  "tray":["S","M","S","L"],"solution":{"2":"S","3":"M","4":"S"}},
+ {"name":"Тонкая механика","dir":-1,"par":4,
+  "pegs":[{"x":0.25,"y":0.55},{"x":0.2,"y":0.9544},{"x":0.378,"y":0.5726},{"x":0.4526,"y":0.6791},{"x":0.4391,"y":0.8335},{"x":0.3295,"y":0.9431},{"x":0.72,"y":0.42},{"x":0.7,"y":1.08}],
+  "driver":{"peg":0,"size":"S"},"target":{"peg":1,"size":"M"},
+  "tray":["M","S","L","S","S","M"],"solution":{"2":"M","3":"S","4":"L","5":"S"}},
+ {"name":"Куранты","dir":1,"par":5,
+  "pegs":[{"x":0.53,"y":0.45},{"x":0.3601,"y":1.0806},{"x":0.3714,"y":0.524},{"x":0.3601,"y":0.6535},{"x":0.4597,"y":0.737},{"x":0.4597,"y":0.867},{"x":0.3601,"y":0.9506},{"x":0.78,"y":0.58},{"x":0.75,"y":0.9},{"x":0.62,"y":1.12}],
+  "driver":{"peg":0,"size":"L"},"target":{"peg":1,"size":"S"},
+  "tray":["M","S","M","S","M","L","S"],"solution":{"2":"M","3":"S","4":"M","5":"S","6":"M"}},
+];
+
+/* ═══════════ логика механизма (та же в check-chasy.js) ═══════════ */
+function buildGears(level, placement) {
+  const gs = [];
+  const add = (peg, size, kind) => gs.push({ x: level.pegs[peg].x, y: level.pegs[peg].y, r: SIZES[size], size, peg, kind });
+  add(level.driver.peg, level.driver.size, 'driver');
+  add(level.target.peg, level.target.size, 'target');
+  for (const k in placement) add(+k, placement[k], 'placed');
+  return gs;
+}
+function solveMech(gears) {
+  const n = gears.length, adj = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const d = Math.hypot(gears[i].x - gears[j].x, gears[i].y - gears[j].y);
+    if (Math.abs(d - (gears[i].r + gears[j].r)) < MESH_TOL) { adj[i].push(j); adj[j].push(i); }
+  }
+  const w = new Array(n).fill(0), seen = new Array(n).fill(false);
+  const di = gears.findIndex(g => g.kind === 'driver');
+  w[di] = DRIVER_W; seen[di] = true;
+  let jam = false; const q = [di];
+  while (q.length) {
+    const i = q.shift();
+    for (const j of adj[i]) {
+      const cand = -w[i] * gears[i].r / gears[j].r;
+      if (!seen[j]) { seen[j] = true; w[j] = cand; q.push(j); }
+      else if (Math.sign(cand) !== Math.sign(w[j])) jam = true;
+    }
+  }
+  return { w, jam, seen, adj };
+}
+function checkWin(level, placement) {
+  const gs = buildGears(level, placement);
+  const { w, jam } = solveMech(gs);
+  const ti = gs.findIndex(g => g.kind === 'target');
+  return !jam && w[ti] !== 0 && Math.sign(w[ti]) === level.dir;
+}
+
+/* ═══════════ состояние ═══════════ */
+const $ = id => document.getElementById(id);
+const wrap = $('wrap'), cv = $('cv'), ctx = cv.getContext('2d');
+
+let mode = 'menu';            // menu | play
+let levelIdx = 0, L = null;
+let tray = [];                // [{size, used, angle}]
+let placed = new Map();       // pegIdx -> slotIdx
+let board = [];               // шестерни на доске: driver, target, placed
+let selected = -1;            // выбранный слот лотка
+let jamState = false, targetW = 0;
+let winAt = 0, won = false;
+let denyFx = null;            // {x,y,t}
+let lastTickAt = 0, tickAlt = false;
+
+let stars = JSON.parse(localStorage.getItem('chasy_stars') || '[]');
+let sndOn = localStorage.getItem('chasy_snd') !== '0';
+
+/* ═══════════ звук (WebAudio, без файлов) ═══════════ */
+let AC = null, noiseBuf = null;
+function audio() {
+  if (!AC) try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.3 | 0, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) {}
+  return AC;
+}
+function tone(freq, dur, type, vol, when) {
+  if (!sndOn || !audio()) return;
+  const t = AC.currentTime + (when || 0);
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || .06, t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + dur);
+}
+function noise(dur, freq, vol, when) {
+  if (!sndOn || !audio() || !noiseBuf) return;
+  const t = AC.currentTime + (when || 0);
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 5;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t); s.stop(t + dur + .02);
+}
+function bell(freq, when, vol) {
+  if (!sndOn || !audio()) return;
+  const t = AC.currentTime + (when || 0), v = vol || .11;
+  const mk = (f, vv, dur) => {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(vv, t);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + dur);
+  };
+  mk(freq, v, 1.4); mk(freq * 2.756, v * .22, .5); mk(freq * 5.4, v * .07, .18);
+}
+const placeSnd  = () => { noise(.045, 3200, .14); tone(1850, .09, 'triangle', .05); tone(2470, .05, 'sine', .028); };
+const removeSnd = () => { noise(.035, 2100, .09); tone(1180, .06, 'triangle', .04); };
+const selectSnd = () => { tone(1560, .05, 'triangle', .035); };
+const denySnd   = () => { tone(150, .12, 'square', .045); };
+const jamSnd    = () => { tone(88, .35, 'sawtooth', .06); noise(.25, 420, .07); };
+const tickSnd   = a  => { noise(.014, a ? 4300 : 3000, .05); };
+function winSnd() {
+  tickSnd(false); tickSnd(true);
+  noise(.014, 3000, .05, .25); noise(.014, 4300, .05, .5);
+  bell(784, .35); bell(659, .7); bell(587, 1.05); bell(523, 1.4, .14);
+}
+
+/* ═══════════ канвас и статичный фон ═══════════ */
+let U = 300, CW = 300, CH = 508;
+const back = document.createElement('canvas');
+function resize() {
+  const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  CW = Math.max(1, Math.round(wrap.clientWidth * dpr));
+  CH = Math.max(1, Math.round(wrap.clientHeight * dpr));
+  cv.width = CW; cv.height = CH;
+  U = CW;
+  buildBack();
+}
+/* детерминированный «случайный» для текстуры волокон */
+function mulb(seed) { let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+function buildBack() {
+  back.width = CW; back.height = CH;
+  const b = back.getContext('2d');
+  b.setTransform(U, 0, 0, U, 0, 0);
+  /* тёмное дерево */
+  const wood = b.createLinearGradient(0, 0, 0, TOTAL_H);
+  wood.addColorStop(0, '#221a12'); wood.addColorStop(.62, '#1a140c'); wood.addColorStop(1, '#14100a');
+  b.fillStyle = wood; b.fillRect(0, 0, 1, TOTAL_H);
+  /* волокна: несколько тонких кривых */
+  const rnd = mulb(7301);
+  for (let i = 0; i < 9; i++) {
+    const x0 = 0.04 + 0.115 * i + rnd() * 0.05;
+    b.beginPath();
+    b.moveTo(x0, -0.05);
+    let px = x0;
+    for (let y = 0.2; y <= TOTAL_H + 0.1; y += 0.28) {
+      px += (rnd() - .5) * 0.055;
+      b.quadraticCurveTo(px + (rnd() - .5) * 0.05, y - 0.14, px, y);
+    }
+    b.strokeStyle = i % 2 ? 'rgba(255,214,150,0.045)' : 'rgba(0,0,0,0.13)';
+    b.lineWidth = 0.0035 + rnd() * 0.004;
+    b.stroke();
+  }
+  /* тёплый свет лампы мастерской */
+  const lamp = b.createRadialGradient(0.5, 0.60, 0.05, 0.5, 0.62, 0.72);
+  lamp.addColorStop(0, 'rgba(255,206,130,.075)'); lamp.addColorStop(1, 'rgba(255,206,130,0)');
+  b.fillStyle = lamp; b.fillRect(0, 0, 1, FIELD_H);
+  /* тонкая латунная рамка поля */
+  b.strokeStyle = 'rgba(232,198,95,.10)'; b.lineWidth = 0.005;
+  if (b.roundRect) { b.beginPath(); b.roundRect(0.025, 0.025 + 0.12, 0.95, FIELD_H - 0.17, 0.04); b.stroke(); }
+  /* декоративные латунные винты по углам рамки */
+  for (const [sx, sy] of [[0.058, 0.178], [0.942, 0.178], [0.058, FIELD_H - 0.078], [0.942, FIELD_H - 0.078]]) {
+    const sg = b.createRadialGradient(sx - 0.003, sy - 0.003, 0.001, sx, sy, 0.011);
+    sg.addColorStop(0, '#d8b64f'); sg.addColorStop(1, '#5f4a0c');
+    b.beginPath(); b.arc(sx, sy, 0.011, 0, TAU); b.fillStyle = sg; b.fill();
+    b.strokeStyle = 'rgba(0,0,0,.45)'; b.lineWidth = 0.0014; b.stroke();
+    b.beginPath();
+    const sa = (sx + sy) * 9;
+    b.moveTo(sx - 0.007 * Math.cos(sa), sy - 0.007 * Math.sin(sa));
+    b.lineTo(sx + 0.007 * Math.cos(sa), sy + 0.007 * Math.sin(sa));
+    b.strokeStyle = 'rgba(35,22,3,.7)'; b.lineWidth = 0.0022; b.stroke();
+  }
+  /* лоток */
+  const tr = b.createLinearGradient(0, FIELD_H, 0, TOTAL_H);
+  tr.addColorStop(0, '#2b2113'); tr.addColorStop(1, '#191208');
+  b.fillStyle = tr; b.fillRect(0, FIELD_H, 1, TRAY_H);
+  const sh = b.createLinearGradient(0, FIELD_H, 0, FIELD_H + 0.045);
+  sh.addColorStop(0, 'rgba(0,0,0,.5)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+  b.fillStyle = sh; b.fillRect(0, FIELD_H, 1, 0.045);
+  b.fillStyle = 'rgba(232,198,95,.16)'; b.fillRect(0, FIELD_H, 1, 0.0035);
+  b.fillStyle = 'rgba(0,0,0,.55)';      b.fillRect(0, FIELD_H - 0.0035, 1, 0.0035);
+  /* виньетка */
+  const v = b.createRadialGradient(0.5, TOTAL_H * 0.44, 0.28, 0.5, TOTAL_H * 0.5, 1.15);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.48)');
+  b.fillStyle = v; b.fillRect(0, 0, 1, TOTAL_H);
+}
+addEventListener('resize', resize);
+
+/* ═══════════ рисование шестерни ═══════════ */
+function gearSilhouette(c, r, ds) {
+  const tip = r + 0.007 * ds, root = r - 0.008 * ds;
+  const teethN = arguments[3], pitch = TAU / teethN, wr = pitch * 0.29, wt = pitch * 0.15;
+  c.beginPath();
+  for (let i = 0; i < teethN; i++) {
+    const a = i * pitch;
+    c.arc(0, 0, root, a - pitch + wr, a - wr);
+    c.lineTo(tip * Math.cos(a - wt), tip * Math.sin(a - wt));
+    c.arc(0, 0, tip, a - wt, a + wt);
+    c.lineTo(root * Math.cos(a + wr), root * Math.sin(a + wr));
+  }
+  c.closePath();
+}
+/* o: {x,y,r,size,angle,kind,ds,alpha,jx,jy,arrowDir,arrowColor} */
+function drawGear(o) {
+  const r = o.r, ds = o.ds !== undefined ? o.ds : 1;
+  const teethN = TEETH[o.size];
+  const tip = r + 0.007 * ds, root = r - 0.008 * ds;
+  ctx.save();
+  if (o.alpha !== undefined) ctx.globalAlpha = o.alpha;
+  ctx.translate(o.x + (o.jx || 0), o.y + (o.jy || 0));
+
+  /* мягкая тень */
+  const sh = ctx.createRadialGradient(0.006, 0.012, r * 0.5, 0.006, 0.012, tip + 0.014);
+  sh.addColorStop(0, 'rgba(0,0,0,.33)'); sh.addColorStop(.72, 'rgba(0,0,0,.24)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath(); ctx.arc(0.006, 0.012, tip + 0.014, 0, TAU); ctx.fillStyle = sh; ctx.fill();
+
+  ctx.save();
+  ctx.rotate(o.angle);
+  /* корпус с зубьями */
+  gearSilhouette(ctx, r, ds, teethN);
+  const g1 = ctx.createRadialGradient(-r * .38, -r * .38, r * .08, 0, 0, tip);
+  g1.addColorStop(0, '#f7e49c'); g1.addColorStop(.32, '#e8c65f'); g1.addColorStop(.70, '#c9a227'); g1.addColorStop(1, '#8a6d14');
+  ctx.fillStyle = g1; ctx.fill();
+  ctx.lineWidth = 0.0016; ctx.strokeStyle = 'rgba(46,30,4,.55)'; ctx.stroke();
+  /* фаска-обод */
+  ctx.beginPath(); ctx.arc(0, 0, root - 0.0045 * ds, 0, TAU);
+  ctx.strokeStyle = 'rgba(66,46,8,.45)'; ctx.lineWidth = 0.0028 * ds; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, root - 0.0078 * ds, 0, TAU);
+  ctx.strokeStyle = 'rgba(255,238,180,.30)'; ctx.lineWidth = 0.0016 * ds; ctx.stroke();
+  /* облегчающие отверстия — по ним видно вращение */
+  const nh = o.size === 'S' ? 3 : o.size === 'M' ? 4 : 5;
+  const hr = (o.size === 'S' ? 0.155 : 0.17) * r, hd = 0.52 * r;
+  for (let i = 0; i < nh; i++) {
+    const a = i * TAU / nh, hx = hd * Math.cos(a), hy = hd * Math.sin(a);
+    ctx.beginPath(); ctx.arc(hx, hy, hr, 0, TAU);
+    ctx.fillStyle = 'rgba(28,19,9,.92)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(hx, hy, hr, TAU * .08, TAU * .42);
+    ctx.strokeStyle = 'rgba(255,230,160,.26)'; ctx.lineWidth = 0.0016 * ds; ctx.stroke();
+  }
+  if (o.kind === 'driver') {
+    /* заводная головка: рифлёная, крутится вместе с шестернёй */
+    const cr = r * 0.42;
+    const cg = ctx.createRadialGradient(-cr * .4, -cr * .4, cr * .1, 0, 0, cr);
+    cg.addColorStop(0, '#e5c765'); cg.addColorStop(.55, '#a88420'); cg.addColorStop(1, '#5f4a0c');
+    ctx.beginPath(); ctx.arc(0, 0, cr, 0, TAU); ctx.fillStyle = cg; ctx.fill();
+    ctx.strokeStyle = 'rgba(30,20,2,.55)'; ctx.lineWidth = 0.0018; ctx.stroke();
+    for (let i = 0; i < 18; i++) {
+      const a = i * TAU / 18;
+      ctx.beginPath();
+      ctx.moveTo(cr * .74 * Math.cos(a), cr * .74 * Math.sin(a));
+      ctx.lineTo(cr * .97 * Math.cos(a), cr * .97 * Math.sin(a));
+      ctx.strokeStyle = 'rgba(38,24,2,.6)'; ctx.lineWidth = 0.0017; ctx.stroke();
+    }
+    /* шлиц */
+    ctx.beginPath(); ctx.moveTo(-cr * .42, 0); ctx.lineTo(cr * .42, 0);
+    ctx.strokeStyle = '#33220a'; ctx.lineWidth = 0.0042; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(-cr * .28, -cr * .28, cr * .10, 0, TAU);
+    ctx.fillStyle = 'rgba(255,240,190,.5)'; ctx.fill();
+  } else if (o.kind !== 'target') {
+    /* ступица и ось */
+    const hub = r * 0.24;
+    const hg = ctx.createRadialGradient(-hub * .4, -hub * .4, hub * .1, 0, 0, hub);
+    hg.addColorStop(0, '#e2c05a'); hg.addColorStop(1, '#7a5f10');
+    ctx.beginPath(); ctx.arc(0, 0, hub, 0, TAU); ctx.fillStyle = hg; ctx.fill();
+    ctx.strokeStyle = 'rgba(40,26,4,.5)'; ctx.lineWidth = 0.0016; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.095, 0, TAU); ctx.fillStyle = '#170f06'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.05, 0, TAU); ctx.fillStyle = '#453014'; ctx.fill();
+    ctx.beginPath(); ctx.arc(-r * .026, -r * .026, r * .016, 0, TAU); ctx.fillStyle = 'rgba(255,244,210,.6)'; ctx.fill();
+  }
+  ctx.restore(); /* конец вращения */
+
+  if (o.kind === 'target') {
+    /* эмалевый циферблат (неподвижный) + стрелка слоновой кости */
+    const dr = r * 0.56;
+    ctx.beginPath(); ctx.arc(0, 0, dr + 0.004, 0, TAU);
+    ctx.fillStyle = '#8a6d14'; ctx.fill();
+    ctx.strokeStyle = '#caa53a'; ctx.lineWidth = 0.0028; ctx.stroke();
+    const dg = ctx.createRadialGradient(-dr * .3, -dr * .35, dr * .1, 0, 0, dr);
+    dg.addColorStop(0, '#33487a'); dg.addColorStop(.7, '#22335c'); dg.addColorStop(1, '#16223f');
+    ctx.beginPath(); ctx.arc(0, 0, dr, 0, TAU); ctx.fillStyle = dg; ctx.fill();
+    /* блик эмали */
+    ctx.save(); ctx.beginPath(); ctx.arc(0, 0, dr, 0, TAU); ctx.clip();
+    ctx.beginPath(); ctx.ellipse(-dr * .25, -dr * .42, dr * .62, dr * .3, -0.5, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.fill(); ctx.restore();
+    /* метки */
+    for (let i = 0; i < 12; i++) {
+      const a = i * TAU / 12, q = i % 3 === 0;
+      ctx.beginPath();
+      ctx.moveTo(dr * (q ? .70 : .80) * Math.cos(a), dr * (q ? .70 : .80) * Math.sin(a));
+      ctx.lineTo(dr * .90 * Math.cos(a), dr * .90 * Math.sin(a));
+      ctx.strokeStyle = q ? 'rgba(244,232,200,.85)' : 'rgba(244,232,200,.42)';
+      ctx.lineWidth = q ? 0.0026 : 0.0016; ctx.stroke();
+    }
+    /* часовая стрелка */
+    ctx.save(); ctx.rotate(o.angle);
+    ctx.beginPath(); ctx.moveTo(-dr * .26, 0); ctx.lineTo(dr * .74, 0);
+    ctx.strokeStyle = '#f3e9cf'; ctx.lineWidth = 0.0052; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dr * .40, 0); ctx.lineTo(dr * .74, 0);
+    ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 0.0028; ctx.stroke();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, dr * .09, 0, TAU); ctx.fillStyle = '#caa53a'; ctx.fill();
+    /* индикатор требуемого направления ⟳ / ⟲ */
+    if (o.arrowDir) {
+      const ar = r + 0.032, a0 = -TAU * 155 / 360, a1 = -TAU * 25 / 360;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, 0, ar, a0, a1);
+      ctx.strokeStyle = o.arrowColor; ctx.globalAlpha = (o.alpha || 1) * .22; ctx.lineWidth = 0.015; ctx.stroke();
+      ctx.globalAlpha = o.alpha || 1;
+      ctx.beginPath(); ctx.arc(0, 0, ar, a0, a1);
+      ctx.lineWidth = 0.0056; ctx.stroke();
+      const ea = o.arrowDir > 0 ? a1 : a0;
+      const ex = ar * Math.cos(ea), ey = ar * Math.sin(ea);
+      const ta = ea + (o.arrowDir > 0 ? TAU / 4 : -TAU / 4);
+      const tx = Math.cos(ta), ty = Math.sin(ta);
+      ctx.beginPath();
+      ctx.moveTo(ex + tx * 0.02, ey + ty * 0.02);
+      ctx.lineTo(ex - ty * 0.011, ey + tx * 0.011);
+      ctx.lineTo(ex + ty * 0.011, ey - tx * 0.011);
+      ctx.closePath(); ctx.fillStyle = o.arrowColor; ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawPeg(p, t, highlight, legal) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.beginPath(); ctx.arc(0.0025, 0.004, 0.0145, 0, TAU); ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fill();
+  const g = ctx.createRadialGradient(-0.004, -0.004, 0.002, 0, 0, 0.013);
+  g.addColorStop(0, '#e8c65f'); g.addColorStop(.7, '#a88420'); g.addColorStop(1, '#6e5510');
+  ctx.beginPath(); ctx.arc(0, 0, 0.013, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = 'rgba(30,20,2,.5)'; ctx.lineWidth = 0.0016; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 0.0045, 0, TAU); ctx.fillStyle = '#241a0c'; ctx.fill();
+  if (highlight) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 0.005);
+    if (legal) {
+      ctx.beginPath(); ctx.arc(0, 0, 0.024 + 0.005 * pulse, 0, TAU);
+      ctx.strokeStyle = `rgba(255,225,150,${.35 + .35 * pulse})`; ctx.lineWidth = 0.004; ctx.stroke();
+      /* пунктирный контур выбранного размера */
+      ctx.beginPath(); ctx.setLineDash([0.012, 0.014]);
+      ctx.arc(0, 0, SIZES[tray[selected].size], 0, TAU);
+      ctx.strokeStyle = 'rgba(255,220,140,.20)'; ctx.lineWidth = 0.0028; ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
+}
+
+/* ═══════════ лоток ═══════════ */
+function traySlotPos(i) {
+  const n = tray.length, w = 1 / n;
+  return { x: (i + 0.5) * w, y: FIELD_H + TRAY_H * 0.56, w };
+}
+function drawTray(t) {
+  for (let i = 0; i < tray.length; i++) {
+    const s = tray[i], p = traySlotPos(i);
+    const rd = Math.min(SIZES[s.size] * 0.92, p.w * 0.40, 0.068);
+    /* углубление */
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 0.012, rd + 0.02, (rd + 0.02) * .55, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(0,0,0,.30)'; ctx.fill();
+    if (s.used) continue;
+    const sel = i === selected;
+    const y = p.y - (sel ? 0.017 : 0);
+    if (sel) {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 0.006);
+      ctx.beginPath(); ctx.arc(p.x, y, rd + 0.016, 0, TAU);
+      ctx.strokeStyle = `rgba(255,228,150,${.4 + .35 * pulse})`; ctx.lineWidth = 0.005; ctx.stroke();
+    }
+    drawGear({ x: p.x, y, r: rd, size: s.size, angle: s.angle, kind: 'tray', ds: rd / SIZES[s.size] });
+  }
+}
+
+/* ═══════════ построение уровня ═══════════ */
+function startLevel(i) {
+  levelIdx = i; L = LEVELS[i];
+  mode = 'play'; won = false; winAt = 0; jamState = false; selected = -1; denyFx = null;
+  placed = new Map();
+  tray = L.tray.map(sz => ({ size: sz, used: false, angle: Math.random() * TAU }));
+  board = [];
+  addBoardGear(L.driver.peg, L.driver.size, 'driver');
+  addBoardGear(L.target.peg, L.target.size, 'target');
+  mechanismChanged(true);
+  $('lvlName').innerHTML = `Уровень ${i + 1}<small>${L.name} · пар ${L.par}</small>`;
+  showScreen(null);
+  $('hud').style.display = 'flex';
+  $('jam').classList.add('hide');
+  showHint(L.hint && !(stars[i] > 0) ? L.hint : '');
+}
+function addBoardGear(peg, size, kind) {
+  const p = L.pegs[peg];
+  board.push({ peg, size, kind, x: p.x, y: p.y, r: SIZES[size], angle: Math.random() * TAU, w: 0, active: false, pop: 0 });
+}
+function mechanismChanged(silent) {
+  const res = solveMech(board);
+  board.forEach((g, i) => { g.w = res.jam ? 0 : res.w[i]; g.active = res.seen[i]; });
+  const wasJam = jamState;
+  jamState = res.jam;
+  $('jam').classList.toggle('hide', !jamState);
+  if (jamState && !wasJam && !silent) jamSnd();
+  const ti = board.findIndex(g => g.kind === 'target');
+  targetW = res.jam ? 0 : res.w[ti];
+  const ok = !res.jam && targetW !== 0 && Math.sign(targetW) === L.dir;
+  winAt = (ok && !won) ? performance.now() + 800 : 0;
+  if (winAt) lastTickAt = 0;
+}
+function placeGear(pegIdx, slotIdx) {
+  tray[slotIdx].used = true;
+  placed.set(pegIdx, slotIdx);
+  addBoardGear(pegIdx, tray[slotIdx].size, 'placed');
+  board[board.length - 1].pop = performance.now();
+  selected = -1;
+  mechanismChanged();
+  placeSnd();
+}
+function removeGear(pegIdx) {
+  const slot = placed.get(pegIdx);
+  if (slot === undefined) return;
+  tray[slot].used = false;
+  placed.delete(pegIdx);
+  board = board.filter(g => !(g.kind === 'placed' && g.peg === pegIdx));
+  mechanismChanged();
+  removeSnd();
+}
+function overlapAt(pegIdx, r) {
+  const p = L.pegs[pegIdx];
+  for (const g of board) {
+    const d = Math.hypot(g.x - p.x, g.y - p.y);
+    if (d < g.r + r - MESH_TOL) return true;
+  }
+  return false;
+}
+
+/* ═══════════ победа ═══════════ */
+function doWin() {
+  won = true; winAt = 0;
+  const used = placed.size;
+  const st = used <= L.par ? 3 : used === L.par + 1 ? 2 : 1;
+  if (st > (stars[levelIdx] || 0)) {
+    stars[levelIdx] = st;
+    localStorage.setItem('chasy_stars', JSON.stringify(stars));
+  }
+  $('resStars').textContent = '★★★'.slice(0, st);
+  $('resTitle').textContent = st === 3 ? 'Механизм пошёл!' : st === 2 ? 'Почти идеально!' : 'Заработало!';
+  $('resInfo').textContent = `Шестерён: ${used} · пар ${L.par}`;
+  $('btnNext').style.display = levelIdx < LEVELS.length - 1 ? '' : 'none';
+  winSnd();
+  if (navigator.vibrate) navigator.vibrate(20);
+  setTimeout(() => { if (won) showScreen('result'); }, 900);
+}
+
+/* ═══════════ подсказка ═══════════ */
+let hintTimer = 0;
+function showHint(text) {
+  const h = $('hint');
+  clearTimeout(hintTimer);
+  if (!text) { h.classList.add('hide'); return; }
+  h.textContent = text;
+  h.classList.remove('hide');
+  hintTimer = setTimeout(() => h.classList.add('hide'), 4200);
+}
+
+/* ═══════════ ввод: только тапы ═══════════ */
+function toUnit(ev) {
+  const r = cv.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) / r.width, y: (ev.clientY - r.top) / r.width };
+}
+cv.addEventListener('pointerdown', ev => {
+  if (mode !== 'play' || won) return;
+  audio(); if (AC && AC.state === 'suspended') AC.resume();
+  const p = toUnit(ev);
+
+  if (p.y >= FIELD_H) { /* лоток */
+    let best = -1, bd = 1e9;
+    for (let i = 0; i < tray.length; i++) {
+      if (tray[i].used) continue;
+      const sp = traySlotPos(i);
+      const d = Math.hypot(p.x - sp.x, p.y - sp.y);
+      if (d < Math.max(0.075, sp.w * .5) && d < bd) { bd = d; best = i; }
+    }
+    if (best >= 0) { selected = selected === best ? -1 : best; selectSnd(); }
+    return;
+  }
+  /* доска: ближайший штырёк */
+  let pi = -1, bd = 1e9;
+  L.pegs.forEach((pg, i) => {
+    const g = board.find(x => x.peg === i);
+    const rad = g ? Math.max(0.055, g.r + 0.012) : 0.055;
+    const d = Math.hypot(p.x - pg.x, p.y - pg.y);
+    if (d < rad && d < bd) { bd = d; pi = i; }
+  });
+  if (pi < 0) return;
+  const g = board.find(x => x.peg === pi);
+  if (g) {
+    if (g.kind === 'placed') removeGear(pi);
+    else denySnd(); /* заводную и целевую не снять */
+    return;
+  }
+  if (selected >= 0) {
+    const r = SIZES[tray[selected].size];
+    if (overlapAt(pi, r)) {
+      denyFx = { x: L.pegs[pi].x, y: L.pegs[pi].y, t: performance.now() };
+      denySnd();
+    } else placeGear(pi, selected);
+  }
+});
+
+/* ═══════════ демо-шестерни в меню ═══════════ */
+const demo = (() => {
+  const a = { x: 0.34, y: 0.62, r: SIZES.L, size: 'L', kind: 'driver', angle: 0, w: DRIVER_W * .5 };
+  const dirv = d => ({ x: Math.cos(d * Math.PI / 180), y: Math.sin(d * Math.PI / 180) });
+  const st = (p, dist, deg) => ({ x: p.x + dist * dirv(deg).x, y: p.y + dist * dirv(deg).y });
+  const bp = st(a, SIZES.L + SIZES.M, -28);
+  const b = { ...bp, r: SIZES.M, size: 'M', kind: 'plain', angle: 1, w: -a.w * SIZES.L / SIZES.M };
+  const cp = st(b, SIZES.M + SIZES.S, 45);
+  const c = { ...cp, r: SIZES.S, size: 'S', kind: 'plain', angle: 2, w: -b.w * SIZES.M / SIZES.S };
+  const dp = st(a, SIZES.L + SIZES.S, 95);
+  const d = { ...dp, r: SIZES.S, size: 'S', kind: 'plain', angle: 3, w: -a.w * SIZES.L / SIZES.S };
+  return [a, b, c, d];
+})();
+
+/* ═══════════ главный цикл ═══════════ */
+let lastT = 0;
+function frame(t) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+
+  /* update */
+  if (mode === 'menu') {
+    for (const g of demo) g.angle += g.w * dt;
+  } else {
+    for (const g of board) g.angle += g.w * dt;
+    for (let i = 0; i < tray.length; i++) if (i === selected) tray[i].angle += dt * 0.9;
+    if (winAt && !won) {
+      if (performance.now() >= winAt) doWin();
+      else if (t - lastTickAt > 400) { lastTickAt = t; tickSnd(tickAlt = !tickAlt); }
+    }
+  }
+
+  /* render */
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, CW, CH);
+  ctx.drawImage(back, 0, 0);
+  ctx.setTransform(U, 0, 0, U, 0, 0);
+  ctx.lineJoin = 'round';
+
+  if (mode === 'menu') {
+    for (const g of demo) drawGear(g);
+    return;
+  }
+
+  /* штырьки */
+  for (let i = 0; i < L.pegs.length; i++) {
+    if (board.some(g => g.peg === i)) continue;
+    const canHl = selected >= 0;
+    const legal = canHl && !overlapAt(i, SIZES[tray[selected].size]);
+    drawPeg(L.pegs[i], t, canHl, legal);
+  }
+  /* шестерни (сначала обычные, заводная и целевая поверх) */
+  const jitOn = jamState;
+  const order = board.slice().sort((a, b) => (a.kind === 'placed' ? 0 : 1) - (b.kind === 'placed' ? 0 : 1));
+  for (const g of order) {
+    let jx = 0, jy = 0;
+    if (jitOn && g.active) {
+      jx = 0.0018 * Math.sin(t * 0.07 + g.peg * 13.7);
+      jy = 0.0015 * Math.cos(t * 0.091 + g.peg * 7.3);
+    }
+    let popScale = 1;
+    if (g.pop) {
+      const k = (performance.now() - g.pop) / 200;
+      if (k < 1) popScale = 1 + 0.16 * (1 - k) * Math.sin(k * Math.PI);
+      else g.pop = 0;
+    }
+    const o = { x: g.x, y: g.y, r: g.r * popScale, size: g.size, angle: g.angle, kind: g.kind, ds: popScale, jx, jy };
+    if (g.kind === 'target') {
+      o.arrowDir = L.dir;
+      o.arrowColor = jamState ? '#e07a5f'
+        : (targetW !== 0 && Math.sign(targetW) === L.dir) ? '#8fd694'
+        : (targetW !== 0) ? '#e0925f' : '#d9b36a';
+    }
+    drawGear(o);
+  }
+  /* отказ установки */
+  if (denyFx) {
+    const k = (performance.now() - denyFx.t) / 400;
+    if (k > 1) denyFx = null;
+    else {
+      ctx.beginPath(); ctx.arc(denyFx.x, denyFx.y, 0.03 + 0.03 * k, 0, TAU);
+      ctx.strokeStyle = `rgba(224,110,90,${.6 * (1 - k)})`; ctx.lineWidth = 0.005; ctx.stroke();
+    }
+  }
+  drawTray(t);
+}
+
+/* ═══════════ экраны и кнопки ═══════════ */
+function showScreen(name) {
+  ['menu', 'result'].forEach(s => $(s).classList.toggle('hide', s !== name));
+}
+function buildMenu() {
+  const g = $('lvlgrid');
+  g.innerHTML = '';
+  LEVELS.forEach((lv, i) => {
+    const unlocked = i === 0 || (stars[i - 1] || 0) > 0;
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.disabled = !unlocked;
+    b.innerHTML = `${i + 1}<small>${'★'.repeat(stars[i] || 0)}</small>`;
+    b.onclick = () => startLevel(i);
+    g.appendChild(b);
+  });
+}
+function toMenu() {
+  mode = 'menu';
+  $('hud').style.display = 'none';
+  $('jam').classList.add('hide');
+  showHint('');
+  buildMenu();
+  showScreen('menu');
+}
+$('btnPlay').onclick = () => {
+  let i = 0;
+  while (i < LEVELS.length - 1 && (stars[i] || 0) > 0) i++;
+  startLevel(i);
+};
+$('btnMenu').onclick = toMenu;
+$('btnResMenu').onclick = toMenu;
+$('btnRestart').onclick = () => startLevel(levelIdx);
+$('btnAgain').onclick = () => startLevel(levelIdx);
+$('btnNext').onclick = () => startLevel(Math.min(levelIdx + 1, LEVELS.length - 1));
+$('btnSnd').textContent = sndOn ? '🔊' : '🔇';
+$('btnSnd').onclick = () => {
+  sndOn = !sndOn;
+  localStorage.setItem('chasy_snd', sndOn ? '1' : '0');
+  $('btnSnd').textContent = sndOn ? '🔊' : '🔇';
+};
+
+/* ═══════════ тестовые хуки ═══════════ */
+window.__solve = function () {
+  if (mode !== 'play') return false;
+  for (const pegIdx of [...placed.keys()]) removeGear(pegIdx);
+  for (const k in LEVELS[levelIdx].solution) {
+    const sz = LEVELS[levelIdx].solution[k];
+    const slot = tray.findIndex(s => !s.used && s.size === sz);
+    if (slot < 0) return false;
+    placeGear(+k, slot);
+  }
+  return checkWin(LEVELS[levelIdx], LEVELS[levelIdx].solution);
+};
+window.__start = i => startLevel(i);
+window.__state = () => ({
+  mode, level: levelIdx, placed: placed.size, jam: jamState,
+  targetW, winPending: !!winAt, won,
+  resultShown: !$('result').classList.contains('hide'),
+  stars: localStorage.getItem('chasy_stars'),
+});
+
+/* SDK Яндекс Игр — если есть */
+if (window.YaGames) YaGames.init().then(y => { window.ysdk = y; y.features?.LoadingAPI?.ready?.(); }).catch(() => {});
+
+resize();
+buildMenu();
+showScreen('menu');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

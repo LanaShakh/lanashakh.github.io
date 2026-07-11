@@ -165,7 +165,7 @@
     <div class="ovh" id="inMap"></div>
     <div class="cmdRow" id="inCmd"></div>
     <div class="trLegend" id="inTraits"></div>
-    <div class="ovh">Твой дебют</div>
+    <div class="ovh" id="inGambitsTitle">Твой дебют</div>
     <div class="gambits" id="inGambits"></div>
   </div>
   <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div>
@@ -173,7 +173,7 @@
     <div class="diffRow" id="diffRow"></div>
     <div class="heroCard" id="heroCard"></div>
     <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div>
-    <div class="menuNote">версия 3.0</div></div>
+    <div class="menuNote">версия 3.1</div></div>
   <button class="rush" id="rushBtn">⚡</button>
   <div class="spec" id="specMenu">
     <button data-s="atk" title="Атака">⚔️</button>
@@ -186,7 +186,7 @@
   <div id="loading"><div style="font-size:56px">🦉</div>
     <div style="font-size:26px;font-weight:800;letter-spacing:-.5px">Захват</div>
     <div class="spinner"></div><div style="color:#8f97c9;font-size:13px">Готовим карту…</div>
-    <div style="color:#565e8c;font-size:11px">версия 3.0</div><div id="err"></div></div>
+    <div style="color:#565e8c;font-size:11px">версия 3.1</div><div id="err"></div></div>
 
 <!-- SDK Яндекс Игр: на их хостинге /sdk.js существует, на своём сайте просто 404 и игра идёт дальше -->
 <script src="/sdk.js" onerror="void 0"></script>
@@ -724,9 +724,7 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
-  // карта 1 — отсчёт и в бой (туториал); дальше — интро с командиром и дебютом
-  if(!endless && mapIndex===0) startCountdown();
-  else showIntro(m,label);
+  showIntro(m,label);   // интро перед каждым боем; на карте 1 — упрощённое, без дебютов
 }
 
 // отсчёт перед боем: поле видно, бот заморожен — время осмотреться (и даже протянуть линию)
@@ -748,19 +746,28 @@ function startCountdown(){
 // ---------------- интро боя: командир, здания, выбор дебюта ----------------
 function showIntro(m,label){
   running=false;
+  const firstMap = !endless && mapIndex===0;
   $('inMap').textContent=label;
   const c=m.cmd?COMMANDERS[m.cmd]:null;
   $('inCmd').innerHTML = c
     ? '<span class="ce">'+c.emoji+'</span><span><b>Командир '+c.name+'</b><br><small>'+c.desc+'</small></span>'
-    : '<span class="ce">🤖</span><span><b>Обычный гарнизон</b><br><small>без особых умений</small></span>';
+    : '<span class="ce">🦉</span><span><b>Филин на связи</b><br><small>'+(firstMap?'разведка: у врага обычный гарнизон':'у врага обычный гарнизон, без умений')+'</small></span>';
   const trs=[...new Set(nodes.filter(n=>n.trait).map(n=>n.trait))];
   const tl=$('inTraits');
   tl.innerHTML = trs.map(t=>TRAITS[t].icon+' <b>'+TRAITS[t].name+'</b> — '+TRAITS[t].desc).join('<br>');
   tl.style.display = trs.length?'block':'none';
-  const g=$('inGambits'); g.innerHTML='';
-  Object.entries(GAMBITS).forEach(([k,d])=>{ const b=document.createElement('button'); b.className='gcard';
-    b.innerHTML='<span class="gi">'+d.icon+'</span><span><b>'+d.name+'</b><small>'+d.desc+'</small></span>';
-    b.onclick=()=>chooseGambit(k); g.appendChild(b); });
+  const g=$('inGambits');
+  if(firstMap){
+    $('inGambitsTitle').style.display='none';
+    g.innerHTML='<button class="btn primary" id="introGo" style="font-size:17px;padding:14px 34px">⚔️ В бой</button>';
+    document.getElementById('introGo').onclick=()=>{ hideOverlay('ovIntro'); startCountdown(); };
+  } else {
+    $('inGambitsTitle').style.display='block';
+    g.innerHTML='';
+    Object.entries(GAMBITS).forEach(([k,d])=>{ const b=document.createElement('button'); b.className='gcard';
+      b.innerHTML='<span class="gi">'+d.icon+'</span><span><b>'+d.name+'</b><small>'+d.desc+'</small></span>';
+      b.onclick=()=>chooseGambit(k); g.appendChild(b); });
+  }
   document.getElementById('ovIntro').className='overlay show';
 }
 function applyGambit(side,key){
@@ -881,7 +888,7 @@ function step(dt){
       if(s.mesh){ soldierGroup.remove(s.mesh);
         s.mesh.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); if(c.material.dispose) c.material.dispose(); } }); }
       soldiers.splice(i,1); continue; }
-    const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
+    const v=3.1*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
   botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL*(CMD==='haste'?0.65:1)*D().think; botThink(); }
   checkEnd();
@@ -982,8 +989,7 @@ function syncVisuals(){
   for(const n of nodes){
     if(n.lr!==n.l || n.or!==n.o){ if(n.or!==-1 && n.or!==n.o) burst(n); buildTower(n); }   // rebuild on level/owner change
     const v=n.view; if(!v) continue;
-    // atk shake
-    v.group.position.x = n.x + (n.atk>0?Math.sin(performance.now()*0.03)*0.06:0);
+    v.group.position.x = n.x;   // башни стоят статично (дрожание убрано)
     // label
     v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]+' ':'')+Math.floor(n.t);
     v.div.style.borderColor = CSS[n.o];
@@ -993,7 +999,7 @@ function syncVisuals(){
   for(const s of soldiers){ if(!s.mesh){ s.mesh=makeSoldierMesh(s.kind, SOLID[s.o]); soldierGroup.add(s.mesh); }
     const tn=nodes[s.tid];
     s.mesh.rotation.y=Math.atan2(tn.x-s.x, tn.z-s.z);
-    s.mesh.position.set(s.x, GROUND_TOP+0.06+(s.kind==='atk'?0:Math.abs(Math.sin(performance.now()*0.012+(s.x+s.z)*3))*0.09), s.z); }
+    s.mesh.position.set(s.x, GROUND_TOP+0.06+(s.kind==='atk'?0:Math.abs(Math.sin(performance.now()*0.007+(s.x+s.z)*3))*0.05), s.z); }
   // links — rebuild ribbon meshes when set changes
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }

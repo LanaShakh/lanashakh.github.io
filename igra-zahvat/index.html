@@ -73,6 +73,21 @@
   .tut .txt b{color:#ffd166;}
   #confetti{position:fixed; inset:0; z-index:35; pointer-events:none;}
 
+  .cmdRow{display:flex; align-items:center; gap:11px; background:var(--panel); border:1px solid rgba(255,255,255,.14);
+    border-radius:14px; padding:10px 14px; width:min(92vw,360px); font-size:14px; text-align:left;}
+  .cmdRow .ce{font-size:30px;}
+  .cmdRow small{color:var(--muted); font-size:12.5px;}
+  .trLegend{font-size:12.5px; color:var(--muted); width:min(92vw,360px); line-height:1.55; text-align:left;}
+  .trLegend b{color:#dfe2ff;}
+  .gambits{display:flex; flex-direction:column; gap:10px; width:min(92vw,360px);}
+  .gcard{display:flex; align-items:center; gap:12px; text-align:left; background:var(--panel);
+    border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:12px 14px; cursor:pointer;
+    color:var(--ink); font-family:inherit; font-size:14px;}
+  .gcard:active{transform:translateY(2px);}
+  .gcard .gi{font-size:26px;}
+  .gcard b{display:block; font-size:15px;}
+  .gcard small{color:var(--muted); font-size:12.5px;}
+
   .spec{position:fixed; z-index:14; display:none; gap:9px; transform:translate(-50%,-135%);}
   .spec.show{display:flex; animation:tutIn .2s ease;}
   .spec button{width:48px; height:48px; border-radius:50%; font-size:21px; cursor:pointer;
@@ -124,6 +139,13 @@
   <canvas id="confetti"></canvas>
 
   <div class="overlay" id="ovEnd"><div class="big" id="ovTitle"></div><div class="stars" id="ovStars"></div><div class="sub" id="ovSub"></div><div class="row" id="ovRow"></div></div>
+  <div class="overlay" id="ovIntro">
+    <div class="ovh" id="inMap"></div>
+    <div class="cmdRow" id="inCmd"></div>
+    <div class="trLegend" id="inTraits"></div>
+    <div class="ovh">Твой дебют</div>
+    <div class="gambits" id="inGambits"></div>
+  </div>
   <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div>
     <div class="heroCard" id="heroCard"></div>
     <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
@@ -210,27 +232,48 @@ const BIOMES = {
     groves:9, trees:['treeF','tree3F','tree2'], bushes:24, grassN:46, flowersN:30, rocksN:14, mushN:8, logsN:6, mush:'mushT' },
 };
 
+// особые нейтральные здания: трейт остаётся при захвате — стратегическая цель
+const TRAITS={
+  mill:{ icon:'🌾', name:'Мельница', desc:'+30% производства своим башням рядом' },
+  fort:{ icon:'🏰', name:'Форт', desc:'принимает вдвое меньше урона' },
+  beacon:{ icon:'🚩', name:'Маяк', desc:'+1 связь владельцу' },
+};
+// командиры врага: у каждой карты бот со своим перком
+const COMMANDERS={
+  greed:{ emoji:'💰', name:'Скупец', desc:'враг производит на 15% больше' },
+  forge:{ emoji:'🛠', name:'Кузнец', desc:'башни врага крепче: −15% вашего урона' },
+  wind:{ emoji:'🌪', name:'Вихрь', desc:'солдаты врага на 20% быстрее' },
+  haste:{ emoji:'⏱', name:'Блиц', desc:'враг принимает решения заметно чаще' },
+  war:{ emoji:'⚔️', name:'Вояка', desc:'солдаты врага бьют на 20% сильнее' },
+};
+// дебюты: одно решение до боя — у игрока и у бота
+const GAMBITS={
+  reserve:{ icon:'🪖', name:'Резерв', desc:'+10 войск в сильнейшую башню' },
+  tempo:{ icon:'⚡', name:'Темп', desc:'+30% производства первые 20 секунд' },
+  found:{ icon:'🏗', name:'Фундамент', desc:'сильнейшая башня сразу +1 уровень' },
+};
+
 const MAPS = [
   { name:'Первый контакт', biome:'meadow', par:45, aggro:0.35, nodes:[
     {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
     {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
-  { name:'Перекрёсток', biome:'sparse', par:75, aggro:0.45, nodes:[
-    {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},{x:.5,y:.5,o:0,t:16,l:1},
+  { name:'Перекрёсток', biome:'sparse', par:75, aggro:0.45, cmd:'greed', nodes:[
+    {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},{x:.5,y:.5,o:0,t:16,l:1,tr:'mill'},
     {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},{x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
-  { name:'Клин', biome:'autumn', par:85, aggro:0.5, nodes:[
+  { name:'Клин', biome:'autumn', par:85, aggro:0.5, cmd:'forge', nodes:[
     {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
     {x:.87,y:.3,o:2,t:24,l:1},{x:.87,y:.7,o:2,t:24,l:1},
-    {x:.5,y:.5,o:0,t:18,l:1},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
-  { name:'Окружение', biome:'pines', par:95, aggro:0.55, nodes:[
-    {x:.5,y:.5,o:1,t:28,l:1},{x:.5,y:.16,o:0,t:12,l:1},{x:.5,y:.84,o:0,t:12,l:1},
+    {x:.5,y:.5,o:0,t:18,l:1,tr:'fort'},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
+  { name:'Окружение', biome:'pines', par:95, aggro:0.55, cmd:'wind', nodes:[
+    {x:.5,y:.5,o:1,t:28,l:1},{x:.5,y:.16,o:0,t:12,l:1,tr:'mill'},{x:.5,y:.84,o:0,t:12,l:1,tr:'beacon'},
     {x:.2,y:.3,o:2,t:22,l:1},{x:.2,y:.7,o:0,t:12,l:1},{x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:22,l:1} ] },
-  { name:'Две крепости', biome:'thicket', par:110, aggro:0.6, nodes:[
+  { name:'Две крепости', biome:'thicket', par:110, aggro:0.6, cmd:'haste', nodes:[
     {x:.15,y:.5,o:1,t:30,l:2},{x:.85,y:.5,o:2,t:34,l:2},
-    {x:.4,y:.3,o:0,t:14,l:1},{x:.6,y:.7,o:0,t:14,l:1},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
-  { name:'Архипелаг', biome:'golden', par:130, aggro:0.68, nodes:[
+    {x:.4,y:.3,o:0,t:14,l:1,tr:'mill'},{x:.6,y:.7,o:0,t:14,l:1,tr:'fort'},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
+  { name:'Архипелаг', biome:'golden', par:130, aggro:0.68, cmd:'war', nodes:[
     {x:.1,y:.5,o:1,t:24,l:1},{x:.9,y:.2,o:2,t:22,l:1},{x:.9,y:.8,o:2,t:22,l:1},
-    {x:.35,y:.2,o:0,t:10,l:1},{x:.35,y:.8,o:0,t:10,l:1},{x:.55,y:.5,o:0,t:16,l:1},
-    {x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},{x:.5,y:.15,o:0,t:9,l:1},{x:.5,y:.85,o:0,t:9,l:1} ] },
+    {x:.35,y:.2,o:0,t:10,l:1,tr:'mill'},{x:.35,y:.8,o:0,t:10,l:1,tr:'mill'},{x:.55,y:.5,o:0,t:16,l:1,tr:'fort'},
+    {x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},{x:.5,y:.15,o:0,t:9,l:1,tr:'beacon'},{x:.5,y:.85,o:0,t:9,l:1,tr:'beacon'} ] },
 ];
 
 // ---------------- three.js setup ----------------
@@ -348,7 +391,10 @@ let HLVL=0, rushT=0, rushCD=0;
 function totalStars(){ let s=bestEndless|0; for(const k in bestStars) s+=bestStars[k]|0; return s; }
 function refreshHero(){ const t=totalStars(); HLVL=0; for(const h of HERO_LEVELS){ if(t>=h.need) HLVL++; } }
 
+let CMD=null, pTempo=false, eTempo=false;   // командир карты и дебюты «Темп»
 function cap(n){ let c=CAP_BASE*n.l; if(n.o===1 && HLVL>=5) c*=1.2; return c; }
+function millBoost(n){ for(const m of nodes){ if(m!==n && m.o===n.o && m.trait==='mill' &&
+  Math.hypot(m.x-n.x,m.z-n.z)<5.5) return 1.3; } return 1; }
 // синергия L4: башня 4 уровня производит +25% и даёт +25% всем своим башням, связанным с ней
 function synergy(n){
   if(n.l>=4) return 1.25;
@@ -358,11 +404,13 @@ function synergy(n){
   }
   return 1;
 }
-function prod(n){ let p=PROD_BASE*n.l*synergy(n);
+function prod(n){ let p=PROD_BASE*n.l*synergy(n)*millBoost(n);
   if(n.spec==='eco') p*=1.5;
-  if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); } return p; }
+  if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); if(pTempo && simTime<20) p*=1.3; }
+  else if(n.o===2){ if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
+  return p; }
 const SPEC_ICON={ atk:'⚔', def:'🛡', eco:'⚙' };
-function linkCap(n){ return n.l>=3 ? 4 : n.l; }   // L1=1, L2=2, L3=4, L4=4 outgoing links
+function linkCap(n){ return (n.l>=3 ? 4 : n.l) + (n.trait==='beacon'?1:0); }   // L1=1, L2=2, L3=4, L4=4; маяк +1
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
 function camViewSize(){ const aspect=innerWidth/innerHeight;
@@ -422,7 +470,7 @@ async function init(){
     bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb', grass:'nat/grass.glb', grassL:'nat/grass_large.glb',
     fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb', fP:'nat/flower_purpleB.glb',
     rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb',
-    fence:'nat/fence_simple.glb', fenceP:'nat/fence_planks.glb', fenceG:'nat/fence_gate.glb', camp:'nat/campfire_logs.glb', campS:'nat/campfire_stones.glb', sign:'nat/sign.glb', logS:'nat/log_stack.glb', vlg:'nat/villager.glb',
+    fence:'nat/fence_simple.glb', fenceP:'nat/fence_planks.glb', fenceG:'nat/fence_gate.glb', camp:'nat/campfire_logs.glb', campS:'nat/campfire_stones.glb', sign:'nat/sign.glb', logS:'nat/log_stack.glb', vlg:'nat/villager.glb', cflag:'c-flag.glb',
     h1:'vil/house1.glb', h2:'vil/house2.glb', h3:'vil/house3.glb', h4:'vil/house4.glb', h5:'vil/house5.glb', h6:'vil/house6.glb' };
   const entries = await Promise.all(Object.entries(names).map(async ([k,f])=>{
     const g = await loader.loadAsync('models/'+f); return [k, g.scene];
@@ -570,11 +618,14 @@ function genEndless(r){
     while(tries<80 && !(far(x,y) && far(1-x,1-y) && Math.hypot((2*x-1)*12.6,(2*y-1)*8.4)>=2.3));
     if(tries>=80) continue;
     const t=8+((rng()*10)|0), l=(r>=4 && rng()<0.3)?2:1;
-    nodes.push({x,y,o:0,t,l});         pts.push({x,y});
-    nodes.push({x:1-x,y:1-y,o:0,t,l}); pts.push({x:1-x,y:1-y});
+    const tr = rng()<0.35 ? ['mill','fort','beacon'][(rng()*3)|0] : null;   // парам — одинаковый трейт
+    nodes.push({x,y,o:0,t,l,tr});         pts.push({x,y});
+    nodes.push({x:1-x,y:1-y,o:0,t,l,tr}); pts.push({x:1-x,y:1-y});
   }
-  if(rng()<0.5 && far(.5,.5)) nodes.push({x:.5,y:.5,o:0,t:14+((rng()*8)|0),l:1});
-  return { name:'Раунд '+r, biome, par:60+nodes.length*9, aggro:Math.min(0.85,0.38+r*0.05), nodes };
+  if(rng()<0.5 && far(.5,.5)) nodes.push({x:.5,y:.5,o:0,t:14+((rng()*8)|0),l:1, tr:(rng()<0.4?'fort':null)});
+  const cmdKeys=Object.keys(COMMANDERS);
+  return { name:'Раунд '+r, biome, par:60+nodes.length*9, aggro:Math.min(0.85,0.38+r*0.05), nodes,
+           cmd: r>=2 ? cmdKeys[(r-2)%cmdKeys.length] : null };
 }
 function loadMap(i){ endless=false; mapIndex=i; startMap(MAPS[i], i, (i+1)+'. '+MAPS[i].name); }
 function loadEndless(r){ endless=true; endlessRound=r; startMap(genEndless(r), 100+r, '∞ Раунд '+r); }
@@ -593,17 +644,20 @@ function startMap(m, seed, label){
   applyBiome(biome);
 
   nodes = m.nodes.map((d,idx)=>{ const p=worldPos(d.x,d.y);
-    return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, spec:null, view:null, lr:-1, or:-1 }; });
+    return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, spec:null, trait:d.tr||null, view:null, lr:-1, or:-1 }; });
   hideSpec();
+  CMD=m.cmd||null; pTempo=false; eTempo=false;
   refreshHero(); rushT=0; rushCD=0;
   if(HLVL>=3) for(const n of nodes){ if(n.o===1) n.t+=6; }   // 🪖 стартовый бонус героя
   links=[]; soldiers=[]; linkSig=''; drag=null; botTimer=0; ended=false; running=true; speed=1; simTime=0;
   document.getElementById('speedBtn').textContent='×1';
   document.getElementById('mapName').textContent=label+' · '+biome.label;
-  hideOverlay('ovEnd'); hideOverlay('ovMenu');
+  hideOverlay('ovEnd'); hideOverlay('ovMenu'); hideOverlay('ovIntro');
   if(!endless && mapIndex===0 && !localStorage.getItem(TUT_KEY)){ tutStep=0; tutShow(); }
   else { tutStep=-1; tutHide(); }
-  document.getElementById('hint').style.opacity = (!endless && mapIndex===0 && tutStep<0)?'1':'0';
+  const hintEl=document.getElementById('hint');
+  hintEl.textContent='Тяни от своей башни к другой — создать связь. Убрать: тапни по линии.';
+  hintEl.style.opacity = (!endless && mapIndex===0 && tutStep<0)?'1':'0';
 
   // decor
   decor=genDecor(seed,biome);
@@ -613,12 +667,49 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
-  gpStart();
+  // карта 1 — сразу в бой (туториал); дальше — интро с командиром и дебютом
+  if(!endless && mapIndex===0) gpStart();
+  else showIntro(m,label);
+}
+
+// ---------------- интро боя: командир, здания, выбор дебюта ----------------
+function showIntro(m,label){
+  running=false;
+  $('inMap').textContent=label;
+  const c=m.cmd?COMMANDERS[m.cmd]:null;
+  $('inCmd').innerHTML = c
+    ? '<span class="ce">'+c.emoji+'</span><span><b>Командир '+c.name+'</b><br><small>'+c.desc+'</small></span>'
+    : '<span class="ce">🤖</span><span><b>Обычный гарнизон</b><br><small>без особых умений</small></span>';
+  const trs=[...new Set(nodes.filter(n=>n.trait).map(n=>n.trait))];
+  const tl=$('inTraits');
+  tl.innerHTML = trs.map(t=>TRAITS[t].icon+' <b>'+TRAITS[t].name+'</b> — '+TRAITS[t].desc).join('<br>');
+  tl.style.display = trs.length?'block':'none';
+  const g=$('inGambits'); g.innerHTML='';
+  Object.entries(GAMBITS).forEach(([k,d])=>{ const b=document.createElement('button'); b.className='gcard';
+    b.innerHTML='<span class="gi">'+d.icon+'</span><span><b>'+d.name+'</b><small>'+d.desc+'</small></span>';
+    b.onclick=()=>chooseGambit(k); g.appendChild(b); });
+  document.getElementById('ovIntro').className='overlay show';
+}
+function applyGambit(side,key){
+  const own=nodes.filter(n=>n.o===side); if(!own.length) return;
+  const top=own.reduce((a,b)=>a.t>b.t?a:b);
+  if(key==='reserve') top.t+=10;
+  else if(key==='found'){ if(top.l<MAX_LEVEL) top.l++; }
+  else if(key==='tempo'){ if(side===1) pTempo=true; else eTempo=true; }
+}
+function chooseGambit(k){
+  const keys=Object.keys(GAMBITS), ek=keys[(Math.random()*keys.length)|0];
+  applyGambit(1,k); applyGambit(2,ek);
+  hideOverlay('ovIntro'); running=true; gpStart(); sfx('step');
+  const c=CMD?COMMANDERS[CMD]:null;
+  const h=$('hint'); h.textContent=(c? c.emoji+' '+c.name : 'Враг')+' выбирает дебют: «'+GAMBITS[ek].name+'»';
+  h.style.opacity='1'; setTimeout(()=>{ h.style.opacity='0'; },3500);
 }
 
 const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
 function buildTower(n){
-  if(n.view){ nodeGroup.remove(n.view.group); }
+  if(n.view){ nodeGroup.remove(n.view.group);
+    if(n.view.div && n.view.div.parentNode) n.view.div.parentNode.removeChild(n.view.div); }
   const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.0);
   // team ring on the ground (ownership); у врага — шестигранник (форма, не только цвет)
   const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.085,12,n.o===2?6:40).rotateX(Math.PI/2),
@@ -627,7 +718,14 @@ function buildTower(n){
   // TD-kit tower model, grows by level (b->c->d->f)
   const tow=MODELS[TOWER[Math.min(4,n.l)]].clone(true);
   tow.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
-  tow.scale.setScalar(1.15); group.add(tow);
+  tow.scale.setScalar(n.trait==='fort'?1.38:1.15); group.add(tow);
+  // особые здания: мельница — домик рядом, маяк — флаг
+  if(n.trait==='mill'){ const h=MODELS.h2.clone(true); h.scale.setScalar(0.6);
+    h.position.set(0.95,0,0.6); h.rotation.y=-0.7;
+    h.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.userData.nodeId=n.id; } }); group.add(h); }
+  if(n.trait==='beacon'){ const f=MODELS.cflag.clone(true); f.scale.setScalar(0.9);
+    f.position.set(-0.75,0,0.55);
+    f.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.userData.nodeId=n.id; } }); group.add(f); }
   // L4 synergy glow
   if(synergyOn(n)){ const halo=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.06,10,28).rotateX(Math.PI/2),
       new THREE.MeshStandardMaterial({ color:0xffe08a, emissive:0xffd166, emissiveIntensity:1.0, roughness:0.4 }));
@@ -652,10 +750,12 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
 function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
-  dmg: from.spec==='atk'?1.5:1, fast: from.spec==='atk' }); }
+  dmg: (from.spec==='atk'?1.5:1)*(from.o===2 && CMD==='war'?1.2:1), fast: from.spec==='atk' }); }
 function applyArrival(node, owner, dmg){
   if(node.o===owner){ node.t+=1; }
-  else { node.atk=0.6; node.t-=(dmg||1)*(node.spec==='def'?0.6:1); if(node.t<=0){ const prev=node.o;
+  else { node.atk=0.6;
+    node.t-=(dmg||1)*(node.spec==='def'?0.6:1)*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
+    if(node.t<=0){ const prev=node.o;
     node.o=owner; node.t=-node.t; node.atk=0; node.spec=null; removeLinksFrom(node.id);
     if(owner===1){ sfx('cap'); buzz(30); } else if(prev===1){ sfx('lost'); buzz([40,40,40]); } } }
 }
@@ -678,9 +778,9 @@ function step(dt){
   for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
     const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
     if(d<=0.5){ applyArrival(tn,s.o,s.dmg); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
-    const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
+    const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
-  botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL; botThink(); }
+  botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL*(CMD==='haste'?0.65:1); botThink(); }
   checkEnd();
 }
 
@@ -773,7 +873,7 @@ function syncVisuals(){
     // atk shake
     v.group.position.x = n.x + (n.atk>0?Math.sin(performance.now()*0.03)*0.06:0);
     // label
-    v.div.textContent = (n.spec?SPEC_ICON[n.spec]+' ':'')+Math.floor(n.t);
+    v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]+' ':'')+Math.floor(n.t);
     v.div.style.borderColor = CSS[n.o];
     v.div.style.color = CSS[n.o];
   }

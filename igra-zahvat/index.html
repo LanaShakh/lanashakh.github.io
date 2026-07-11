@@ -73,6 +73,11 @@
   .tut .txt b{color:#ffd166;}
   #confetti{position:fixed; inset:0; z-index:35; pointer-events:none;}
 
+  .diffRow{display:flex; gap:8px;}
+  .dbtn{border:1px solid rgba(255,255,255,.14); background:var(--panel); color:var(--muted); font-family:inherit;
+    font-weight:700; font-size:13px; padding:8px 13px; border-radius:999px; cursor:pointer;}
+  .dbtn.sel{color:#fff; border-color:#7c5cff; background:rgba(124,92,255,.25);}
+
   .cmdRow{display:flex; align-items:center; gap:11px; background:var(--panel); border:1px solid rgba(255,255,255,.14);
     border-radius:14px; padding:10px 14px; width:min(92vw,360px); font-size:14px; text-align:left;}
   .cmdRow .ce{font-size:30px;}
@@ -147,6 +152,7 @@
     <div class="gambits" id="inGambits"></div>
   </div>
   <div class="overlay" id="ovMenu"><div class="ovh">Карты</div><div class="levels" id="lvlGrid"></div>
+    <div class="diffRow" id="diffRow"></div>
     <div class="heroCard" id="heroCard"></div>
     <div class="row"><button class="btn" id="closeMenu">Закрыть</button></div></div>
   <button class="rush" id="rushBtn">⚡</button>
@@ -391,6 +397,24 @@ let HLVL=0, rushT=0, rushCD=0;
 function totalStars(){ let s=bestEndless|0; for(const k in bestStars) s+=bestStars[k]|0; return s; }
 function refreshHero(){ const t=totalStars(); HLVL=0; for(const h of HERO_LEVELS){ if(t>=h.need) HLVL++; } }
 
+// сложность: множители силы бота (живут в localStorage, применяются сразу)
+const DIFFS={
+  easy:{ label:'😌 Легко', prod:0.78, think:1.4, spec:0.22, defend:false },
+  norm:{ label:'⚖️ Норма', prod:0.92, think:1.1, spec:0.45, defend:true },
+  hard:{ label:'🔥 Сложно', prod:1.12, think:0.85, spec:0.7, defend:true },
+};
+let diff=localStorage.getItem('g_zahvat_diff')||'norm'; if(!DIFFS[diff]) diff='norm';
+function D(){ return DIFFS[diff]; }
+const TIPS=[
+  'захвати 🌾 мельницу и держи рядом свои башни — аура производства решает.',
+  'против ⚔ атаки ставь 🛡 защиту — она гасит 40% урона.',
+  '⚙ экономика в тылу, ⚔ атака на границе — как делает бот 😉',
+  'не распыляйся: одна цель — один кулак из двух-трёх связей.',
+  'сними лишние связи тапом — войска будут копиться дома.',
+  'дебют «Фундамент» открывает специализацию с первой секунды.',
+  'башня 4 уровня усиливает все связанные с ней башни на +25%.',
+];
+
 let CMD=null, pTempo=false, eTempo=false;   // командир карты и дебюты «Темп»
 function cap(n){ let c=CAP_BASE*n.l; if(n.o===1 && HLVL>=5) c*=1.2; return c; }
 function millBoost(n){ for(const m of nodes){ if(m!==n && m.o===n.o && m.trait==='mill' &&
@@ -407,7 +431,7 @@ function synergy(n){
 function prod(n){ let p=PROD_BASE*n.l*synergy(n)*millBoost(n);
   if(n.spec==='eco') p*=1.5;
   if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); if(pTempo && simTime<20) p*=1.3; }
-  else if(n.o===2){ if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
+  else if(n.o===2){ p*=D().prod; if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
   return p; }
 const SPEC_ICON={ atk:'⚔', def:'🛡', eco:'⚙' };
 function linkCap(n){ return (n.l>=3 ? 4 : n.l) + (n.trait==='beacon'?1:0); }   // L1=1, L2=2, L3=4, L4=4; маяк +1
@@ -780,7 +804,7 @@ function step(dt){
     if(d<=0.5){ applyArrival(tn,s.o,s.dmg); if(s.mesh) soldierGroup.remove(s.mesh); soldiers.splice(i,1); continue; }
     const v=4.0*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
-  botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL*(CMD==='haste'?0.65:1); botThink(); }
+  botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL*(CMD==='haste'?0.65:1)*D().think; botThink(); }
   checkEnd();
 }
 
@@ -789,14 +813,14 @@ function botThink(){
   for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
   // прокачка: бот выбирает специализации — приграничным бой, тыловым экономика
   for(const n of mine){
-    if(n.l<2 || n.spec || Math.random()>0.6) continue;
+    if(n.l<2 || n.spec || Math.random()>D().spec) continue;
     let dMin=Infinity; for(const x of nodes){ if(x.o===1){ const d=Math.hypot(x.x-n.x,x.z-n.z); if(d<dMin) dMin=d; } }
     n.spec = dMin<7 ? (Math.random()<0.5?'atk':'def') : 'eco';
   }
-  // защита: соседи подкрепляют свою башню под атакой
-  for(const n of mine){
+  // защита: соседи подкрепляют свою башню под атакой (на «легко» бот не защищается)
+  for(const n of (D().defend?mine:[])){
     const threat=soldiers.filter(s=>s.o===1 && s.tid===n.id).length;
-    if(threat<3 && n.atk<=0) continue;
+    if(threat<4 && n.atk<=0) continue;
     for(const src of mine){ if(src===n || src.t<12) continue;
       if(Math.hypot(src.x-n.x,src.z-n.z)>8) continue;
       if(findLink(src.id,n.id)) continue;
@@ -841,8 +865,10 @@ function endGame(win){ ended=true; running=false; gpStop();
       if(!ysdk) addBtn(row,'Поделиться','',shareResult);
       addBtn(row,'Заново','',()=>loadEndless(endlessRound));
     } else { document.getElementById('ovStars').innerHTML='';
-      document.getElementById('ovSub').textContent='Это был раунд '+endlessRound+' · Рекорд: '+bestEndless;
+      document.getElementById('ovSub').innerHTML='Это был раунд '+endlessRound+' · Рекорд: '+bestEndless+
+        '<br><small style="color:#a7adda">Совет: '+TIPS[(Math.random()*TIPS.length)|0]+'</small>';
       addBtn(row,'Ещё раз','primary',()=>loadEndless(endlessRound));
+      if(diff!=='easy') addBtn(row,'Полегче 😌','',()=>{ diff='easy'; localStorage.setItem('g_zahvat_diff','easy'); loadEndless(endlessRound); });
       addBtn(row,'С начала','',()=>loadEndless(1)); }
     return;
   }
@@ -859,8 +885,10 @@ function endGame(win){ ended=true; running=false; gpStop();
     if(!ysdk) addBtn(row,'Поделиться','',shareResult);
     addBtn(row,'Заново','',()=>loadMap(mapIndex));
   } else { document.getElementById('ovStars').innerHTML='';
-    document.getElementById('ovSub').textContent='Враг захватил все твои башни.';
-    addBtn(row,'Ещё раз','primary',()=>loadMap(mapIndex)); }
+    document.getElementById('ovSub').innerHTML='Враг захватил все твои башни.'+
+      '<br><small style="color:#a7adda">Совет: '+TIPS[(Math.random()*TIPS.length)|0]+'</small>';
+    addBtn(row,'Ещё раз','primary',()=>loadMap(mapIndex));
+    if(diff!=='easy') addBtn(row,'Полегче 😌','',()=>{ diff='easy'; localStorage.setItem('g_zahvat_diff','easy'); loadMap(mapIndex); }); }
 }
 function addBtn(row,label,cls,fn){ const b=document.createElement('button'); b.className='btn '+cls; b.textContent=label; b.onclick=fn; row.appendChild(b); }
 function hideOverlay(id){ document.getElementById(id).className='overlay'; }
@@ -987,6 +1015,12 @@ function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHT
   const inf=document.createElement('div'); inf.className='lvl inf';
   inf.innerHTML='<span>∞</span>'+(bestEndless?'<span class="st">рекорд '+bestEndless+'</span>':'');
   inf.onclick=()=>{ hideOverlay('ovMenu'); loadEndless(1); }; grid.appendChild(inf);
+  const dr=document.getElementById('diffRow'); dr.innerHTML='';
+  Object.entries(DIFFS).forEach(([k,d])=>{ const b=document.createElement('button');
+    b.className='dbtn'+(k===diff?' sel':''); b.textContent=d.label;
+    b.onclick=()=>{ diff=k; localStorage.setItem('g_zahvat_diff',k); sfx('step');
+      [...dr.children].forEach(c=>c.classList.remove('sel')); b.classList.add('sel'); };
+    dr.appendChild(b); });
   renderHero();
   document.getElementById('ovMenu').className='overlay show'; }
 

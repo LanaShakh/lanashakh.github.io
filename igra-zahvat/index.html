@@ -73,6 +73,13 @@
   .tut .txt b{color:#ffd166;}
   #confetti{position:fixed; inset:0; z-index:35; pointer-events:none;}
 
+  #count{position:fixed; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
+    z-index:13; pointer-events:none; gap:6px;}
+  #count .n{font-size:96px; font-weight:800; color:#fff; text-shadow:0 6px 30px rgba(0,0,0,.55); animation:countPop .68s ease;}
+  #count .n.go{font-size:54px;}
+  #count .s{font-size:13px; color:#fff; opacity:.85; text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  @keyframes countPop{from{transform:scale(1.7);opacity:0;} 30%{opacity:1;} to{transform:scale(1);opacity:.92;}}
+
   .diffRow{display:flex; gap:8px;}
   .dbtn{border:1px solid rgba(255,255,255,.14); background:var(--panel); color:var(--muted); font-family:inherit;
     font-weight:700; font-size:13px; padding:8px 13px; border-radius:999px; cursor:pointer;}
@@ -142,6 +149,7 @@
 
   <div class="tut" id="tut"><div class="ava">🦉</div><div class="txt" id="tutTxt"></div></div>
   <canvas id="confetti"></canvas>
+  <div id="count"></div>
 
   <div class="overlay" id="ovEnd"><div class="big" id="ovTitle"></div><div class="stars" id="ovStars"></div><div class="sub" id="ovSub"></div><div class="row" id="ovRow"></div></div>
   <div class="overlay" id="ovIntro">
@@ -670,6 +678,7 @@ function startMap(m, seed, label){
   nodes = m.nodes.map((d,idx)=>{ const p=worldPos(d.x,d.y);
     return { id:idx, nx:d.x, ny:d.y, x:p.x, z:p.z, o:d.o, t:d.t, l:d.l||1, atk:0, spec:null, trait:d.tr||null, view:null, lr:-1, or:-1 }; });
   hideSpec();
+  countToken++; counting=false; document.getElementById('count').style.display='none';
   CMD=m.cmd||null; pTempo=false; eTempo=false;
   refreshHero(); rushT=0; rushCD=0;
   if(HLVL>=3) for(const n of nodes){ if(n.o===1) n.t+=6; }   // 🪖 стартовый бонус героя
@@ -691,9 +700,25 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
-  // карта 1 — сразу в бой (туториал); дальше — интро с командиром и дебютом
-  if(!endless && mapIndex===0) gpStart();
+  // карта 1 — отсчёт и в бой (туториал); дальше — интро с командиром и дебютом
+  if(!endless && mapIndex===0) startCountdown();
   else showIntro(m,label);
+}
+
+// отсчёт перед боем: поле видно, бот заморожен — время осмотреться (и даже протянуть линию)
+let countToken=0, counting=false;
+function startCountdown(){
+  const my=++countToken; counting=true; running=false;
+  const el=$('count'); el.style.display='flex';
+  let n=3;
+  (function tick(){
+    if(my!==countToken){ el.style.display='none'; return; }
+    if(n>0){ el.innerHTML='<div class="n">'+n+'</div><div class="s">осмотрись — можно уже тянуть линии</div>';
+      sfx('step'); n--; setTimeout(tick,700); }
+    else { el.innerHTML='<div class="n go">⚔️ В бой!</div>'; sfx('rush');
+      setTimeout(()=>{ if(my===countToken) el.style.display='none'; },650);
+      counting=false; botTimer=0.9; running=true; gpStart(); }
+  })();
 }
 
 // ---------------- интро боя: командир, здания, выбор дебюта ----------------
@@ -724,7 +749,7 @@ function applyGambit(side,key){
 function chooseGambit(k){
   const keys=Object.keys(GAMBITS), ek=keys[(Math.random()*keys.length)|0];
   applyGambit(1,k); applyGambit(2,ek);
-  hideOverlay('ovIntro'); running=true; gpStart(); sfx('step');
+  hideOverlay('ovIntro'); startCountdown();
   const c=CMD?COMMANDERS[CMD]:null;
   const h=$('hint'); h.textContent=(c? c.emoji+' '+c.name : 'Враг')+' выбирает дебют: «'+GAMBITS[ek].name+'»';
   h.style.opacity='1'; setTimeout(()=>{ h.style.opacity='0'; },3500);
@@ -1004,7 +1029,7 @@ function bindInput(){
     sndBtn.textContent = muted?'🔇':'🔊'; if(!muted) sfx('step'); };
   document.getElementById('speedBtn').onclick=()=>{ speed=speed===1?2:1; document.getElementById('speedBtn').textContent='×'+speed; };
   document.getElementById('menuBtn').onclick=()=>{ running=false; gpStop(); openMenu(); };
-  document.getElementById('closeMenu').onclick=()=>{ hideOverlay('ovMenu'); if(!ended){ running=true; gpStart(); } };
+  document.getElementById('closeMenu').onclick=()=>{ hideOverlay('ovMenu'); if(!ended && !counting){ running=true; gpStart(); } };
   addEventListener('resize',onResize);
 }
 function openMenu(){ const grid=document.getElementById('lvlGrid'); grid.innerHTML='';

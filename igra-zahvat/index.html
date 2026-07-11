@@ -157,6 +157,21 @@ async function initPlatform(){
 function platformReady(){ try{ ysdk && ysdk.features.LoadingAPI && ysdk.features.LoadingAPI.ready(); }catch(e){} }
 function gpStart(){ try{ ysdk && ysdk.features.GameplayAPI && ysdk.features.GameplayAPI.start(); }catch(e){} }
 function gpStop(){ try{ ysdk && ysdk.features.GameplayAPI && ysdk.features.GameplayAPI.stop(); }catch(e){} }
+// облачные сейвы: локальный и облачный прогресс сливаются по максимуму
+function cloudSave(){ if(!ysdk) return;
+  try{ ysdk.getPlayer().then(p=>p.setData({ progress, stars:bestStars, endless:bestEndless,
+    tut: localStorage.getItem(TUT_KEY)?1:0 })).catch(()=>{}); }catch(e){} }
+async function cloudLoad(){ if(!ysdk) return;
+  try{ const p=await ysdk.getPlayer(); const d=await p.getData(['progress','stars','endless','tut']);
+    if(!d) return;
+    if((d.progress|0)>progress){ progress=d.progress|0; localStorage.setItem(STORE,progress); }
+    if(d.stars) for(const k in d.stars){ if((d.stars[k]|0)>(bestStars[k]|0)) bestStars[k]=d.stars[k]|0; }
+    localStorage.setItem(STARS_KEY,JSON.stringify(bestStars));
+    if((d.endless|0)>bestEndless){ bestEndless=d.endless|0; localStorage.setItem('g_zahvat_endless',bestEndless); }
+    if(d.tut) localStorage.setItem(TUT_KEY,'1');
+  }catch(e){} }
+function submitEndless(r){ if(!ysdk) return;
+  try{ ysdk.getLeaderboards().then(l=>l.setLeaderboardScore('endless', r)).catch(()=>{}); }catch(e){} }
 
 // ---------------- game constants & data ----------------
 const PROD_BASE=2.2, CAP_BASE=30, MAX_LEVEL=4, MAXLINKS=3, BOT_INTERVAL=1.45;
@@ -208,8 +223,20 @@ const MAPS = [
 ];
 
 // ---------------- three.js setup ----------------
-let renderer, labelRenderer, scene, camera, raycaster, groundPlane;
+let renderer, labelRenderer, scene, camera, raycaster, groundPlane, sun=null;
 let composer=null, bloomPass=null, gtaoPass=null;
+
+// адаптивное качество: если телефон не тянет, снижаем эффекты (запоминается)
+let qLevel=+(localStorage.getItem('g_zahvat_q')||0), fpsN=0, fpsT=0;
+function applyQuality(q){
+  qLevel=q; try{ localStorage.setItem('g_zahvat_q',q); }catch(e){}
+  if(q>=1) composer=null;                       // без пост-эффектов (bloom/SMAA)
+  if(q>=2 && renderer){                          // без теней, ниже разрешение
+    renderer.shadowMap.enabled=false; if(sun) sun.castShadow=false;
+    renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));
+    scene.traverse(o=>{ if(o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); });
+  }
+}
 let MODELS={}, GROUND_TOP=0, stripeTex;
 let nodes=[], links=[], soldiers=[], decor=[];
 let mapIndex=0, running=true, ended=false, speed=1, botTimer=0, progress=+(localStorage.getItem(STORE)||0);
@@ -245,6 +272,19 @@ function sfx(n){ if(muted || !audio()) return;
   } }
 
 function buzz(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+
+// пауза и тишина, когда игра свёрнута/не в фокусе (требование площадок)
+let hiddenPause=false;
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    hiddenPause=running; running=false;
+    try{ if(AC && AC.state==='running') AC.suspend(); }catch(e){}
+  } else {
+    try{ if(AC && AC.state==='suspended' && !muted) AC.resume(); }catch(e){}
+    if(hiddenPause && !ended && !document.getElementById('ovMenu').classList.contains('show')) running=true;
+    hiddenPause=false;
+  }
+});
 
 // ---------------- confetti (победа) ----------------
 function confetti(){ const cv=$('confetti'), ctx=cv.getContext('2d');
@@ -298,7 +338,16 @@ function totalStars(){ let s=bestEndless|0; for(const k in bestStars) s+=bestSta
 function refreshHero(){ const t=totalStars(); HLVL=0; for(const h of HERO_LEVELS){ if(t>=h.need) HLVL++; } }
 
 function cap(n){ let c=CAP_BASE*n.l; if(n.o===1 && HLVL>=5) c*=1.2; return c; }
-function prod(n){ let p=PROD_BASE*n.l;
+// синергия L4: башня 4 уровня производит +25% и даёт +25% всем своим башням, связанным с ней
+function synergy(n){
+  if(n.l>=4) return 1.25;
+  for(const L of links){
+    if(L.from===n.id){ const t=nodes[L.to]; if(t && t.o===n.o && t.l>=4) return 1.25; }
+    else if(L.to===n.id){ const f=nodes[L.from]; if(f && f.o===n.o && f.l>=4) return 1.25; }
+  }
+  return 1;
+}
+function prod(n){ let p=PROD_BASE*n.l*synergy(n);
   if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); } return p; }
 function linkCap(n){ return n.l>=3 ? 4 : n.l; }   // L1=1, L2=2, L3=4, L4=4 outgoing links
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
@@ -309,6 +358,7 @@ function camViewSize(){ const aspect=innerWidth/innerHeight;
 
 async function init(){
   await initPlatform();
+  await cloudLoad();
   renderer = new THREE.WebGLRenderer({ antialias:true });
   renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -333,7 +383,7 @@ async function init(){
 
   // lights (IBL provides ambient; sun gives shape + shadows)
   scene.add(new THREE.HemisphereLight(0xdfeeff, 0x5c7a42, 0.5));
-  const sun = new THREE.DirectionalLight(0xfff1d6, 1.6);
+  sun = new THREE.DirectionalLight(0xfff1d6, 1.6);
   sun.position.set(13, 22, 9); sun.castShadow = true;
   sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera; sc.left=-18; sc.right=18; sc.top=14; sc.bottom=-14; sc.near=1; sc.far=80;
@@ -378,6 +428,7 @@ async function init(){
   bindInput();
   loadMap(0);
   setupPost();
+  if(qLevel) applyQuality(qLevel);   // запомненный «лёгкий» режим со старта
   platformReady();
   renderer.setAnimationLoop(frame);
 }
@@ -659,8 +710,9 @@ function endGame(win){ ended=true; running=false; gpStop();
   const row=document.getElementById('ovRow'); row.innerHTML='';
   const prevH=HLVL;
   if(endless){
-    if(win){ if(endlessRound>bestEndless){ bestEndless=endlessRound; localStorage.setItem('g_zahvat_endless',bestEndless); }
-      refreshHero();
+    if(win){ if(endlessRound>bestEndless){ bestEndless=endlessRound; localStorage.setItem('g_zahvat_endless',bestEndless);
+        submitEndless(bestEndless); }
+      cloudSave(); refreshHero();
       document.getElementById('ovStars').innerHTML=starsMarkup(starsFor(simTime));
       document.getElementById('ovSub').textContent='Раунд '+endlessRound+' пройден за '+Math.round(simTime)+' с · Рекорд: '+bestEndless+
         (HLVL>prevH?' · 🦉 Филин — новый уровень!':'');
@@ -675,7 +727,7 @@ function endGame(win){ ended=true; running=false; gpStop();
   }
   if(win){ const s=starsFor(simTime);
     if((bestStars[mapIndex]|0)<s){ bestStars[mapIndex]=s; localStorage.setItem(STARS_KEY,JSON.stringify(bestStars)); }
-    refreshHero();
+    cloudSave(); refreshHero();
     document.getElementById('ovStars').innerHTML=starsMarkup(s);
     const next=mapIndex+1; if(next<MAPS.length && next>progress){ progress=next; localStorage.setItem(STORE,progress); }
     document.getElementById('ovSub').textContent = 'Время: '+Math.round(simTime)+' с · '+
@@ -823,7 +875,10 @@ function onResize(){ const aspect=innerWidth/innerHeight, vs=camViewSize();
 // ---------------- loop ----------------
 let last=performance.now();
 function frame(){
-  const now=performance.now(); let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+  const now=performance.now(); let dt=(now-last)/1000; last=now;
+  if(dt<0.5){ fpsN++; fpsT+=dt;
+    if(fpsT>=5){ const fps=fpsN/fpsT; fpsN=0; fpsT=0; if(fps<35 && qLevel<2) applyQuality(qLevel+1); } }
+  if(dt>0.05) dt=0.05;
   if(running && !ended) step(dt*speed);
   for(const t of flowTexes) t.offset.y = (t.offset.y - dt*1.5) % 1;
   syncVisuals();

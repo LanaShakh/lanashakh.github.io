@@ -23,7 +23,13 @@
   .tlabel.en{ border-radius:7px; }              /* врага отличает и форма, не только цвет */
   .tlabel.nt{ border-style:dashed; }
 
-  .hud{ position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:10px;
+  .powbar{ position:fixed; top:0; left:0; right:0; height:5px; z-index:11; display:flex; }
+  .powbar div{ transition:width .35s ease; }
+  #powP{ background:#3b82f6; width:33%; }
+  #powN{ background:rgba(148,163,184,.55); width:34%; }
+  #powE{ background:#ef4444; width:33%; }
+
+  .hud{ position:fixed; top:5px; left:0; right:0; display:flex; align-items:center; gap:10px;
     padding:max(10px,env(safe-area-inset-top)) 14px 10px; z-index:10; }
   .hud .title{font-weight:800; font-size:17px; letter-spacing:-.3px; white-space:nowrap; text-shadow:0 2px 6px rgba(0,0,0,.4);}
   .hud .title small{display:block; font-weight:600; font-size:11px; color:#eaf3ff; opacity:.85; margin-top:1px;}
@@ -174,7 +180,11 @@
     <button data-s="eco" title="Экономика">⚙️</button>
   </div>
 
-  <div id="loading"><div class="spinner"></div><div>Загружаем 3D-мир…</div><div id="err"></div></div>
+  <div class="powbar"><div id="powP"></div><div id="powN"></div><div id="powE"></div></div>
+
+  <div id="loading"><div style="font-size:56px">🦉</div>
+    <div style="font-size:26px;font-weight:800;letter-spacing:-.5px">Захват</div>
+    <div class="spinner"></div><div style="color:#8f97c9;font-size:13px">Готовим карту…</div><div id="err"></div></div>
 
 <!-- SDK Яндекс Игр: на их хостинге /sdk.js существует, на своём сайте просто 404 и игра идёт дальше -->
 <script src="/sdk.js" onerror="void 0"></script>
@@ -271,27 +281,30 @@ const GAMBITS={
   found:{ icon:'🏗', name:'Фундамент', desc:'сильнейшая башня сразу +1 уровень' },
 };
 
+// порядок и цифры выверены симулятором (~5000 матчей): плавная кривая сложности
+// винрейт эвристики среднего игрока на «Норме»: 100 → 72 → 69 → 65 → 51 → 42 %
 const MAPS = [
-  { name:'Первый контакт', biome:'meadow', par:45, aggro:0.35, nodes:[
+  { name:'Первый контакт', biome:'meadow', par:70, aggro:0.35, nodes:[
     {x:.16,y:.5,o:1,t:22,l:1},{x:.84,y:.5,o:2,t:22,l:1},
     {x:.5,y:.28,o:0,t:10,l:1},{x:.5,y:.72,o:0,t:10,l:1} ] },
-  { name:'Перекрёсток', biome:'sparse', par:75, aggro:0.45, cmd:'greed', nodes:[
-    {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:26,l:1},{x:.5,y:.5,o:0,t:16,l:1,tr:'mill'},
+  { name:'Перекрёсток', biome:'sparse', par:45, aggro:0.36, cmd:'greed', nodes:[
+    {x:.12,y:.5,o:1,t:26,l:1},{x:.88,y:.5,o:2,t:20,l:1},{x:.5,y:.5,o:0,t:16,l:1,tr:'mill'},
     {x:.34,y:.24,o:0,t:9,l:1},{x:.66,y:.24,o:0,t:9,l:1},{x:.34,y:.76,o:0,t:9,l:1},{x:.66,y:.76,o:0,t:9,l:1} ] },
-  { name:'Клин', biome:'autumn', par:85, aggro:0.5, cmd:'forge', nodes:[
-    {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
-    {x:.87,y:.3,o:2,t:24,l:1},{x:.87,y:.7,o:2,t:24,l:1},
-    {x:.5,y:.5,o:0,t:18,l:1,tr:'fort'},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
-  { name:'Окружение', biome:'pines', par:95, aggro:0.55, cmd:'wind', nodes:[
-    {x:.5,y:.5,o:1,t:28,l:1},{x:.5,y:.16,o:0,t:12,l:1,tr:'mill'},{x:.5,y:.84,o:0,t:12,l:1,tr:'beacon'},
-    {x:.2,y:.3,o:2,t:22,l:1},{x:.2,y:.7,o:0,t:12,l:1},{x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:22,l:1} ] },
-  { name:'Две крепости', biome:'thicket', par:110, aggro:0.6, cmd:'haste', nodes:[
-    {x:.15,y:.5,o:1,t:30,l:2},{x:.85,y:.5,o:2,t:34,l:2},
+  { name:'Две крепости', biome:'thicket', par:60, aggro:0.72, cmd:'haste', nodes:[
+    {x:.15,y:.5,o:1,t:26,l:1,tr:'fort'},{x:.85,y:.5,o:2,t:34,l:2,tr:'fort'},
     {x:.4,y:.3,o:0,t:14,l:1,tr:'mill'},{x:.6,y:.7,o:0,t:14,l:1,tr:'fort'},{x:.6,y:.3,o:0,t:14,l:1},{x:.4,y:.7,o:0,t:14,l:1} ] },
-  { name:'Архипелаг', biome:'golden', par:130, aggro:0.68, cmd:'war', nodes:[
-    {x:.1,y:.5,o:1,t:24,l:1},{x:.9,y:.2,o:2,t:22,l:1},{x:.9,y:.8,o:2,t:22,l:1},
+  { name:'Архипелаг', biome:'golden', par:60, aggro:0.60, cmd:'war', nodes:[
+    {x:.1,y:.5,o:1,t:24,l:1},{x:.9,y:.2,o:2,t:20,l:1},{x:.9,y:.8,o:2,t:20,l:1},
     {x:.35,y:.2,o:0,t:10,l:1,tr:'mill'},{x:.35,y:.8,o:0,t:10,l:1,tr:'mill'},{x:.55,y:.5,o:0,t:16,l:1,tr:'fort'},
     {x:.7,y:.3,o:0,t:11,l:1},{x:.7,y:.7,o:0,t:11,l:1},{x:.5,y:.15,o:0,t:9,l:1,tr:'beacon'},{x:.5,y:.85,o:0,t:9,l:1,tr:'beacon'} ] },
+  { name:'Клин', biome:'autumn', par:50, aggro:0.45, cmd:'forge', nodes:[
+    {x:.13,y:.3,o:1,t:20,l:1},{x:.13,y:.7,o:1,t:20,l:1},
+    {x:.87,y:.3,o:2,t:22,l:1},{x:.87,y:.7,o:2,t:22,l:1},
+    {x:.5,y:.5,o:0,t:18,l:1,tr:'fort'},{x:.5,y:.18,o:0,t:11,l:1},{x:.5,y:.82,o:0,t:11,l:1} ] },
+  { name:'Окружение', biome:'pines', par:55, aggro:0.44, cmd:'wind', nodes:[
+    {x:.5,y:.5,o:1,t:28,l:1},{x:.5,y:.16,o:0,t:12,l:1,tr:'mill'},{x:.5,y:.84,o:0,t:12,l:1,tr:'beacon'},
+    {x:.2,y:.3,o:2,t:16,l:1},{x:.2,y:.7,o:0,t:12,l:1},{x:.8,y:.3,o:0,t:12,l:1},{x:.8,y:.7,o:2,t:16,l:1}
+  ] },
 ];
 
 // ---------------- three.js setup ----------------
@@ -411,9 +424,9 @@ function refreshHero(){ const t=totalStars(); HLVL=0; for(const h of HERO_LEVELS
 
 // сложность: множители силы бота (живут в localStorage, применяются сразу)
 const DIFFS={
-  easy:{ label:'😌 Легко', prod:0.78, think:1.4, spec:0.22, defend:false },
-  norm:{ label:'⚖️ Норма', prod:0.92, think:1.1, spec:0.45, defend:true },
-  hard:{ label:'🔥 Сложно', prod:1.12, think:0.85, spec:0.7, defend:true },
+  easy:{ label:'😌 Легко', prod:0.75, think:1.45, spec:0.2, defend:false, aggroMul:0.7 },
+  norm:{ label:'⚖️ Норма', prod:0.88, think:1.15, spec:0.4, defend:true, aggroMul:0.95 },
+  hard:{ label:'🔥 Сложно', prod:1.05, think:0.9, spec:0.65, defend:true, aggroMul:1.1 },
 };
 let diff=localStorage.getItem('g_zahvat_diff')||'norm'; if(!DIFFS[diff]) diff='norm';
 function D(){ return DIFFS[diff]; }
@@ -838,7 +851,7 @@ function step(dt){
 }
 
 function botThink(){
-  const aggro=curMap.aggro, mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
+  const aggro=curMap.aggro*(D().aggroMul||1), mine=nodes.filter(n=>n.o===2); if(!mine.length) return;
   for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
   // прокачка: бот выбирает специализации — приграничным бой, тыловым экономика (со 2-й карты)
   for(const n of (endless || mapIndex>0) ? mine : []){
@@ -923,9 +936,14 @@ function addBtn(row,label,cls,fn){ const b=document.createElement('button'); b.c
 function hideOverlay(id){ document.getElementById(id).className='overlay'; }
 
 // ---------------- per-frame visual sync ----------------
+const bursts=[];
+function burst(n){ const ring=new THREE.Mesh(new THREE.TorusGeometry(0.7,0.09,10,36).rotateX(Math.PI/2),
+  new THREE.MeshBasicMaterial({ color:SOLID[n.o], transparent:true, opacity:0.9, depthWrite:false }));
+  ring.position.set(n.x, GROUND_TOP+0.15, n.z); scene.add(ring); bursts.push({ m:ring, t:0 }); }
+
 function syncVisuals(){
   for(const n of nodes){
-    if(n.lr!==n.l || n.or!==n.o){ buildTower(n); }   // rebuild on level/owner change
+    if(n.lr!==n.l || n.or!==n.o){ if(n.or!==-1 && n.or!==n.o) burst(n); buildTower(n); }   // rebuild on level/owner change
     const v=n.view; if(!v) continue;
     // atk shake
     v.group.position.x = n.x + (n.atk>0?Math.sin(performance.now()*0.03)*0.06:0);
@@ -943,6 +961,14 @@ function syncVisuals(){
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }
   const c=counts(); document.getElementById('cntP').textContent=c.p; document.getElementById('cntE').textContent=c.e;
+  // полоса баланса сил (войска в башнях + в пути)
+  let sp=0,sn=0,se=0;
+  for(const n of nodes){ if(n.o===1) sp+=n.t; else if(n.o===2) se+=n.t; else sn+=n.t; }
+  for(const s of soldiers){ if(s.o===1) sp+=1; else if(s.o===2) se+=1; }
+  const tot=Math.max(1,sp+sn+se);
+  document.getElementById('powP').style.width=(100*sp/tot)+'%';
+  document.getElementById('powN').style.width=(100*sn/tot)+'%';
+  document.getElementById('powE').style.width=(100*se/tot)+'%';
   // кнопка «Рывок»
   const rb=document.getElementById('rushBtn');
   rb.style.display=(HLVL>=2 && !ended)?'block':'none';
@@ -1095,6 +1121,9 @@ function frame(){
   if(dt>0.05) dt=0.05;
   if(running && !ended) step(dt*speed);
   for(const t of flowTexes) t.offset.y = (t.offset.y - dt*1.5) % 1;
+  for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.t+=dt; const k=b.t/0.6;
+    if(k>=1){ scene.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); bursts.splice(i,1); continue; }
+    b.m.scale.setScalar(1+k*2.2); b.m.material.opacity=0.9*(1-k); }
   syncVisuals();
   if(composer) composer.render(); else renderer.render(scene,camera);
   labelRenderer.render(scene,camera);

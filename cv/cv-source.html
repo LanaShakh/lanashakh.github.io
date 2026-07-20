@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Светлана Шахова — CV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1EBDF; --band:#E7DECE; --ink:#1A1712; --ink-soft:#534D42;
+    --ink-faint:#867E6E; --line:rgba(26,23,18,.16); --accent:#1B9E45;
+    --font-display:"Unbounded",system-ui,sans-serif;
+    --font-text:"Manrope",system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4;margin:0}
+  html,body{background:#fff}
+  body{font-family:var(--font-text);color:var(--ink);font-size:10.3px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{width:210mm;min-height:297mm;margin:0 auto;background:var(--paper);padding:0 16mm 16mm;position:relative}
+  .page + .page{page-break-before:always}
+
+  /* Header */
+  .head{background:var(--band);margin:0 -16mm 20px;padding:22px 16mm 20px;display:flex;align-items:center;gap:16px}
+  .logo{width:44px;height:44px;border-radius:10px;background:var(--accent);color:var(--paper);
+        font-family:var(--font-display);font-weight:800;font-size:30px;display:flex;align-items:flex-start;justify-content:center;line-height:.9;padding-top:2px;flex:none}
+  .head h1{font-family:var(--font-display);font-weight:700;font-size:30px;letter-spacing:-.01em;line-height:1}
+  .head .role{color:var(--accent);font-weight:700;font-size:12.5px;letter-spacing:.02em;margin-top:6px}
+  .contact{font-family:var(--font-mono);font-size:10px;color:var(--ink-soft);margin-top:9px}
+  .contact a{color:var(--ink-soft);text-decoration:none}
+
+  .summary{font-size:11px;line-height:1.62;color:var(--ink);max-width:none;margin-bottom:22px}
+  .summary b{color:var(--ink)}
+
+  h2.sec{font-family:var(--font-display);font-weight:700;color:var(--accent);font-size:13px;letter-spacing:.02em;
+         margin:20px 0 12px;padding-bottom:5px;border-bottom:1.5px solid var(--line)}
+
+  .job{margin-bottom:14px;break-inside:avoid}
+  .job-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .job-name{font-family:var(--font-display);font-weight:600;font-size:12.5px}
+  .job-name span{color:var(--ink-soft);font-weight:500}
+  .job-when{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-faint);white-space:nowrap;flex:none}
+  .job-tags{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-faint);margin:2px 0 7px}
+  ul.bul{list-style:none}
+  ul.bul li{position:relative;padding-left:14px;margin-bottom:4px;line-height:1.5}
+  ul.bul li::before{content:"–";position:absolute;left:0;color:var(--accent);font-weight:700}
+  .metric{color:var(--ink);font-weight:600}
+
+  .earlier{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft);line-height:1.65;margin-bottom:6px}
+
+  table.grid{width:100%;border-collapse:collapse}
+  table.grid td{padding:5px 0;vertical-align:top;border-bottom:1px solid var(--line)}
+  table.grid tr:last-child td{border-bottom:none}
+  td.k{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft);width:180px;padding-right:14px;letter-spacing:.01em}
+  td.v{font-size:10.5px}
+
+  .prod{break-inside:avoid;margin-bottom:9px;padding-left:14px;position:relative}
+  .prod::before{content:"▹";position:absolute;left:0;color:var(--accent)}
+  .prod b{font-family:var(--font-display);font-weight:600;font-size:11px}
+  .prod .lnk{color:var(--accent);text-decoration:none;font-family:var(--font-mono);font-size:9px}
+
+  .refs{font-size:10.3px;color:var(--ink-soft);line-height:1.6}
+  .foot-note{font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);margin-top:4px}
+  a{color:inherit}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div class="logo">“</div>
+    <div>
+      <h1>Светлана Шахова</h1>
+      <div class="role">КОНТЕНТ-МЕНЕДЖЕР · SEO-КОПИРАЙТЕР · AI-BUILDER</div>
+      <div class="contact">Telegram @LanaShakh · svetla.shakh@gmail.com · Барнаул, GMT+7, удалённо · lanashakh.github.io</div>
+    </div>
+  </div>
+
+  <p class="summary">
+    Пишу и продюсирую контент для продуктов и агентств: блоги, SEO-тексты, лендинги, экспертные статьи.
+    Сильна в связке <b>SEO + редактура + промпт-инжиниринг</b>. С AI работаю каждый день — и не только пишу
+    тексты, но и <b>собираю на нём рабочие инструменты, обучающие игры и многостраничные сайты (vibe coding)</b>,
+    прогоняя всё вручную и отвечая за фактуру. Спокойно работаю с правками и обратной связью.
+    RU родной, EN — B2 в письменной работе.
+  </p>
+
+  <h2 class="sec">ОПЫТ</h2>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">It’s AI (its-ai.org) — <span>контент-менеджер, SEO-копирайтер</span></div>
+      <div class="job-when">Январь 2026 — н.в.</div>
+    </div>
+    <div class="job-tags">AI-детекция · англоязычный блог</div>
+    <ul class="bul">
+      <li>Запустила англоязычный блог с нуля как первый копирайтер проекта: редполитика, стайл-гайд, шаблоны, стандарты работы с источниками.</li>
+      <li>Выстроила процесс от ресерча до публикации в Django CMS: семантика, структура, LSI, метатеги, HTML-вёрстка с кастомными компонентами.</li>
+      <li>Веду соцсети бренда: экспертные посты в LinkedIn, threads в X/Twitter.</li>
+      <li><span class="metric">Результат:</span> +21% трафика сайта за март 2026 (SimilarWeb), +81% аудитории X/Twitter; тексты стабильно проходят AI-детекцию как human-written.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">PVT — <span>пишущий редактор (мультибрендовая iGaming-сеть, NDA)</span></div>
+      <div class="job-when">Июнь — декабрь 2025</div>
+    </div>
+    <div class="job-tags">iGaming · SEO · редактура команды</div>
+    <ul class="bul">
+      <li>Писала главные, категорийные, бонусные страницы и лендинги приложений по ТЗ SEO-отдела; адаптировала контент под разные ГЕО и языковые версии.</li>
+      <li>Отвечала за редактуру команды копирайтеров и финальную вычитку.</li>
+      <li>Собрала систему уникального контента по интентам, промпты и чек-листы — <span class="metric">время редактуры сократилось в 2 раза</span>.</li>
+      <li>Перевела копирайтера с ручного написания на AI-workflow без потери качества.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">Artik Agency — <span>копирайтер-аналитик (проект)</span></div>
+      <div class="job-when">Сентябрь 2024 — декабрь 2025</div>
+    </div>
+    <div class="job-tags">B2B · fintech · crypto · mobile</div>
+    <ul class="bul">
+      <li>Писала B2B-кейсы и экспертный блог: User Acquisition, mobile marketing, UGC; темы — под задачи отдела продаж, чтобы статьи закрывали возражения клиентов.</li>
+      <li>Собирала фактуру напрямую от экспертов: <span class="metric">брала интервью (в т.ч. у CEO агентства)</span> и работала с голосовыми ответами — писала вопросы, получала аудио, вытаскивала из него суть в текст.</li>
+      <li>Работала с отчётами Singular и продуктовой аналитикой — в статьях данные, а не общие слова.</li>
+      <li>Оптимизировала визуальную часть: графики через AI, единый вид таблиц. <span class="metric">Ставка +20%</span> по инициативе руководителя после испытательного срока.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">LFCarry — <span>контент-менеджер, промпт-инженер</span></div>
+      <div class="job-when">Апрель 2022 — июнь 2025</div>
+    </div>
+    <div class="job-tags">SEO · AI-workflow · промпты</div>
+    <ul class="bul">
+      <li>Вела корпоративный блог и страницы услуг с SEO-текстами и анализом конкурентов; публикация в WordPress и кастомной CMS.</li>
+      <li>Выстроила процесс создания контента с AI (ресерч → структура → черновик → ручная доработка) — <span class="metric">копирайтинг ускорился в 7 раз, органический трафик +30% за 6 месяцев</span>.</li>
+      <li>Писала промпты для AI-ассистента поддержки и продаж; <span class="metric">снизила долю ошибок бота с 46% до 4,8% за 2 месяца</span>, внедрила систему контроля качества ответов.</li>
+      <li>После сокращения команды копирайтеров сохранена в штате и повышена до контент-менеджера.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-name" style="margin-bottom:5px">Ранее</div>
+    <div class="earlier">
+      2020 — 2025 · Goat Games (War and Magic), комьюнити-менеджер · 2021 — 2022 · Геймград, комьюнити web3 / Axie Infinity ·
+      2009 — 2021 · банковский сектор (Кредит Европа Банк, Почта Банк), руководитель группы продаж
+    </div>
+    <ul class="bul">
+      <li>YouTube War and Magic — с нуля до 7 500 подписчиков; +35% активности игроков после смены стратегии коммуникации.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="page">
+  <div class="head">
+    <div class="logo">“</div>
+    <div>
+      <h1>Светлана Шахова</h1>
+      <div class="role">КОНТЕНТ-МЕНЕДЖЕР · SEO-КОПИРАЙТЕР · AI-BUILDER</div>
+      <div class="contact">Telegram @LanaShakh · svetla.shakh@gmail.com · Барнаул, GMT+7, удалённо · lanashakh.github.io</div>
+    </div>
+  </div>
+
+  <h2 class="sec">AI-ПРОДУКТЫ И VIBE CODING</h2>
+  <p style="font-size:10px;color:var(--ink-soft);margin-bottom:11px">Собрано самостоятельно с AI, без разработчиков — от идеи до рабочего результата.</p>
+
+  <div class="prod">
+    <b>«Считаем с Роботом»</b> — обучающая игра для детей с голосовой озвучкой.
+    <span class="lnk">lanashakh.github.io/igra-robot ↗</span><br>
+    Сын выучил счёт до 100 за 2 недели игры. Сейчас готовлю серию обучающих игр по другим предметам.
+  </div>
+  <div class="prod">
+    <b>Аналог Miratext</b> (проверка вхождений ключевых слов) — собрала за 30 минут, когда оригинальный сервис был недоступен, и использовала в рабочих задачах.
+  </div>
+  <div class="prod">
+    <b>Многостраничные сайты на vanilla HTML</b> — это портфолио и сайты для iGaming-проектов (под NDA). Собраны без разработчиков.
+  </div>
+  <div class="prod">
+    <b>Оценка AI-курсов «глазами студента»</b> — прошла демо десятков курсов по ИИ; критически разбираю обучающие материалы на пользу, точность и воспроизводимость.
+  </div>
+
+  <h2 class="sec">НАВЫКИ</h2>
+  <table class="grid">
+    <tr><td class="k">Контент и редактура</td><td class="v">SEO-копирайтинг, редактура, контент-стратегия, кейсы, лендинги, email, UX-тексты, интервью и работа с голосовыми / аудио-источниками</td></tr>
+    <tr><td class="k">AI и промпт-инжиниринг</td><td class="v">ChatGPT, Claude, AI-детекторы, настройка AI-workflow, vibe coding (игры, сайты, инструменты)</td></tr>
+    <tr><td class="k">SEO-инструменты</td><td class="v">Ahrefs, Miratext, Text.ru, Copywritely, Google Analytics</td></tr>
+    <tr><td class="k">CMS и техническое</td><td class="v">WordPress, Django CMS, HTML / многостраничные сайты, Figma</td></tr>
+    <tr><td class="k">Языки</td><td class="v">Русский — родной · Английский — B2</td></tr>
+  </table>
+
+  <h2 class="sec">ОБРАЗОВАНИЕ</h2>
+  <ul class="bul">
+    <li>Алтайский государственный университет — менеджмент организации, 2017.</li>
+    <li>Бруноям — «Нейросети для маркетологов», 2025; «Интернет-маркетолог», 2025.</li>
+    <li>Самообразование: постоянно тестирую и изучаю AI-инструменты и обучающие курсы по ИИ.</li>
+  </ul>
+
+  <h2 class="sec">РЕКОМЕНДАЦИИ</h2>
+  <p class="refs">Артём, руководитель отдела маркетинга LFCarry · Михаил, руководитель проектов Artik Agency — контакты по запросу.</p>
+  <p class="foot-note">Отзывы: lanashakh.github.io</p>
+</div>
+</body>
+</html>

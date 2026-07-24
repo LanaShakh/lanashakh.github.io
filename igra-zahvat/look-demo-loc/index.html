@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Захват — демо графики: локация «было / стало»</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:#0e1116;color:#eef3f8;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;touch-action:none;}
+
+  .panel{position:fixed;left:14px;bottom:14px;z-index:6;width:min(320px,calc(100vw - 28px));
+    background:rgba(16,20,27,.72);backdrop-filter:blur(16px) saturate(1.2);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px 16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.45);}
+  .panel h1{font-size:14px;font-weight:750;margin-bottom:2px;}
+  .panel .sub{font-size:11.5px;color:#9fb0c2;margin-bottom:12px;line-height:1.35;}
+  .seg{display:flex;gap:6px;margin-bottom:12px;}
+  .seg button{flex:1;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.05);color:#eef3f8;font-weight:700;font-size:13px;cursor:pointer;transition:.15s;}
+  .seg button.on{background:#4fae63;border-color:#7fdc9a;color:#08130c;}
+  .seg button:first-child.on{background:#c56b4a;border-color:#e0916f;color:#160a05;}
+  .row{display:flex;align-items:center;gap:10px;margin:9px 0;cursor:pointer;}
+  .row .lbl{font-size:12.5px;color:#c7d4e2;flex:1;}
+  .row .lbl small{display:block;color:#7f8ea0;font-size:10.5px;}
+  .toggle{position:relative;width:40px;height:23px;border-radius:999px;background:rgba(255,255,255,.14);
+    transition:.2s;flex:none;}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;
+    background:#eef3f8;transition:.2s;}
+  .toggle.on{background:#4fae63;}
+  .toggle.on::after{transform:translateX(17px);}
+  .hint{position:fixed;right:14px;bottom:14px;z-index:6;font-size:11px;color:#7f8ea0;
+    background:rgba(16,20,27,.6);padding:6px 10px;border-radius:10px;pointer-events:none;}
+  #loading{position:fixed;inset:0;display:grid;place-items:center;z-index:20;font-size:14px;color:#9fb0c2;
+    background:#0e1116;transition:opacity .4s;}
+  .back{position:fixed;top:14px;left:14px;z-index:7;font-size:12px;color:#bcccdd;text-decoration:none;
+    background:rgba(16,20,27,.6);padding:6px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.1);}
+  .back:hover{color:#fff;}
+  .tag{position:fixed;top:14px;left:0;right:0;text-align:center;z-index:5;pointer-events:none;
+    font-weight:700;font-size:14px;}
+  .tag span{background:rgba(14,17,22,.55);backdrop-filter:blur(8px);padding:6px 16px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);}
+</style>
+<script type="importmap">
+{ "imports":{
+  "three":"../vendor/three.module.js",
+  "three/addons/":"../vendor/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<a class="back" href="../index.html">← к игре</a>
+<div class="tag"><span id="modeTag">Стало</span></div>
+
+<div class="panel">
+  <h1>Локация: демо графики</h1>
+  <div class="sub">Одна и та же карта. Переключай «было/стало» целиком или разбирай по фичам. Тащи мышью — облёт.</div>
+  <div class="seg" id="master">
+    <button data-m="before">Было</button>
+    <button data-m="after" class="on">Стало</button>
+  </div>
+  <div class="row" data-f="terrain"><div class="lbl">Рельеф<small>холмы + затемнение в низинах</small></div><div class="toggle on"></div></div>
+  <div class="row" data-f="paths"><div class="lbl">Тропы<small>грунтовые дорожки между узлами</small></div><div class="toggle on"></div></div>
+  <div class="row" data-f="greens"><div class="lbl">Кластеры зелени<small>трава пятнами + проплешины</small></div><div class="toggle on"></div></div>
+  <div class="row" data-f="forest"><div class="lbl">Дальний лес<small>силуэт леса в тумане по краю</small></div><div class="toggle on"></div></div>
+</div>
+<div class="hint">🖱 тащи — поворот · колесо — зум</div>
+<div id="loading">Загрузка моделей…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+let renderer, scene, camera, composer, sun, hemi;
+const MODELS={};
+let worldGroup=null;           // всё, что перестраивается
+const clock=new THREE.Clock();
+
+// узлы карты и связи между ними (маленький граф)
+const NODES=[ {x:-7,z:-4,l:2}, {x:6,z:-6,l:3}, {x:8,z:5,l:2}, {x:-5,z:7,l:1}, {x:0,z:0,l:4} ];
+const EDGES=[[4,0],[4,1],[4,2],[4,3],[0,3],[1,2]];
+const TEAM=[0x4a7bd6,0xd0603f,0x4a7bd6,0x8a8f98,0x4a7bd6];   // цвета владения узлов
+
+// состояние фич
+const feat={ terrain:true, paths:true, greens:true, forest:true };
+
+/* детерминированный псевдослучай, чтобы расстановка не «прыгала» при перестройке */
+let seed=1337; function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+
+/* мягкий рельеф: плавные холмы небольшой амплитуды */
+function terrainH(x,z){
+  if(!feat.terrain) return 0;
+  return (Math.sin(x*0.23)*Math.cos(z*0.20)*0.9
+        + Math.sin(x*0.5+z*0.35)*0.35
+        + Math.cos(z*0.45-x*0.15)*0.3) * 0.7;
+}
+
+init();
+
+async function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.NoToneMapping;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  scene=new THREE.Scene();
+  scene.background=makeSky(['#cfe7f4','#bcdcec','#a6cbe0']);
+  scene.fog=new THREE.Fog(0xc7e6f2, 22, 46);
+
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+
+  camera=new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 200);
+
+  hemi=new THREE.HemisphereLight(0xdfeeff,0x5c7a42,0.5); scene.add(hemi);
+  sun=new THREE.DirectionalLight(0xfff1d6,1.6);
+  sun.position.set(10,16,8); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);
+  const sc=sun.shadow.camera; sc.left=-16;sc.right=16;sc.top=14;sc.bottom=-14;sc.near=1;sc.far=60;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff,0.32); fill.position.set(-10,7,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff,0.6); rim.position.set(-6,6,-10); scene.add(rim);
+
+  const loader=new GLTFLoader();
+  const names={
+    tb:'td/tower-round-build-b.glb', tc:'td/tower-round-build-c.glb',
+    td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb',
+    oak:'nat/tree_oak.glb', tdef:'nat/tree_default.glb', tfat:'nat/tree_fat.glb',
+    pineA:'nat/tree_pineRoundA.glb', pineB:'nat/tree_pineDefaultA.glb', pineC:'nat/tree_pineRoundC.glb',
+    oakF:'nat/tree_oak_fall.glb', tdefF:'nat/tree_default_fall.glb',
+    grass:'nat/grass.glb', grassL:'nat/grass_large.glb', bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb',
+    fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb', fP:'nat/flower_purpleB.glb',
+    rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb',
+    stump:'nat/stump_old.glb', logS:'nat/log_stack.glb'
+  };
+  const entries=await Promise.all(Object.entries(names).map(async([k,f])=>{
+    const g=await loader.loadAsync('../models/'+f); return [k,g.scene];
+  }));
+  for(const [k,s] of entries) MODELS[k]=s;
+
+  build();
+  document.getElementById('loading').style.opacity='0';
+  setTimeout(()=>document.getElementById('loading').style.display='none',400);
+
+  setupPost(); bindUI();
+  addEventListener('resize',onResize);
+  renderer.setAnimationLoop(frame);
+}
+
+/* ---------- НЕБО ---------- */
+function makeSky(cols){
+  const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,cols[0]); g.addColorStop(.62,cols[1]); g.addColorStop(1,cols[2]);
+  x.fillStyle=g; x.fillRect(0,0,4,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+
+/* ---------- utility ---------- */
+function inst(key,{s=1,ry=0,cast=true}={}){
+  const m=MODELS[key].clone(true); m.scale.setScalar(s); m.rotation.y=ry;
+  m.traverse(c=>{ if(c.isMesh){ c.castShadow=cast; c.receiveShadow=true; } });
+  return m;
+}
+// расстояние от точки (px,pz) до отрезка a-b на плоскости XZ
+function distToSeg(px,pz,ax,az,bx,bz){
+  const dx=bx-ax,dz=bz-az, l2=dx*dx+dz*dz;
+  let t = l2? ((px-ax)*dx+(pz-az)*dz)/l2 : 0; t=Math.max(0,Math.min(1,t));
+  const cx=ax+t*dx, cz=az+t*dz; return Math.hypot(px-cx,pz-cz);
+}
+function nearAnyPath(x,z,margin){
+  for(const [a,b] of EDGES){
+    if(distToSeg(x,z,NODES[a].x,NODES[a].z,NODES[b].x,NODES[b].z)<margin) return true;
+  } return false;
+}
+function nearAnyNode(x,z,margin){
+  for(const n of NODES) if(Math.hypot(x-n.x,z-n.z)<margin) return true; return false;
+}
+
+/* ---------- ЗЕМЛЯ ---------- */
+function buildGround(){
+  const S=52, seg=feat.terrain?96:1;
+  const geo=new THREE.PlaneGeometry(S,S,seg,seg).rotateX(-Math.PI/2);
+  const pos=geo.attributes.position;
+  const col=[];
+  const lowC=new THREE.Color(0x4f8a3c), midC=new THREE.Color(0x74c04a), hiC=new THREE.Color(0x9ad46a);
+  const dirtC=new THREE.Color(0x9a7d4e);
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i), z=pos.getZ(i);
+    const h=terrainH(x,z); pos.setY(i,h);
+    // цвет по высоте: темнее в низинах, светлее на гребнях
+    const t=Math.max(0,Math.min(1,(h+1.0)/2.0));
+    const c=lowC.clone().lerp(midC,Math.min(1,t*1.6)).lerp(hiC,Math.max(0,t-0.55)*2.2);
+    // лёгкое «вытаптывание» травы вдоль троп
+    if(feat.paths){
+      let dmin=99; for(const [a,b] of EDGES) dmin=Math.min(dmin,distToSeg(x,z,NODES[a].x,NODES[a].z,NODES[b].x,NODES[b].z));
+      if(dmin<2.2){ const k=1-Math.min(1,(dmin-0.9)/1.3); c.lerp(dirtC,Math.max(0,k)*0.5); }
+    }
+    col.push(c.r,c.g,c.b);
+  }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  geo.computeVertexNormals();
+  const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0});
+  const ground=new THREE.Mesh(geo,mat); ground.receiveShadow=true; worldGroup.add(ground);
+}
+
+/* ---------- ТРОПЫ ---------- */
+function buildPaths(){
+  for(const [a,b] of EDGES){
+    const A=NODES[a], B=NODES[b];
+    // ломаем прямую 1-2 промежуточными точками, тропа «вьётся» и лежит на рельефе
+    const steps=14, pts=[];
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const wob=Math.sin(t*Math.PI)*( (a*7+b*3)%2? 0.8:-0.8);   // лёгкий изгиб
+      const nx=-(B.z-A.z), nz=(B.x-A.x); const nl=Math.hypot(nx,nz)||1;
+      const x=A.x+(B.x-A.x)*t + nx/nl*wob;
+      const z=A.z+(B.z-A.z)*t + nz/nl*wob;
+      pts.push(new THREE.Vector3(x, terrainH(x,z)+0.04, z));
+    }
+    if(feat.paths){
+      const curve=new THREE.CatmullRomCurve3(pts);
+      const geo=new THREE.TubeGeometry(curve,48,0.55,8,false);
+      const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x9c7b4a,roughness:1}));
+      mesh.scale.y=0.06; mesh.receiveShadow=true; worldGroup.add(mesh);
+      // редкие камешки по краю тропы
+      for(let i=2;i<pts.length-2;i+=3){ if(rnd()>0.5) continue;
+        const p=pts[i], side=(rnd()<0.5?1:-1);
+        const nx=-(B.z-A.z), nz=(B.x-A.x); const nl=Math.hypot(nx,nz)||1;
+        const r=inst('rock',{s:0.4+rnd()*0.3,ry:rnd()*6});
+        r.position.set(p.x+nx/nl*0.75*side, p.y-0.04, p.z+nz/nl*0.75*side); worldGroup.add(r);
+      }
+    }else{
+      // «было»: абстрактная светлая линия (как связи в текущей игре)
+      const flat=pts.map(p=>new THREE.Vector3(p.x,0.05,p.z));
+      const g=new THREE.BufferGeometry().setFromPoints(flat);
+      worldGroup.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.55})));
+    }
+  }
+}
+
+/* ---------- УЗЛЫ (башенки) ---------- */
+function buildNodes(){
+  const TW={1:'tb',2:'tc',3:'td',4:'tf'};
+  for(let i=0;i<NODES.length;i++){
+    const n=NODES[i]; const y=terrainH(n.x,n.z);
+    const g=new THREE.Group(); g.position.set(n.x,y,n.z); worldGroup.add(g);
+    if(feat.terrain||feat.paths){   // «стало»: цоколь + пятно грунта
+      const dirt=new THREE.Mesh(new THREE.CircleGeometry(1.4,28).rotateX(-Math.PI/2),
+        new THREE.MeshStandardMaterial({color:0x9a7d4e,roughness:1}));
+      dirt.position.y=0.02; dirt.receiveShadow=true; g.add(dirt);
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.8,0.2,20),
+        new THREE.MeshStandardMaterial({color:0x8b8f96,roughness:0.95}));
+      base.position.y=0.1; base.castShadow=true; base.receiveShadow=true; g.add(base);
+    }
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.07,10,36).rotateX(Math.PI/2),
+      new THREE.MeshStandardMaterial({color:TEAM[i],emissive:TEAM[i],emissiveIntensity:0.5,roughness:0.5}));
+    ring.position.y=(feat.terrain||feat.paths)?0.2:0.05; g.add(ring);
+    const tow=inst(TW[n.l],{s:n.l===4?1.15:1.05}); tow.position.y=(feat.terrain||feat.paths)?0.2:0; g.add(tow);
+  }
+}
+
+/* ---------- ЗЕЛЕНЬ ---------- */
+function place(key,x,z,s,ry){
+  const m=inst(key,{s,ry}); m.position.set(x,terrainH(x,z),z); worldGroup.add(m);
+}
+function buildGreens(){
+  const trees=['oak','tdef','tfat','pineA','pineB','pineC','oakF','tdefF'];
+  if(feat.greens){
+    // кластеры вокруг «центров интереса» + проплешины у башен и троп
+    const clusters=[[-11,-8],[11,-10],[13,9],[-10,11],[-14,3],[12,0],[-3,-12],[4,13],[-13,-13],[14,-2]];
+    for(const [cx,cz] of clusters){
+      const dense=3+Math.floor(rnd()*4);
+      for(let k=0;k<dense;k++){
+        const x=cx+(rnd()-0.5)*6, z=cz+(rnd()-0.5)*6;
+        if(Math.abs(x)>24||Math.abs(z)>24) continue;
+        if(nearAnyPath(x,z,1.8)||nearAnyNode(x,z,2.4)) continue;   // проплешины
+        const r=rnd();
+        if(r<0.45) place(trees[Math.floor(rnd()*trees.length)], x,z, 0.9+rnd()*0.5, rnd()*6);
+        else if(r<0.7) place(rnd()<0.5?'bush':'bushL', x,z, 0.7+rnd()*0.4, rnd()*6);
+        else if(r<0.9) place(['fR','fY','fP'][Math.floor(rnd()*3)], x,z, 0.8+rnd()*0.4, rnd()*6);
+        else place(rnd()<0.5?'grass':'grassL', x,z, 0.9+rnd()*0.4, rnd()*6);
+      }
+    }
+    // редкая «одиночная» трава в проплешинах для мягкого перехода
+    for(let k=0;k<28;k++){
+      const x=(rnd()-0.5)*44, z=(rnd()-0.5)*44;
+      if(nearAnyPath(x,z,1.4)||nearAnyNode(x,z,2.2)) continue;
+      place('grass', x,z, 0.7+rnd()*0.3, rnd()*6);
+    }
+  }else{
+    // «было»: равномерный редкий разброс без кластеров и проплешин
+    for(let k=0;k<34;k++){
+      const x=(rnd()-0.5)*40, z=(rnd()-0.5)*40;
+      const r=rnd();
+      if(r<0.4) place(trees[Math.floor(rnd()*trees.length)], x,z, 1.0, rnd()*6);
+      else if(r<0.7) place('grass', x,z, 1.0, rnd()*6);
+      else place(rnd()<0.5?'fR':'fY', x,z, 1.0, rnd()*6);
+    }
+  }
+}
+
+/* ---------- ДАЛЬНИЙ ЛЕС (силуэт в тумане) ---------- */
+function buildForest(){
+  if(!feat.forest) return;
+  const pines=['pineA','pineB','pineC'];
+  const R=26;
+  for(let a=0;a<Math.PI*2;a+=0.10){
+    const rr=R+(rnd()-0.5)*4;
+    const x=Math.cos(a)*rr, z=Math.sin(a)*rr;
+    place(pines[Math.floor(rnd()*pines.length)], x,z, 1.3+rnd()*0.8, rnd()*6);
+    if(rnd()<0.4){ const x2=Math.cos(a+0.04)*(rr+2.2), z2=Math.sin(a+0.04)*(rr+2.2);
+      place(pines[Math.floor(rnd()*pines.length)], x2,z2, 1.6+rnd()*0.8, rnd()*6); }
+  }
+  // низкие холмы-«валы» на горизонте
+  for(let a=0;a<Math.PI*2;a+=0.5){
+    const x=Math.cos(a)*(R+5), z=Math.sin(a)*(R+5);
+    const hill=new THREE.Mesh(new THREE.SphereGeometry(4.5,16,10,0,Math.PI*2,0,Math.PI/2),
+      new THREE.MeshStandardMaterial({color:0x5f8a48,roughness:1}));
+    hill.position.set(x,-0.5,z); hill.scale.y=0.5; worldGroup.add(hill);
+  }
+}
+
+/* ---------- (пере)сборка мира ---------- */
+function build(){
+  seed=1337;
+  if(worldGroup){ scene.remove(worldGroup);
+    worldGroup.traverse(o=>{ if(o.isMesh){ o.geometry.dispose?.();
+      (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose?.()); } }); }
+  worldGroup=new THREE.Group(); scene.add(worldGroup);
+  buildGround(); buildForest(); buildPaths(); buildNodes(); buildGreens();
+}
+
+/* ---------- постобработка ---------- */
+function setupPost(){
+  try{
+    const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType});
+    composer=new EffectComposer(renderer,rt);
+    composer.addPass(new RenderPass(scene,camera));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.14,0.6,0.95));
+    composer.addPass(new OutputPass());
+    try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
+  }catch(e){ composer=null; }
+}
+
+/* ---------- орбита ---------- */
+let yaw=0.7, pitch=0.7, dist=30;
+function updateCam(){
+  camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+2,
+                      Math.cos(yaw)*Math.cos(pitch)*dist);
+  camera.lookAt(0,0.5,0);
+}
+function bindUI(){
+  const el=renderer.domElement; let drag=false,px=0,py=0;
+  el.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;el.setPointerCapture(e.pointerId);});
+  el.addEventListener('pointermove',e=>{ if(!drag)return;
+    yaw-=(e.clientX-px)*0.006; pitch=Math.max(0.25,Math.min(1.35,pitch+(e.clientY-py)*0.005));
+    px=e.clientX;py=e.clientY; });
+  el.addEventListener('pointerup',()=>drag=false);
+  el.addEventListener('wheel',e=>{ dist=Math.max(16,Math.min(46,dist+Math.sign(e.deltaY)*1.5)); e.preventDefault();},{passive:false});
+
+  // мастер «было/стало»
+  document.querySelectorAll('#master button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#master button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const on=b.dataset.m==='after';
+    document.getElementById('modeTag').textContent=on?'Стало':'Было';
+    for(const k in feat) feat[k]=on;
+    document.querySelectorAll('.row').forEach(r=>r.querySelector('.toggle').classList.toggle('on',on));
+    build();
+  }));
+  // отдельные фичи
+  document.querySelectorAll('.row').forEach(r=>r.addEventListener('click',()=>{
+    const f=r.dataset.f; feat[f]=!feat[f];
+    r.querySelector('.toggle').classList.toggle('on',feat[f]);
+    build();
+  }));
+}
+function onResize(){
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); if(composer) composer.setSize(innerWidth,innerHeight);
+}
+function frame(){
+  updateCam();
+  if(composer) composer.render(); else renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>

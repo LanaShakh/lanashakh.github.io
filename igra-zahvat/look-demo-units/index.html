@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Захват — демо юнитов: стили</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:#0e1116;color:#eef3f8;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  #app{position:fixed;inset:0;}
+  .labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:5;}
+  canvas{display:block;touch-action:none;}
+  .ulbl{font-size:12px;font-weight:700;color:#fff;white-space:nowrap;transform:translate(-50%,-50%);
+    text-shadow:0 1px 4px rgba(0,0,0,.6);}
+  .ulbl.type{font-size:13px;color:#bfe0ff;background:rgba(14,17,22,.5);padding:3px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);}
+  .ulbl.style{font-size:13.5px;color:#ffe6a8;background:rgba(14,17,22,.5);padding:4px 11px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.12);}
+
+  .panel{position:fixed;left:14px;bottom:14px;z-index:6;width:min(320px,calc(100vw - 28px));
+    background:rgba(16,20,27,.72);backdrop-filter:blur(16px) saturate(1.2);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px 16px;box-shadow:0 10px 40px rgba(0,0,0,.45);}
+  .panel h1{font-size:14px;font-weight:750;margin-bottom:2px;}
+  .panel .sub{font-size:11.5px;color:#9fb0c2;margin-bottom:12px;line-height:1.35;}
+  .seg{display:flex;gap:6px;}
+  .seg button{flex:1;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.05);color:#eef3f8;font-weight:700;font-size:13px;cursor:pointer;transition:.15s;}
+  .seg button.blue.on{background:#4a7bd6;border-color:#8fb2ee;color:#06101f;}
+  .seg button.red.on{background:#d0603f;border-color:#eaa088;color:#180a05;}
+  .feat{font-size:11px;color:#8fa2b6;line-height:1.5;margin-top:11px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;}
+  .feat b{color:#bfeecf;font-weight:650;}
+  .hint{position:fixed;right:14px;bottom:14px;z-index:6;font-size:11px;color:#7f8ea0;
+    background:rgba(16,20,27,.6);padding:6px 10px;border-radius:10px;pointer-events:none;}
+  #loading{position:fixed;inset:0;display:grid;place-items:center;z-index:20;font-size:14px;color:#9fb0c2;background:#0e1116;transition:opacity .4s;}
+  .back{position:fixed;top:14px;left:14px;z-index:7;font-size:12px;color:#bcccdd;text-decoration:none;
+    background:rgba(16,20,27,.6);padding:6px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.1);}
+  .back:hover{color:#fff;}
+</style>
+<script type="importmap">
+{ "imports":{ "three":"../vendor/three.module.js", "three/addons/":"../vendor/jsm/" }}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="labels" id="labels"></div>
+<a class="back" href="../index.html">← к игре</a>
+
+<div class="panel">
+  <h1>Стили юнитов</h1>
+  <div class="sub">4 стиля × 4 типа. Слева-направо: пехота · атака ⚔ · защита 🛡 · эконом ⚙. Тащи мышью — облёт, колесо — зум.</div>
+  <div class="seg">
+    <button class="blue on" id="cBlue">Синие</button>
+    <button class="red" id="cRed">Красные</button>
+  </div>
+  <div class="feat">
+    Каждый тип отличается силуэтом: <b>атака</b> — оружие/агрессивнее, <b>защита</b> — щит/массивнее,
+    <b>эконом</b> — несёт груз. Скажи, какой стиль нравится — доведём и вставим в игру.
+  </div>
+</div>
+<div class="hint">🖱 тащи — поворот · колесо — зум</div>
+<div id="loading">Строю юнитов…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+let renderer, labelRenderer, scene, camera, composer;
+let team=0x4a7bd6;
+let unitGroup=null;
+const clock=new THREE.Clock();
+
+const TYPES=[
+  {key:'inf', name:'Пехота'},
+  {key:'atk', name:'Атака ⚔'},
+  {key:'def', name:'Защита 🛡'},
+  {key:'eco', name:'Эконом ⚙'},
+];
+const STYLES=[
+  {key:'chibi',   name:'Пузатики',  build:styleChibi},
+  {key:'knight',  name:'Рыцари',    build:styleKnight},
+  {key:'origami', name:'Оригами',   build:styleOrigami},
+  {key:'spirit',  name:'Духи-кристаллы', build:styleSpirit},
+];
+const COLX=[-6,-2,2,6];         // столбцы = типы
+const ROWZ=[-6,-2,2,6];         // ряды = стили
+
+function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.NoToneMapping;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  labelRenderer=new CSS2DRenderer({element:document.getElementById('labels')});
+  labelRenderer.setSize(innerWidth,innerHeight);
+
+  scene=new THREE.Scene();
+  scene.background=makeSky(['#dfeef7','#cadfee','#b3cfe4']);
+  scene.fog=new THREE.Fog(0xcfe2ef, 28, 60);
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+
+  camera=new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.1, 200);
+
+  scene.add(new THREE.HemisphereLight(0xdfeeff,0x6a5a48,0.55));
+  const sun=new THREE.DirectionalLight(0xfff1d6,1.5);
+  sun.position.set(8,15,7); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+  const sc=sun.shadow.camera; sc.left=-12;sc.right=12;sc.top=12;sc.bottom=-12;sc.near=1;sc.far=50;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff,0.3); fill.position.set(-8,6,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff,0.55); rim.position.set(-5,5,-9); scene.add(rim);
+
+  // сцена-подиум
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(16,48).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x8fb26a,roughness:1}));
+  ground.receiveShadow=true; scene.add(ground);
+
+  buildUnits(); buildHeaders();
+  document.getElementById('loading').style.opacity='0';
+  setTimeout(()=>document.getElementById('loading').style.display='none',400);
+
+  setupPost(); bindUI();
+  addEventListener('resize',onResize);
+  renderer.setAnimationLoop(frame);
+}
+
+/* ---------- helpers ---------- */
+function makeSky(cols){
+  const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,cols[0]); g.addColorStop(.62,cols[1]); g.addColorStop(1,cols[2]);
+  x.fillStyle=g; x.fillRect(0,0,4,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+function M(color,{rough=0.55,emi=0.12,metal=0}={}){
+  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,emissive:color,emissiveIntensity:emi});
+}
+function Mplain(color,{rough=0.6,metal=0}={}){ return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal}); }
+function mesh(geo,mat,x=0,y=0,z=0){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); return m; }
+const STEEL=0xd3dae6, DARK=0x3a3f47, WOOD=0x8a6a3f, GOLD=0xffcf6b, LOAD=0xc9a15f;
+
+/* ================= СТИЛЬ 1: ПУЗАТИКИ (chibi) ================= */
+function styleChibi(type,color){
+  const g=new THREE.Group(); const body=M(color,{rough:0.5});
+  const torso=mesh(new THREE.SphereGeometry(0.34,16,14),body,0,0.42,0); torso.scale.y=0.85; g.add(torso);
+  const head=mesh(new THREE.SphereGeometry(0.26,16,14),body,0,0.92,0); g.add(head);
+  const eyeM=Mplain(0x24303a,{rough:0.3});
+  g.add(mesh(new THREE.SphereGeometry(0.045,8,8),eyeM,0.1,0.96,0.22));
+  g.add(mesh(new THREE.SphereGeometry(0.045,8,8),eyeM,-0.1,0.96,0.22));
+  const foot=Mplain(0x2f3640);
+  g.add(mesh(new THREE.SphereGeometry(0.09,8,8),foot,0.14,0.06,0)); g.add(mesh(new THREE.SphereGeometry(0.09,8,8),foot,-0.14,0.06,0));
+  if(type==='atk'){ // рожки + дубина
+    const horn=Mplain(0xef5b4c);
+    g.add(mesh(new THREE.ConeGeometry(0.06,0.18,8),horn,0.14,1.16,0)); g.add(mesh(new THREE.ConeGeometry(0.06,0.18,8),horn,-0.14,1.16,0));
+    const club=new THREE.Group(); club.add(mesh(new THREE.CylinderGeometry(0.03,0.035,0.4,8),Mplain(WOOD),0,0.2,0));
+    club.add(mesh(new THREE.SphereGeometry(0.12,10,8),Mplain(0x8b939c),0,0.44,0));
+    club.position.set(0.36,0.5,0.05); club.rotation.z=-0.5; g.add(club);
+  } else if(type==='def'){ // большой круглый щит
+    const sh=mesh(new THREE.CylinderGeometry(0.32,0.32,0.06,20).rotateX(Math.PI/2),Mplain(STEEL,{metal:0.2}),0,0.5,0.34);
+    g.add(sh); g.add(mesh(new THREE.SphereGeometry(0.07,10,8),M(GOLD,{emi:0.2}),0,0.5,0.4));
+  } else if(type==='eco'){ // мешок за спиной
+    g.add(mesh(new THREE.SphereGeometry(0.26,12,10),Mplain(LOAD,{rough:0.85}),0,0.5,-0.34));
+    g.add(mesh(new THREE.TorusGeometry(0.12,0.02,6,12),Mplain(0x6b4f2a),0,0.72,-0.3));
+  } else { // пехота — маленькая пика
+    g.add(mesh(new THREE.CylinderGeometry(0.015,0.015,0.6,6),Mplain(WOOD),0.3,0.62,0));
+    g.add(mesh(new THREE.ConeGeometry(0.04,0.1,7),Mplain(STEEL),0.3,0.95,0));
+  }
+  g.userData.bob=0.05; g.userData.sway=0.12; return g;
+}
+
+/* ================= СТИЛЬ 2: РЫЦАРИ (knight) ================= */
+function styleKnight(type,color){
+  const g=new THREE.Group();
+  const tabard=M(color,{rough:0.5});
+  const torso=mesh(new THREE.CylinderGeometry(0.2,0.26,0.5,12),tabard,0,0.5,0); g.add(torso);
+  const belt=mesh(new THREE.CylinderGeometry(0.27,0.27,0.08,12),Mplain(0x5a4a2e),0,0.34,0); g.add(belt);
+  // голова в шлеме
+  g.add(mesh(new THREE.SphereGeometry(0.15,14,12),Mplain(0xe7c9a0),0,0.86,0));
+  const helm=mesh(new THREE.SphereGeometry(0.17,14,12,0,Math.PI*2,0,Math.PI*0.6),Mplain(STEEL,{metal:0.3})); helm.position.y=0.9; g.add(helm);
+  const crest=mesh(new THREE.BoxGeometry(0.03,0.14,0.22),M(color,{emi:0.25})); crest.position.set(0,1.03,0); g.add(crest);
+  // ноги
+  const leg=Mplain(0x3a3f47);
+  g.add(mesh(new THREE.CylinderGeometry(0.07,0.06,0.28,8),leg,0.1,0.14,0)); g.add(mesh(new THREE.CylinderGeometry(0.07,0.06,0.28,8),leg,-0.1,0.14,0));
+  if(type==='atk'){ // меч поднят + наплечники
+    g.add(mesh(new THREE.SphereGeometry(0.1,10,8),Mplain(STEEL,{metal:0.3}),0.28,0.66,0));
+    g.add(mesh(new THREE.SphereGeometry(0.1,10,8),Mplain(STEEL,{metal:0.3}),-0.28,0.66,0));
+    const sword=new THREE.Group();
+    sword.add(mesh(new THREE.BoxGeometry(0.05,0.55,0.02),Mplain(0xeef2f7,{metal:0.4}),0,0.3,0));
+    sword.add(mesh(new THREE.BoxGeometry(0.2,0.04,0.04),Mplain(GOLD),0,0.03,0));
+    sword.position.set(0.34,0.6,0.05); sword.rotation.z=-0.35; g.add(sword);
+  } else if(type==='def'){ // высокий ростовой щит
+    const sh=mesh(new THREE.BoxGeometry(0.06,0.62,0.36),Mplain(STEEL,{metal:0.25}),0.3,0.55,0);
+    g.add(sh); g.add(mesh(new THREE.CylinderGeometry(0.06,0.06,0.04,16).rotateZ(Math.PI/2),M(color,{emi:0.2}),0.34,0.55,0));
+    torso.scale.set(1.15,1,1.15);
+  } else if(type==='eco'){ // бочка на плече
+    const barrel=mesh(new THREE.CylinderGeometry(0.16,0.16,0.3,12),Mplain(WOOD,{rough:0.8}),0.16,0.72,-0.02);
+    barrel.rotation.z=Math.PI/2; g.add(barrel);
+    g.add(mesh(new THREE.TorusGeometry(0.16,0.02,6,14),Mplain(0x4a3a20),0.1,0.72,-0.02));
+  } else { // пехота — копьё
+    g.add(mesh(new THREE.CylinderGeometry(0.02,0.02,0.95,7),Mplain(WOOD),0.26,0.6,0));
+    g.add(mesh(new THREE.ConeGeometry(0.05,0.16,8),Mplain(STEEL,{metal:0.3}),0.26,1.12,0));
+  }
+  g.userData.bob=0.035; g.userData.sway=0.06; return g;
+}
+
+/* ================= СТИЛЬ 3: ОРИГАМИ (low-poly faceted) ================= */
+function styleOrigami(type,color){
+  const g=new THREE.Group();
+  const body=new THREE.MeshStandardMaterial({color,roughness:0.35,metalness:0.05,flatShading:true,emissive:color,emissiveIntensity:0.1});
+  const torso=mesh(new THREE.ConeGeometry(0.3,0.6,5),body,0,0.5,0); g.add(torso);           // гранёный корпус
+  const head=mesh(new THREE.TetrahedronGeometry(0.2),body,0,0.95,0); head.rotation.y=0.6; g.add(head);
+  const legM=new THREE.MeshStandardMaterial({color:DARK,flatShading:true,roughness:0.5});
+  g.add(mesh(new THREE.ConeGeometry(0.07,0.2,4),legM,0.1,0.1,0)); g.add(mesh(new THREE.ConeGeometry(0.07,0.2,4),legM,-0.1,0.1,0));
+  const steelF=new THREE.MeshStandardMaterial({color:STEEL,flatShading:true,metalness:0.3,roughness:0.3});
+  if(type==='atk'){ // угловатый клинок + шипы
+    const blade=mesh(new THREE.ConeGeometry(0.09,0.6,4),steelF,0.34,0.6,0); blade.rotation.z=-0.5; g.add(blade);
+    torso.scale.set(1.1,1.15,1.1);
+    g.add(mesh(new THREE.TetrahedronGeometry(0.1),steelF,0,1.18,0));
+  } else if(type==='def'){ // клиновидный щит
+    const sh=mesh(new THREE.BoxGeometry(0.05,0.5,0.42),steelF,0.3,0.5,0); sh.rotation.x=0.0; g.add(sh);
+    const em=new THREE.MeshStandardMaterial({color,flatShading:true,emissive:color,emissiveIntensity:0.3,roughness:0.4});
+    g.add(mesh(new THREE.TetrahedronGeometry(0.12),em,0.33,0.5,0));
+  } else if(type==='eco'){ // куб-груз на спине
+    const load=new THREE.MeshStandardMaterial({color:LOAD,flatShading:true,roughness:0.7});
+    const box=mesh(new THREE.BoxGeometry(0.34,0.34,0.34),load,0,0.55,-0.32); box.rotation.y=0.4; g.add(box);
+  } else { // пехота — тонкий гранёный дротик
+    g.add(mesh(new THREE.CylinderGeometry(0.015,0.015,0.7,5),steelF,0.3,0.62,0));
+    g.add(mesh(new THREE.ConeGeometry(0.05,0.14,4),steelF,0.3,1.02,0));
+  }
+  g.userData.bob=0.045; g.userData.sway=0.1; return g;
+}
+
+/* ================= СТИЛЬ 4: ДУХИ-КРИСТАЛЛЫ (glowing) ================= */
+function styleSpirit(type,color){
+  const g=new THREE.Group();
+  const gem=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.5,
+    roughness:0.15,metalness:0.1,transparent:true,opacity:0.9});
+  const core=mesh(new THREE.IcosahedronGeometry(0.3,0),gem,0,0.7,0); core.userData.spin=1; g.add(core);
+  const glow=new THREE.PointLight(color,0.6,3,2); glow.position.y=0.7; g.add(glow);
+  // «хвост» из мелких осколков
+  const shardM=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.2,roughness:0.2,transparent:true,opacity:0.85});
+  for(let i=0;i<3;i++) g.add(mesh(new THREE.TetrahedronGeometry(0.06),shardM,0,0.32-i*0.09,0));
+  if(type==='atk'){ // острый удлинённый кристалл + шипы
+    core.geometry=new THREE.OctahedronGeometry(0.32,0); core.scale.set(0.8,1.4,0.8);
+    for(let i=0;i<4;i++){ const a=i/4*Math.PI*2;
+      g.add(mesh(new THREE.ConeGeometry(0.05,0.22,5),shardM,Math.cos(a)*0.3,0.7,Math.sin(a)*0.3)); }
+  } else if(type==='def'){ // кристалл внутри защитного кольца
+    const ring=mesh(new THREE.TorusGeometry(0.4,0.05,10,28),M(color,{emi:0.6,rough:0.4}),0,0.7,0);
+    ring.rotation.x=Math.PI/2; ring.userData.spin=-0.6; g.add(ring);
+    core.scale.setScalar(0.85);
+  } else if(type==='eco'){ // несёт светящуюся сферу-груз
+    const orb=mesh(new THREE.SphereGeometry(0.16,14,12),new THREE.MeshStandardMaterial({color:GOLD,emissive:GOLD,emissiveIntensity:0.9,roughness:0.3}),0,0.34,0.22);
+    orb.userData.spin=2; g.add(orb);
+  }
+  g.userData.bob=0.11; g.userData.sway=0; g.userData.float=true; return g;
+}
+
+/* ---------- пьедестал ---------- */
+function pedestal(){
+  const g=new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(0.62,0.7,0.12,20),Mplain(0x9aa0a8,{rough:0.9}),0,0.06,0));
+  g.add(mesh(new THREE.CylinderGeometry(0.66,0.66,0.02,20),Mplain(0x7f858d,{rough:0.8}),0,0.13,0));
+  return g;
+}
+
+/* ---------- построить всех юнитов ---------- */
+function buildUnits(){
+  if(unitGroup){ scene.remove(unitGroup);
+    unitGroup.traverse(o=>{ if(o.isMesh){o.geometry.dispose?.(); const m=o.material; (Array.isArray(m)?m:[m]).forEach(x=>x.dispose?.());} }); }
+  unitGroup=new THREE.Group(); scene.add(unitGroup);
+  STYLES.forEach((st,r)=>{
+    TYPES.forEach((tp,c)=>{
+      const cell=new THREE.Group(); cell.position.set(COLX[c],0,ROWZ[r]);
+      const ped=pedestal(); ped.traverse(o=>{if(o.isMesh)o.receiveShadow=true;}); cell.add(ped);
+      const u=st.build(tp.key,team);
+      u.scale.setScalar(1.9); u.position.y=0.13;
+      u.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
+      cell.add(u); cell.userData.unit=u; unitGroup.add(cell);
+    });
+  });
+}
+
+/* ---------- подписи стилей/типов ---------- */
+let headersBuilt=false;
+function buildHeaders(){
+  if(headersBuilt) return; headersBuilt=true;
+  const H=new THREE.Group(); scene.add(H);
+  TYPES.forEach((tp,c)=>{
+    const d=document.createElement('div'); d.className='ulbl type'; d.textContent=tp.name;
+    const o=new CSS2DObject(d); o.position.set(COLX[c],2.6,ROWZ[0]-1.6); H.add(o);
+  });
+  STYLES.forEach((st,r)=>{
+    const d=document.createElement('div'); d.className='ulbl style'; d.textContent=st.name;
+    const o=new CSS2DObject(d); o.position.set(COLX[0]-2.4,1.2,ROWZ[r]); H.add(o);
+  });
+}
+
+/* ---------- пост ---------- */
+function setupPost(){
+  try{
+    const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType});
+    composer=new EffectComposer(renderer,rt);
+    composer.addPass(new RenderPass(scene,camera));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.22,0.6,0.85));
+    composer.addPass(new OutputPass());
+    try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
+  }catch(e){ composer=null; }
+}
+
+/* ---------- орбита ---------- */
+let yaw=0.55, pitch=0.6, dist=20;
+function updateCam(){
+  camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+2,
+                      Math.cos(yaw)*Math.cos(pitch)*dist);
+  camera.lookAt(0,0.8,0);
+}
+function bindUI(){
+  const el=renderer.domElement; let drag=false,px=0,py=0;
+  el.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;el.setPointerCapture(e.pointerId);});
+  el.addEventListener('pointermove',e=>{ if(!drag)return;
+    yaw-=(e.clientX-px)*0.006; pitch=Math.max(0.2,Math.min(1.3,pitch+(e.clientY-py)*0.005)); px=e.clientX;py=e.clientY; });
+  el.addEventListener('pointerup',()=>drag=false);
+  el.addEventListener('wheel',e=>{ dist=Math.max(11,Math.min(34,dist+Math.sign(e.deltaY)*1.3)); e.preventDefault();},{passive:false});
+  const bB=document.getElementById('cBlue'), bR=document.getElementById('cRed');
+  bB.addEventListener('click',()=>{ team=0x4a7bd6; bB.classList.add('on'); bR.classList.remove('on'); buildUnits(); });
+  bR.addEventListener('click',()=>{ team=0xd0603f; bR.classList.add('on'); bB.classList.remove('on'); buildUnits(); });
+}
+function onResize(){
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight);
+  if(composer) composer.setSize(innerWidth,innerHeight);
+}
+function frame(){
+  const t=clock.getElapsedTime(); updateCam();
+  if(unitGroup) unitGroup.children.forEach((cell,i)=>{
+    const u=cell.userData.unit; if(!u) return;
+    const ph=i*0.7;
+    u.position.y=0.13+(u.userData.float?0.18:u.userData.bob||0)* (u.userData.float? (0.5+0.5*Math.sin(t*1.6+ph)) : Math.abs(Math.sin(t*3+ph)));
+    if(u.userData.sway) u.rotation.z=Math.sin(t*3+ph)*u.userData.sway*0.4;
+    u.rotation.y=Math.sin(t*0.6+ph)*0.25;
+    u.traverse(o=>{ if(o.userData.spin) o.rotation.y=t*o.userData.spin; });
+  });
+  if(composer) composer.render(); else renderer.render(scene,camera);
+  labelRenderer.render(scene,camera);
+}
+
+init();
+</script>
+</body>
+</html>

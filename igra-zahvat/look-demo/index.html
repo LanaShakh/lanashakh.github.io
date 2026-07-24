@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Захват — демо графики: башня «было / стало»</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:#0e1116;color:#eef3f8;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;touch-action:none;}
+
+  /* верхние подписи над колоннами */
+  .caps{position:fixed;top:14px;left:0;right:0;display:flex;justify-content:center;gap:min(38vw,520px);
+    pointer-events:none;z-index:5;}
+  .cap{font-weight:700;font-size:14px;letter-spacing:.02em;padding:6px 14px;border-radius:999px;
+    background:rgba(14,17,22,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);}
+  .cap.after{background:rgba(56,138,90,.35);border-color:rgba(120,220,160,.4);}
+
+  /* панель управления */
+  .panel{position:fixed;left:14px;bottom:14px;z-index:6;width:min(320px,calc(100vw - 28px));
+    background:rgba(16,20,27,.72);backdrop-filter:blur(16px) saturate(1.2);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px 16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.45);}
+  .panel h1{font-size:14px;font-weight:750;letter-spacing:-.01em;margin-bottom:2px;}
+  .panel .sub{font-size:11.5px;color:#9fb0c2;margin-bottom:12px;line-height:1.35;}
+  .row{display:flex;align-items:center;gap:10px;margin:10px 0;}
+  .row label{font-size:12.5px;color:#c7d4e2;flex:1;}
+  .lvlbtns{display:flex;gap:6px;}
+  .lvlbtns button{width:30px;height:30px;border-radius:9px;border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.05);color:#eef3f8;font-weight:700;font-size:13px;cursor:pointer;
+    transition:.15s;}
+  .lvlbtns button:hover{background:rgba(255,255,255,.12);}
+  .lvlbtns button.on{background:#4fae63;border-color:#7fdc9a;color:#08130c;}
+  .toggle{position:relative;width:40px;height:23px;border-radius:999px;background:rgba(255,255,255,.14);
+    cursor:pointer;transition:.2s;flex:none;}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;
+    background:#eef3f8;transition:.2s;}
+  .toggle.on{background:#4fae63;}
+  .toggle.on::after{transform:translateX(17px);}
+  .feat{font-size:11px;color:#8fa2b6;line-height:1.55;margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;}
+  .feat b{color:#bfeecf;font-weight:650;}
+  .hint{position:fixed;right:14px;bottom:14px;z-index:6;font-size:11px;color:#7f8ea0;
+    background:rgba(16,20,27,.6);padding:6px 10px;border-radius:10px;pointer-events:none;}
+  #loading{position:fixed;inset:0;display:grid;place-items:center;z-index:20;font-size:14px;color:#9fb0c2;
+    background:#0e1116;transition:opacity .4s;}
+  .back{position:fixed;top:14px;left:14px;z-index:7;font-size:12px;color:#bcccdd;text-decoration:none;
+    background:rgba(16,20,27,.6);padding:6px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.1);}
+  .back:hover{color:#fff;}
+</style>
+<script type="importmap">
+{ "imports":{
+  "three":"../vendor/three.module.js",
+  "three/addons/":"../vendor/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<a class="back" href="../index.html">← к игре</a>
+<div class="caps"><span class="cap">Было</span><span class="cap after">Стало</span></div>
+
+<div class="panel">
+  <h1>Башня: демо графики</h1>
+  <div class="sub">Одна и та же модель. Слева — как в игре сейчас, справа — с доработками. Тащи мышью, чтобы облететь.</div>
+  <div class="row">
+    <label>Уровень башни</label>
+    <div class="lvlbtns" id="lvls">
+      <button data-l="1">1</button><button data-l="2">2</button>
+      <button data-l="3">3</button><button data-l="4" class="on">4</button>
+    </div>
+  </div>
+  <div class="row">
+    <label>ACES-тонмаппинг <span style="color:#7f8ea0">(мягче цвета)</span></label>
+    <div class="toggle" id="tmToggle"></div>
+  </div>
+  <div class="row">
+    <label>Ночь + факелы</label>
+    <div class="toggle" id="nightToggle"></div>
+  </div>
+  <div class="feat">
+    Что добавлено справа: <b>каменный цоколь</b>, <b>мягкая контактная тень</b>,
+    <b>флаг команды</b>, <b>обвес по уровням</b> (мешки → частокол → факелы → кристалл)
+    и <b>живой огонь</b> с мерцающим светом.
+  </div>
+</div>
+<div class="hint">🖱 тащи — поворот · колесо — зум</div>
+<div id="loading">Загрузка моделей…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+const TEAM = 0x4a7bd6;          // цвет «своей» команды (как синие в игре)
+const TOWER = {1:'tower-round-build-b',2:'tower-round-build-c',3:'tower-round-build-d',4:'tower-round-build-f'};
+
+let renderer, scene, camera, composer, bloomPass, sun, hemi, envTex=null;
+let torchLights=[], flames=[];         // для мерцания
+const MODELS={};
+let afterGroup=null, beforeGroup=null; // текущие построенные башни
+let level=4, night=false;
+const clock=new THREE.Clock();
+
+init();
+
+async function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.NoToneMapping;         // как в игре по умолчанию
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  scene=new THREE.Scene();
+  scene.background=makeSky(['#cfe7f4','#bcdcec','#a6cbe0']);
+  scene.fog=new THREE.Fog(0xc7e6f2, 26, 60);
+
+  // IBL — мягкий «студийный» свет, как в игре
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  envTex=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+  scene.environment=envTex;
+
+  camera=new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.1, 200);
+
+  // свет — тот же набор, что в игре
+  hemi=new THREE.HemisphereLight(0xdfeeff,0x5c7a42,0.5); scene.add(hemi);
+  sun=new THREE.DirectionalLight(0xfff1d6,1.6);
+  sun.position.set(6,12,5); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);
+  const sc=sun.shadow.camera; sc.left=-9;sc.right=9;sc.top=7;sc.bottom=-7;sc.near=1;sc.far=40;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff,0.32); fill.position.set(-8,6,-3); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff,0.6); rim.position.set(-4,5,-8); scene.add(rim);
+
+  // земля — трава + аккуратные пятна грунта под башнями
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x77c24e,roughness:1,metalness:0}));
+  ground.receiveShadow=true; scene.add(ground);
+
+  // модели
+  const loader=new GLTFLoader();
+  const names={
+    tb:'td/tower-round-build-b.glb', tc:'td/tower-round-build-c.glb',
+    td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb',
+    fence:'nat/fence_simple.glb', fenceC:'nat/fence_corner.glb',
+    logS:'nat/log_stack.glb', rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb',
+    grass:'nat/grass.glb', grassL:'nat/grass_large.glb',
+    fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb',
+    bush:'nat/plant_bush.glb'
+  };
+  const entries=await Promise.all(Object.entries(names).map(async([k,f])=>{
+    const g=await loader.loadAsync('../models/'+f); return [k,g.scene];
+  }));
+  for(const [k,s] of entries) MODELS[k]=s;
+
+  scatterGreens();            // немного зелени вокруг для контекста
+  rebuild();                  // построить обе башни
+
+  document.getElementById('loading').style.opacity='0';
+  setTimeout(()=>document.getElementById('loading').style.display='none',400);
+
+  setupPost();
+  bindUI();
+  addEventListener('resize',onResize);
+  renderer.setAnimationLoop(frame);
+}
+
+/* ---------- НЕБО ---------- */
+function makeSky(cols){
+  const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,cols[0]); g.addColorStop(.62,cols[1]); g.addColorStop(1,cols[2]);
+  x.fillStyle=g; x.fillRect(0,0,4,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ---------- КОНТАКТНАЯ ТЕНЬ (мягкое пятно под объектом) ---------- */
+let shadowTex=null;
+function contactShadow(radius=1.5, opacity=0.5){
+  if(!shadowTex){
+    const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d');
+    const g=x.createRadialGradient(64,64,4,64,64,60);
+    g.addColorStop(0,'rgba(0,0,0,0.55)'); g.addColorStop(0.55,'rgba(0,0,0,0.28)');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g; x.fillRect(0,0,128,128);
+    shadowTex=new THREE.CanvasTexture(c);
+  }
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(radius*2,radius*2).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,opacity,depthWrite:false}));
+  m.position.y=0.015; m.renderOrder=-1;
+  return m;
+}
+
+/* ---------- ФЛАГ КОМАНДЫ ---------- */
+function makeFlag(color){
+  const g=new THREE.Group();
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.035,1.2,8),
+    new THREE.MeshStandardMaterial({color:0x6b5636,roughness:0.8}));
+  pole.position.y=0.6; pole.castShadow=true; g.add(pole);
+  const clothGeo=new THREE.PlaneGeometry(0.5,0.32,12,1);
+  clothGeo.translate(0.25,0,0);
+  const cloth=new THREE.Mesh(clothGeo,
+    new THREE.MeshStandardMaterial({color,roughness:0.6,side:THREE.DoubleSide,
+      emissive:color,emissiveIntensity:0.12}));
+  cloth.position.set(0.03,1.05,0); cloth.castShadow=true;
+  cloth.userData.wave=true; g.add(cloth);
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),
+    new THREE.MeshStandardMaterial({color:0xffd27a,roughness:0.4,metalness:0.3}));
+  knob.position.y=1.22; g.add(knob);
+  return g;
+}
+
+/* ---------- ФАКЕЛ (столбик + огонь + мерцающий свет) ---------- */
+function makeTorch(){
+  const g=new THREE.Group();
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.85,7),
+    new THREE.MeshStandardMaterial({color:0x5a4428,roughness:0.9}));
+  pole.position.y=0.42; pole.castShadow=true; g.add(pole);
+  const cup=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.07,0.14,10),
+    new THREE.MeshStandardMaterial({color:0x2c2c30,roughness:0.7,metalness:0.4}));
+  cup.position.y=0.85; g.add(cup);
+  const flame=new THREE.Mesh(new THREE.SphereGeometry(0.12,12,12),
+    new THREE.MeshStandardMaterial({color:0xffb14d,emissive:0xff8a2a,emissiveIntensity:2.4,roughness:0.4}));
+  flame.position.y=1.0; flame.scale.y=1.5; g.add(flame);
+  const light=new THREE.PointLight(0xffa542,0,5,2); light.position.y=1.0; g.add(light);
+  g.userData.light=light; g.userData.flame=flame;
+  torchLights.push(light); flames.push(flame);
+  return g;
+}
+
+/* ---------- КРИСТАЛЛ L4 (парящий, светящийся) ---------- */
+function makeCrystal(color){
+  const g=new THREE.Group();
+  const c=new THREE.Mesh(new THREE.OctahedronGeometry(0.28,0),
+    new THREE.MeshStandardMaterial({color:0xbfeaff,emissive:color,emissiveIntensity:1.6,
+      roughness:0.15,metalness:0.1,transparent:true,opacity:0.92}));
+  c.userData.spin=true; g.add(c);
+  const halo=new THREE.Mesh(new THREE.TorusGeometry(0.42,0.045,10,32).rotateX(Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0xffe08a,emissive:0xffd166,emissiveIntensity:1.2,roughness:0.4}));
+  g.add(halo);
+  const glow=new THREE.PointLight(0x9fd8ff,0.8,4,2); g.add(glow);
+  return g;
+}
+
+/* ---------- utility: клон модели с тенями ---------- */
+function inst(key,{scale=1,rot=0}={}){
+  const m=MODELS[key].clone(true);
+  m.scale.setScalar(scale); m.rotation.y=rot;
+  m.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+  return m;
+}
+
+/* ---------- БАШНЯ «БЫЛО» (как в игре сейчас) ---------- */
+function buildBefore(lvl){
+  const g=new THREE.Group();
+  // кольцо-владение с emissive — как в текущем buildTower()
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.085,12,40).rotateX(Math.PI/2),
+    new THREE.MeshStandardMaterial({color:TEAM,emissive:TEAM,emissiveIntensity:0.5,roughness:0.5}));
+  ring.position.y=0.05; g.add(ring);
+  const tow=inst({1:'tb',2:'tc',3:'td',4:'tf'}[lvl],{scale:lvl===4?1.15:1.05});
+  g.add(tow);
+  return g;
+}
+
+/* ---------- БАШНЯ «СТАЛО» (доработанная) ---------- */
+function buildAfter(lvl){
+  const g=new THREE.Group();
+
+  // 1) грунтовое пятно под башней — «утоптанная» земля
+  const dirt=new THREE.Mesh(new THREE.CircleGeometry(1.5,32).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x9a7d4e,roughness:1}));
+  dirt.position.y=0.008; dirt.receiveShadow=true; g.add(dirt);
+
+  // 2) мягкая контактная тень
+  g.add(contactShadow(1.7,0.45));
+
+  // 3) каменный цоколь — башня получает «вес»
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.82,0.22,24),
+    new THREE.MeshStandardMaterial({color:0x8b8f96,roughness:0.95}));
+  base.position.y=0.11; base.castShadow=true; base.receiveShadow=true; g.add(base);
+  const baseTop=new THREE.Mesh(new THREE.CylinderGeometry(0.66,0.72,0.06,24),
+    new THREE.MeshStandardMaterial({color:0x767b82,roughness:0.9}));
+  baseTop.position.y=0.24; g.add(baseTop);
+
+  // тонкое кольцо-владение поверх цоколя (цвет команды, без «висящего в воздухе» вида)
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.7,0.04,10,40).rotateX(Math.PI/2),
+    new THREE.MeshStandardMaterial({color:TEAM,emissive:TEAM,emissiveIntensity:0.6,roughness:0.4}));
+  ring.position.y=0.25; g.add(ring);
+
+  // 4) сама башня — та же модель, стоит на цоколе
+  const tow=inst({1:'tb',2:'tc',3:'td',4:'tf'}[lvl],{scale:lvl===4?1.15:1.05});
+  tow.position.y=0.24; g.add(tow);
+
+  // реальная высота вершины башни (по bounding box модели, а не «на глаз»)
+  const topY=new THREE.Box3().setFromObject(tow).max.y;
+
+  // 5) флаг команды — воткнут в вершину башни
+  const flag=makeFlag(TEAM); flag.position.set(0.0,topY-0.15,0.0); flag.scale.setScalar(0.8); g.add(flag);
+
+  // 6) ОБВЕС ПО УРОВНЯМ ----------------------------------------
+  // L2+ : мешки/брёвна и камни у основания — «обжитость»
+  if(lvl>=2){
+    const logs=inst('logS',{scale:0.5,rot:0.4}); logs.position.set(0.78,0.24,0.5); g.add(logs);
+    const r=inst('rock',{scale:0.7,rot:1.2}); r.position.set(-0.8,0.24,0.35); g.add(r);
+    const b=inst('bush',{scale:0.55}); b.position.set(-0.55,0.24,-0.75); g.add(b);
+  }
+  // L3+ : частокол по кругу + 2 факела у входа
+  if(lvl>=3){
+    const N=10, R=1.15;
+    for(let i=0;i<N;i++){
+      const a=i/N*Math.PI*2;
+      // оставить «проём» спереди для входа
+      if(a>Math.PI*0.35 && a<Math.PI*0.65) continue;
+      const f=inst('fence',{scale:0.62,rot:a+Math.PI/2});
+      f.position.set(Math.cos(a)*R,0.24,Math.sin(a)*R); g.add(f);
+    }
+    [[0.55,1.05],[-0.55,1.05]].forEach(([x,z])=>{
+      const t=makeTorch(); t.position.set(x,0.24,z); t.scale.setScalar(0.85); g.add(t);
+    });
+  }
+  // L4 : ещё 2 факела по бокам + парящий кристалл над башней
+  if(lvl>=4){
+    [[1.1,-0.2],[-1.1,-0.2]].forEach(([x,z])=>{
+      const t=makeTorch(); t.position.set(x,0.24,z); t.scale.setScalar(0.95); g.add(t);
+    });
+    const cr=makeCrystal(TEAM); const cy=topY+0.9;
+    cr.position.set(0,cy,0); cr.userData.float=true; cr.userData.baseY=cy; g.add(cr);
+  }
+
+  return g;
+}
+
+/* ---------- немного зелени вокруг для контекста ---------- */
+function scatterGreens(){
+  const spots=[
+    ['grassL',3.5,0,2.6,0.9],['grass',-4,0,1.5,1.0],['grass',4.2,0,-2,0.9],
+    ['fR',3.2,0,-3.2,0.8],['fY',-3.6,0,-2.4,0.8],['bush',-4.6,0,-0.5,0.8],
+    ['rock2',5,0,3.4,0.7],['grass',0,0,4.5,1.0],['grassL',-2.5,0,4.2,0.9],
+    ['grass',2.4,0,4.6,0.9]
+  ];
+  for(const [k,x,y,z,s] of spots){
+    if(!MODELS[k]) continue;
+    const m=inst(k,{scale:s,rot:x*z}); m.position.set(x,y,z); scene.add(m);
+  }
+}
+
+/* ---------- (пере)строить обе башни ---------- */
+function rebuild(){
+  torchLights=[]; flames=[];
+  if(beforeGroup) scene.remove(beforeGroup);
+  if(afterGroup)  scene.remove(afterGroup);
+  beforeGroup=buildBefore(level); beforeGroup.position.set(-2.8,0,0); scene.add(beforeGroup);
+  afterGroup =buildAfter(level);  afterGroup.position.set( 2.8,0,0);  scene.add(afterGroup);
+  applyNight();
+}
+
+/* ---------- ночь/день ---------- */
+function applyNight(){
+  if(night){
+    scene.background=makeSky(['#1a2536','#121a28','#0c1119']);
+    scene.fog.color.setHex(0x121a28);
+    sun.color.setHex(0x8ea6d8); sun.intensity=0.25;   // холодный лунный свет
+    hemi.color.setHex(0x2a3b57); hemi.groundColor.setHex(0x141d12); hemi.intensity=0.35;
+    scene.environment=null;                            // гасим дневной IBL — светят факелы
+    torchLights.forEach(l=>{ l.intensity=3.2; l.distance=7; });
+  }else{
+    scene.background=makeSky(['#cfe7f4','#bcdcec','#a6cbe0']);
+    scene.fog.color.setHex(0xc7e6f2);
+    sun.color.setHex(0xfff1d6); sun.intensity=1.6;
+    hemi.color.setHex(0xdfeeff); hemi.groundColor.setHex(0x5c7a42); hemi.intensity=0.5;
+    scene.environment=envTex;                          // возвращаем дневной IBL
+    torchLights.forEach(l=>{ l.intensity=0.6; l.distance=5; });
+  }
+}
+
+/* ---------- постобработка (bloom + SMAA), как в игре ---------- */
+function setupPost(){
+  try{
+    const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType});
+    composer=new EffectComposer(renderer,rt);
+    composer.addPass(new RenderPass(scene,camera));
+    bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.18,0.6,0.9);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+    try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
+  }catch(e){ composer=null; }
+}
+
+/* ---------- орбита камеры ---------- */
+let yaw=0.7, pitch=0.62, dist=11;
+function updateCam(){
+  const cy=1.4;
+  camera.position.set(
+    Math.sin(yaw)*Math.cos(pitch)*dist,
+    Math.sin(pitch)*dist+cy,
+    Math.cos(yaw)*Math.cos(pitch)*dist
+  );
+  camera.lookAt(0,cy,0);
+}
+function bindUI(){
+  const el=renderer.domElement; let drag=false,px=0,py=0;
+  el.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;el.setPointerCapture(e.pointerId);});
+  el.addEventListener('pointermove',e=>{ if(!drag)return;
+    yaw-=(e.clientX-px)*0.006; pitch=Math.max(0.15,Math.min(1.3,pitch+(e.clientY-py)*0.005));
+    px=e.clientX;py=e.clientY; });
+  el.addEventListener('pointerup',()=>drag=false);
+  el.addEventListener('wheel',e=>{ dist=Math.max(6,Math.min(20,dist+Math.sign(e.deltaY)*0.8)); e.preventDefault();},{passive:false});
+
+  document.querySelectorAll('#lvls button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#lvls button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); level=+b.dataset.l; rebuild();
+  }));
+  const tm=document.getElementById('tmToggle');
+  tm.addEventListener('click',()=>{ tm.classList.toggle('on');
+    renderer.toneMapping = tm.classList.contains('on')?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
+    renderer.toneMappingExposure = tm.classList.contains('on')?1.15:1.0;
+    scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true);} });
+  });
+  const nt=document.getElementById('nightToggle');
+  nt.addEventListener('click',()=>{ nt.classList.toggle('on'); night=nt.classList.contains('on'); applyNight(); });
+}
+function onResize(){
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  if(composer) composer.setSize(innerWidth,innerHeight);
+}
+
+/* ---------- кадр ---------- */
+function frame(){
+  const t=clock.getElapsedTime();
+  updateCam();
+  // мерцание факелов
+  for(let i=0;i<torchLights.length;i++){
+    const base=night?3.2:0.6;
+    const fl=0.75+0.25*Math.sin(t*11+i*2.1)+0.12*Math.sin(t*23+i);
+    torchLights[i].intensity=base*fl;
+    flames[i].scale.set(1+0.08*Math.sin(t*17+i),1.5+0.3*fl,1+0.08*Math.cos(t*15+i));
+  }
+  // анимация флага, кристалла
+  scene.traverse(o=>{
+    if(o.userData.wave){ const g=o.geometry; const p=g.attributes.position;
+      for(let i=0;i<p.count;i++){ const x=p.getX(i);
+        p.setZ(i, Math.sin(x*7+t*4)*0.05*x); } p.needsUpdate=true; }
+    if(o.userData.spin) o.rotation.y=t*1.1;
+    if(o.userData.float) o.position.y = o.userData.baseY + Math.sin(t*1.6)*0.08;
+  });
+
+  if(composer) composer.render(); else renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>

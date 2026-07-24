@@ -855,7 +855,7 @@ function makeSoldierMesh(kind,color){
     const head=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8), mat); head.position.y=0.36; g.add(head);
   }
   g.traverse(c=>{ if(c.isMesh) c.castShadow=true; });
-  g.scale.setScalar(1.45);
+  g.scale.setScalar(2.1);   // крупнее — теперь солдатики главный индикатор потока (стрелки убраны)
   return g;
 }
 function applyArrival(node, owner, dmg){
@@ -1026,24 +1026,22 @@ function rebuildLinks(){
   flowTexes.forEach(t=>t.dispose()); flowTexes=[];
   const up=new THREE.Vector3(0,1,0);
   for(const L of links){ const a=nodes[L.from], b=nodes[L.to];
-    const A=new THREE.Vector3(a.x,GROUND_TOP+0.22,a.z), B=new THREE.Vector3(b.x,GROUND_TOP+0.22,b.z);
+    const A=new THREE.Vector3(a.x,GROUND_TOP+0.12,a.z), B=new THREE.Vector3(b.x,GROUND_TOP+0.12,b.z);
     const u=new THREE.Vector3().subVectors(B,A).normalize();
-    const start=A.clone().add(u.clone().multiplyScalar(0.75));
-    const end=B.clone().add(u.clone().multiplyScalar(-0.95));
+    const start=A.clone().add(u.clone().multiplyScalar(0.7));
+    const end=B.clone().add(u.clone().multiplyScalar(-0.85));
     const seg=new THREE.Vector3().subVectors(end,start); const L2=seg.length();
-    const mat=new THREE.MeshStandardMaterial({ color:SOLID[L.o], roughness:0.45, metalness:0.05, emissive:SOLID[L.o], emissiveIntensity:0.12 });
-    const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,L2,12), mat);
-    tube.quaternion.setFromUnitVectors(up, seg.clone().normalize());
-    tube.position.copy(start).add(end).multiplyScalar(0.5);
-    tube.userData.link=L; linkGroup.add(tube);
-    // бегущие шевроны — видно направление потока
-    const ftex=stripeTex.clone(); ftex.needsUpdate=true; ftex.repeat.set(1, Math.max(1,Math.round(L2/1.1)));
-    const over=new THREE.Mesh(new THREE.CylinderGeometry(0.165,0.165,L2,12,1,true),
-      new THREE.MeshBasicMaterial({ color:0xffffff, alphaMap:ftex, transparent:true, opacity:0.85, depthWrite:false }));
-    over.quaternion.copy(tube.quaternion); over.position.copy(tube.position);
-    over.userData.link=L; linkGroup.add(over); flowTexes.push(ftex);
-    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.5,14), mat);
-    cone.quaternion.setFromUnitVectors(up, u); cone.position.copy(end); cone.userData.link=L; linkGroup.add(cone);
+    const q=new THREE.Quaternion().setFromUnitVectors(up, seg.clone().normalize());
+    const mid=start.clone().add(end).multiplyScalar(0.5);
+    // тонкая линия-связь: видно, какие башни соединены и чей поток (без толстой стрелки и шевронов — их заменяют солдатики)
+    const mat=new THREE.MeshStandardMaterial({ color:SOLID[L.o], emissive:SOLID[L.o], emissiveIntensity:0.28,
+      roughness:0.5, metalness:0.05, transparent:true, opacity:0.55, depthWrite:false });
+    const line=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,L2,8), mat);
+    line.quaternion.copy(q); line.position.copy(mid); line.userData.link=L; linkGroup.add(line);
+    // невидимая широкая зона вдоль связи — чтобы её по-прежнему легко было убрать тапом
+    const pick=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,L2,6),
+      new THREE.MeshBasicMaterial({ visible:false }));
+    pick.quaternion.copy(q); pick.position.copy(mid); pick.userData.link=L; linkGroup.add(pick);
   }
 }
 

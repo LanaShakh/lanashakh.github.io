@@ -582,18 +582,25 @@ function makeStripeTexture(){
 let groundMat=null, groundPatches=[];
 function buildGround(){
   GROUND_TOP = 0;
-  // one continuous world, fills the screen (no grid)
-  groundMat=new THREE.MeshStandardMaterial({color:0x77c24e, roughness:1, metalness:0});
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(180,180).rotateX(-Math.PI/2), groundMat);
-  g.position.y=0; g.receiveShadow=true; scene.add(g);
-  // soft mottled patches for depth (deterministic, no grid)
-  const rng=mulberry32(98765);
-  for(let i=0;i<28;i++){ const col=i%2? 0x5fae4e:0x7cca64; const r=3+rng()*6.5;
-    const patch=new THREE.Mesh(new THREE.CircleGeometry(r,20).rotateX(-Math.PI/2),
-      new THREE.MeshStandardMaterial({color:col, roughness:1, transparent:true, opacity:0.5, depthWrite:false}));
-    patch.position.set((rng()*2-1)*24, 0.01+i*0.0006, (rng()*2-1)*17); scene.add(patch);
-    groundPatches.push(patch);
+  // ровная земля с плавной тональной фактурой (vertex-цвета как множитель к цвету биома)
+  groundMat=new THREE.MeshStandardMaterial({color:0x77c24e, roughness:1, metalness:0, vertexColors:true});
+  const geo=new THREE.PlaneGeometry(180,180,120,120).rotateX(-Math.PI/2);
+  const pos=geo.attributes.position, col=[];
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i), z=pos.getZ(i);
+    // низкочастотный «шум» -> крупные мягкие пятна; в центре карты чуть светлее
+    const n=Math.sin(x*0.13+1.3)*Math.cos(z*0.11)
+          + Math.sin(x*0.07-z*0.09)*0.6
+          + Math.cos(z*0.17+x*0.05)*0.4;
+    let m=1+ n*0.10;                                  // множитель яркости — крупные мягкие пятна
+    const d=Math.hypot(x,z); if(d<20) m+=0.05*(1-d/20); // лёгкий подсвет игровой зоны
+    m=Math.max(0.78,Math.min(1.2,m));
+    col.push(m,m,m);
   }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  const g=new THREE.Mesh(geo, groundMat);
+  g.position.y=0; g.receiveShadow=true; scene.add(g);
+  // groundPatches остаётся пустым — фактуру теперь даёт vertex-цвет (applyBiome это учитывает)
 }
 function applyBiome(b){
   if(groundMat) groundMat.color.setHex(b.ground);
@@ -786,19 +793,58 @@ function chooseGambit(k){
   h.style.opacity='1'; setTimeout(()=>{ h.style.opacity='0'; },3500);
 }
 
+// --- декор башни: контактная тень + каменный цоколь + флаг команды ---
+let _contactTex=null;
+function contactShadowTex(){
+  if(_contactTex) return _contactTex;
+  const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,4,64,64,60);
+  g.addColorStop(0,'rgba(0,0,0,0.5)'); g.addColorStop(0.55,'rgba(0,0,0,0.24)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g; x.fillRect(0,0,128,128);
+  _contactTex=new THREE.CanvasTexture(c); return _contactTex;
+}
+function makeTeamFlag(color,topY){
+  const g=new THREE.Group();
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.032,0.7,7),
+    new THREE.MeshStandardMaterial({color:0x6b5636,roughness:0.85}));
+  pole.position.y=0.35; pole.castShadow=true; g.add(pole);
+  const cloth=new THREE.Mesh(new THREE.PlaneGeometry(0.42,0.27),
+    new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.18,roughness:0.6,side:THREE.DoubleSide}));
+  cloth.position.set(0.22,0.58,0); cloth.castShadow=true; g.add(cloth);
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(0.045,10,8),
+    new THREE.MeshStandardMaterial({color:0xffd27a,roughness:0.4,metalness:0.3}));
+  knob.position.y=0.71; g.add(knob);
+  g.position.y=topY-0.12; g.scale.setScalar(0.9);
+  return g;
+}
+
 const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group);
     if(n.view.div && n.view.div.parentNode) n.view.div.parentNode.removeChild(n.view.div); }
   const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.0);
+  // мягкая контактная тень — башня «прилипает» к земле
+  const csh=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial({ map:contactShadowTex(), transparent:true, opacity:0.5, depthWrite:false }));
+  csh.position.y=0.015; csh.renderOrder=-1; group.add(csh);
+  // каменный цоколь — башня получает «вес», перестаёт висеть на траве
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.84,0.18,24),
+    new THREE.MeshStandardMaterial({ color:0x8b8f96, roughness:0.95 }));
+  base.position.y=0.09; base.castShadow=true; base.receiveShadow=true; base.userData.nodeId=n.id; group.add(base);
   // team ring on the ground (ownership); у врага — шестигранник (форма, не только цвет)
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.085,12,n.o===2?6:40).rotateX(Math.PI/2),
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.64,0.07,12,n.o===2?6:40).rotateX(Math.PI/2),
     new THREE.MeshStandardMaterial({ color:SOLID[n.o], emissive:SOLID[n.o], emissiveIntensity:0.5, roughness:0.5 }));
-  ring.position.y=0.05; group.add(ring);
-  // TD-kit tower model, grows by level (b->c->d->f)
+  ring.position.y=0.18; group.add(ring);
+  // TD-kit tower model, grows by level (b->c->d->f) — стоит на цоколе
   const tow=MODELS[TOWER[Math.min(4,n.l)]].clone(true);
   tow.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
-  tow.scale.setScalar(n.trait==='fort'?1.38:1.15); group.add(tow);
+  tow.scale.setScalar(n.trait==='fort'?1.38:1.15); tow.position.y=0.17; group.add(tow);
+  // флаг команды на вершине (у своих/врага; нейтралам и маякам — нет, чтобы не пестрило)
+  if((n.o===1||n.o===2) && n.trait!=='beacon'){
+    const topY=new THREE.Box3().setFromObject(tow).max.y;
+    const flag=makeTeamFlag(SOLID[n.o], topY);
+    flag.traverse(c=>{ if(c.isMesh) c.userData.nodeId=n.id; }); group.add(flag);
+  }
   // особые здания: мельница — домик рядом, маяк — флаг
   if(n.trait==='mill'){ const h=MODELS.h2.clone(true); h.scale.setScalar(0.6);
     h.position.set(0.95,0,0.6); h.rotation.y=-0.7;

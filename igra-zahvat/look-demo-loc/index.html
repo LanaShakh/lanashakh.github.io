@@ -11,7 +11,7 @@
   #app{position:fixed;inset:0;}
   canvas{display:block;touch-action:none;}
 
-  .panel{position:fixed;left:14px;bottom:14px;z-index:6;width:min(320px,calc(100vw - 28px));
+  .panel{position:fixed;left:14px;bottom:14px;z-index:6;width:min(322px,calc(100vw - 28px));
     background:rgba(16,20,27,.72);backdrop-filter:blur(16px) saturate(1.2);
     border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px 16px;
     box-shadow:0 10px 40px rgba(0,0,0,.45);}
@@ -57,13 +57,13 @@
 
 <div class="panel">
   <h1>Локация: демо графики</h1>
-  <div class="sub">Одна и та же карта. Переключай «было/стало» целиком или разбирай по фичам. Тащи мышью — облёт.</div>
+  <div class="sub">Одна и та же карта, ровная земля как в игре. Переключай «было/стало» целиком или по фичам. Тащи мышью — облёт.</div>
   <div class="seg" id="master">
     <button data-m="before">Было</button>
     <button data-m="after" class="on">Стало</button>
   </div>
-  <div class="row" data-f="terrain"><div class="lbl">Рельеф<small>холмы + затемнение в низинах</small></div><div class="toggle on"></div></div>
-  <div class="row" data-f="paths"><div class="lbl">Тропы<small>грунтовые дорожки между узлами</small></div><div class="toggle on"></div></div>
+  <div class="row" data-f="ground"><div class="lbl">Фактура земли<small>тон пятнами + грунт у троп</small></div><div class="toggle on"></div></div>
+  <div class="row" data-f="paths"><div class="lbl">Тропы<small>ровные грунтовые дорожки</small></div><div class="toggle on"></div></div>
   <div class="row" data-f="greens"><div class="lbl">Кластеры зелени<small>трава пятнами + проплешины</small></div><div class="toggle on"></div></div>
   <div class="row" data-f="forest"><div class="lbl">Дальний лес<small>силуэт леса в тумане по краю</small></div><div class="toggle on"></div></div>
 </div>
@@ -82,26 +82,24 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
 let renderer, scene, camera, composer, sun, hemi;
 const MODELS={};
-let worldGroup=null;           // всё, что перестраивается
+let worldGroup=null;
 const clock=new THREE.Clock();
 
-// узлы карты и связи между ними (маленький граф)
-const NODES=[ {x:-7,z:-4,l:2}, {x:6,z:-6,l:3}, {x:8,z:5,l:2}, {x:-5,z:7,l:1}, {x:0,z:0,l:4} ];
+// узлы карты и связи (маленький граф) — координаты фиксированы, земля ровная
+const NODES=[ {x:-8,z:-4,l:2}, {x:7,z:-6,l:3}, {x:9,z:5,l:2}, {x:-6,z:8,l:1}, {x:0,z:0,l:4} ];
 const EDGES=[[4,0],[4,1],[4,2],[4,3],[0,3],[1,2]];
-const TEAM=[0x4a7bd6,0xd0603f,0x4a7bd6,0x8a8f98,0x4a7bd6];   // цвета владения узлов
+const TEAM=[0x4a7bd6,0xd0603f,0x4a7bd6,0x8a8f98,0x4a7bd6];
 
-// состояние фич
-const feat={ terrain:true, paths:true, greens:true, forest:true };
+const feat={ ground:true, paths:true, greens:true, forest:true };
 
-/* детерминированный псевдослучай, чтобы расстановка не «прыгала» при перестройке */
+// детерминированный псевдослучай
 let seed=1337; function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
 
-/* мягкий рельеф: плавные холмы небольшой амплитуды */
-function terrainH(x,z){
-  if(!feat.terrain) return 0;
-  return (Math.sin(x*0.23)*Math.cos(z*0.20)*0.9
-        + Math.sin(x*0.5+z*0.35)*0.35
-        + Math.cos(z*0.45-x*0.15)*0.3) * 0.7;
+// плавный «шум» для тона земли (низкая частота -> крупные пятна)
+function toneNoise(x,z){
+  return Math.sin(x*0.16+1.3)*Math.cos(z*0.14)
+       + Math.sin(x*0.09-z*0.11)*0.6
+       + Math.cos(z*0.2+x*0.05)*0.4;
 }
 
 init();
@@ -117,18 +115,18 @@ async function init(){
 
   scene=new THREE.Scene();
   scene.background=makeSky(['#cfe7f4','#bcdcec','#a6cbe0']);
-  scene.fog=new THREE.Fog(0xc7e6f2, 22, 46);
+  scene.fog=new THREE.Fog(0xc7e6f2, 34, 72);      // мягкий, но не съедает дальний лес
 
   const pmrem=new THREE.PMREMGenerator(renderer);
   scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
 
-  camera=new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 200);
+  camera=new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.1, 200);
 
   hemi=new THREE.HemisphereLight(0xdfeeff,0x5c7a42,0.5); scene.add(hemi);
   sun=new THREE.DirectionalLight(0xfff1d6,1.6);
   sun.position.set(10,16,8); sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048);
-  const sc=sun.shadow.camera; sc.left=-16;sc.right=16;sc.top=14;sc.bottom=-14;sc.near=1;sc.far=60;
+  const sc=sun.shadow.camera; sc.left=-18;sc.right=18;sc.top=16;sc.bottom=-16;sc.near=1;sc.far=60;
   sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
   const fill=new THREE.DirectionalLight(0xbcd2ff,0.32); fill.position.set(-10,7,-4); scene.add(fill);
   const rim=new THREE.DirectionalLight(0xffffff,0.6); rim.position.set(-6,6,-10); scene.add(rim);
@@ -139,16 +137,18 @@ async function init(){
     td:'td/tower-round-build-d.glb', tf:'td/tower-round-build-f.glb',
     oak:'nat/tree_oak.glb', tdef:'nat/tree_default.glb', tfat:'nat/tree_fat.glb',
     pineA:'nat/tree_pineRoundA.glb', pineB:'nat/tree_pineDefaultA.glb', pineC:'nat/tree_pineRoundC.glb',
-    oakF:'nat/tree_oak_fall.glb', tdefF:'nat/tree_default_fall.glb',
     grass:'nat/grass.glb', grassL:'nat/grass_large.glb', bush:'nat/plant_bush.glb', bushL:'nat/plant_bushLarge.glb',
     fR:'nat/flower_redB.glb', fY:'nat/flower_yellowB.glb', fP:'nat/flower_purpleB.glb',
     rock:'nat/rock_smallB.glb', rock2:'nat/rock_largeB.glb', mush:'nat/mushroom_redGroup.glb',
-    stump:'nat/stump_old.glb', logS:'nat/log_stack.glb'
+    stump:'nat/stump_old.glb'
   };
   const entries=await Promise.all(Object.entries(names).map(async([k,f])=>{
     const g=await loader.loadAsync('../models/'+f); return [k,g.scene];
   }));
-  for(const [k,s] of entries) MODELS[k]=s;
+  for(const [k,s] of entries){ MODELS[k]=s;
+    // запомним «низ» модели, чтобы ставить основание точно на землю
+    s.userData.minY=new THREE.Box3().setFromObject(s).min.y;
+  }
 
   build();
   document.getElementById('loading').style.opacity='0';
@@ -169,84 +169,78 @@ function makeSky(cols){
 }
 
 /* ---------- utility ---------- */
+// клон модели, поставленный основанием ровно на землю (y=0)
 function inst(key,{s=1,ry=0,cast=true}={}){
-  const m=MODELS[key].clone(true); m.scale.setScalar(s); m.rotation.y=ry;
+  const src=MODELS[key];
+  const m=src.clone(true); m.scale.setScalar(s); m.rotation.y=ry;
+  m.position.y=-(src.userData.minY||0)*s;      // «уронить» на землю
   m.traverse(c=>{ if(c.isMesh){ c.castShadow=cast; c.receiveShadow=true; } });
   return m;
 }
-// расстояние от точки (px,pz) до отрезка a-b на плоскости XZ
 function distToSeg(px,pz,ax,az,bx,bz){
   const dx=bx-ax,dz=bz-az, l2=dx*dx+dz*dz;
-  let t = l2? ((px-ax)*dx+(pz-az)*dz)/l2 : 0; t=Math.max(0,Math.min(1,t));
+  let t=l2? ((px-ax)*dx+(pz-az)*dz)/l2 : 0; t=Math.max(0,Math.min(1,t));
   const cx=ax+t*dx, cz=az+t*dz; return Math.hypot(px-cx,pz-cz);
 }
-function nearAnyPath(x,z,margin){
-  for(const [a,b] of EDGES){
-    if(distToSeg(x,z,NODES[a].x,NODES[a].z,NODES[b].x,NODES[b].z)<margin) return true;
-  } return false;
+function distAnyPath(x,z){
+  let d=1e9; for(const [a,b] of EDGES) d=Math.min(d,distToSeg(x,z,NODES[a].x,NODES[a].z,NODES[b].x,NODES[b].z));
+  return d;
 }
-function nearAnyNode(x,z,margin){
-  for(const n of NODES) if(Math.hypot(x-n.x,z-n.z)<margin) return true; return false;
-}
+function nearAnyNode(x,z,m){ for(const n of NODES) if(Math.hypot(x-n.x,z-n.z)<m) return true; return false; }
 
-/* ---------- ЗЕМЛЯ ---------- */
+/* ---------- ЗЕМЛЯ (ровная, но с тоном) ---------- */
 function buildGround(){
-  const S=52, seg=feat.terrain?96:1;
-  const geo=new THREE.PlaneGeometry(S,S,seg,seg).rotateX(-Math.PI/2);
-  const pos=geo.attributes.position;
-  const col=[];
-  const lowC=new THREE.Color(0x4f8a3c), midC=new THREE.Color(0x74c04a), hiC=new THREE.Color(0x9ad46a);
-  const dirtC=new THREE.Color(0x9a7d4e);
-  for(let i=0;i<pos.count;i++){
-    const x=pos.getX(i), z=pos.getZ(i);
-    const h=terrainH(x,z); pos.setY(i,h);
-    // цвет по высоте: темнее в низинах, светлее на гребнях
-    const t=Math.max(0,Math.min(1,(h+1.0)/2.0));
-    const c=lowC.clone().lerp(midC,Math.min(1,t*1.6)).lerp(hiC,Math.max(0,t-0.55)*2.2);
-    // лёгкое «вытаптывание» травы вдоль троп
-    if(feat.paths){
-      let dmin=99; for(const [a,b] of EDGES) dmin=Math.min(dmin,distToSeg(x,z,NODES[a].x,NODES[a].z,NODES[b].x,NODES[b].z));
-      if(dmin<2.2){ const k=1-Math.min(1,(dmin-0.9)/1.3); c.lerp(dirtC,Math.max(0,k)*0.5); }
+  const S=58, seg=feat.ground?110:1;
+  const geo=new THREE.PlaneGeometry(S,S,seg,seg).rotateX(-Math.PI/2);  // плоскость, y=0
+  if(feat.ground){
+    const pos=geo.attributes.position, col=[];
+    const g1=new THREE.Color(0x69b046), g2=new THREE.Color(0x7cc855), g3=new THREE.Color(0x8fd468);
+    const dirtC=new THREE.Color(0x9a7d4e), dryC=new THREE.Color(0x9fb257);
+    for(let i=0;i<pos.count;i++){
+      const x=pos.getX(i), z=pos.getZ(i);
+      const n=(toneNoise(x,z)+2)/4;                 // 0..1 крупные пятна травы
+      const c=g1.clone().lerp(g2,Math.min(1,n*1.4)).lerp(g3,Math.max(0,n-0.6)*2.2);
+      if(n>0.72) c.lerp(dryC,(n-0.72)*1.5);         // редкие «выгоревшие» пятна
+      if(feat.paths){                                // грунт у троп + под узлами
+        const dp=distAnyPath(x,z);
+        if(dp<2.3){ c.lerp(dirtC, (1-Math.min(1,(dp-0.7)/1.6))*0.55); }
+        for(const nd of NODES){ const dn=Math.hypot(x-nd.x,z-nd.z);
+          if(dn<2.0) c.lerp(dirtC,(1-dn/2.0)*0.5); }
+      }
+      col.push(c.r,c.g,c.b);
     }
-    col.push(c.r,c.g,c.b);
+    geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+    const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0});
+    const ground=new THREE.Mesh(geo,mat); ground.receiveShadow=true; worldGroup.add(ground);
+  }else{
+    const mat=new THREE.MeshStandardMaterial({color:0x77c24e,roughness:1,metalness:0});
+    const ground=new THREE.Mesh(geo,mat); ground.receiveShadow=true; worldGroup.add(ground);
   }
-  geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
-  geo.computeVertexNormals();
-  const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0});
-  const ground=new THREE.Mesh(geo,mat); ground.receiveShadow=true; worldGroup.add(ground);
 }
 
-/* ---------- ТРОПЫ ---------- */
+/* ---------- ТРОПЫ (ровные, лежат на земле) ---------- */
 function buildPaths(){
   for(const [a,b] of EDGES){
     const A=NODES[a], B=NODES[b];
-    // ломаем прямую 1-2 промежуточными точками, тропа «вьётся» и лежит на рельефе
-    const steps=14, pts=[];
-    for(let i=0;i<=steps;i++){
-      const t=i/steps;
-      const wob=Math.sin(t*Math.PI)*( (a*7+b*3)%2? 0.8:-0.8);   // лёгкий изгиб
-      const nx=-(B.z-A.z), nz=(B.x-A.x); const nl=Math.hypot(nx,nz)||1;
-      const x=A.x+(B.x-A.x)*t + nx/nl*wob;
-      const z=A.z+(B.z-A.z)*t + nz/nl*wob;
-      pts.push(new THREE.Vector3(x, terrainH(x,z)+0.04, z));
-    }
+    const nx=-(B.z-A.z), nz=(B.x-A.x); const nl=Math.hypot(nx,nz)||1;
+    const bend=((a*7+b*3)%2? 1:-1)*1.1;
+    const pts=[];
+    for(let i=0;i<=10;i++){ const t=i/10, w=Math.sin(t*Math.PI)*bend;
+      pts.push(new THREE.Vector3(A.x+(B.x-A.x)*t+nx/nl*w, 0.03, A.z+(B.z-A.z)*t+nz/nl*w)); }
     if(feat.paths){
       const curve=new THREE.CatmullRomCurve3(pts);
-      const geo=new THREE.TubeGeometry(curve,48,0.55,8,false);
+      const geo=new THREE.TubeGeometry(curve,60,0.62,8,false);
       const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x9c7b4a,roughness:1}));
-      mesh.scale.y=0.06; mesh.receiveShadow=true; worldGroup.add(mesh);
-      // редкие камешки по краю тропы
-      for(let i=2;i<pts.length-2;i+=3){ if(rnd()>0.5) continue;
+      mesh.scale.y=0.045; mesh.position.y=0.02; mesh.receiveShadow=true; worldGroup.add(mesh);
+      for(let i=2;i<pts.length-2;i++){ if(rnd()>0.4) continue;
         const p=pts[i], side=(rnd()<0.5?1:-1);
-        const nx=-(B.z-A.z), nz=(B.x-A.x); const nl=Math.hypot(nx,nz)||1;
-        const r=inst('rock',{s:0.4+rnd()*0.3,ry:rnd()*6});
-        r.position.set(p.x+nx/nl*0.75*side, p.y-0.04, p.z+nz/nl*0.75*side); worldGroup.add(r);
+        const r=inst('rock',{s:0.35+rnd()*0.25,ry:rnd()*6});
+        r.position.x=p.x+nx/nl*0.85*side; r.position.z=p.z+nz/nl*0.85*side; worldGroup.add(r);
       }
     }else{
-      // «было»: абстрактная светлая линия (как связи в текущей игре)
       const flat=pts.map(p=>new THREE.Vector3(p.x,0.05,p.z));
       const g=new THREE.BufferGeometry().setFromPoints(flat);
-      worldGroup.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.55})));
+      worldGroup.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.5})));
     }
   }
 }
@@ -255,85 +249,85 @@ function buildPaths(){
 function buildNodes(){
   const TW={1:'tb',2:'tc',3:'td',4:'tf'};
   for(let i=0;i<NODES.length;i++){
-    const n=NODES[i]; const y=terrainH(n.x,n.z);
-    const g=new THREE.Group(); g.position.set(n.x,y,n.z); worldGroup.add(g);
-    if(feat.terrain||feat.paths){   // «стало»: цоколь + пятно грунта
-      const dirt=new THREE.Mesh(new THREE.CircleGeometry(1.4,28).rotateX(-Math.PI/2),
-        new THREE.MeshStandardMaterial({color:0x9a7d4e,roughness:1}));
-      dirt.position.y=0.02; dirt.receiveShadow=true; g.add(dirt);
+    const n=NODES[i];
+    const g=new THREE.Group(); g.position.set(n.x,0,n.z); worldGroup.add(g);
+    // цоколь показываем в «стало» (когда есть грунт/тропы)
+    if(feat.ground||feat.paths){
       const base=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.8,0.2,20),
         new THREE.MeshStandardMaterial({color:0x8b8f96,roughness:0.95}));
       base.position.y=0.1; base.castShadow=true; base.receiveShadow=true; g.add(base);
     }
+    const yb=(feat.ground||feat.paths)?0.2:0.05;
     const ring=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.07,10,36).rotateX(Math.PI/2),
       new THREE.MeshStandardMaterial({color:TEAM[i],emissive:TEAM[i],emissiveIntensity:0.5,roughness:0.5}));
-    ring.position.y=(feat.terrain||feat.paths)?0.2:0.05; g.add(ring);
-    const tow=inst(TW[n.l],{s:n.l===4?1.15:1.05}); tow.position.y=(feat.terrain||feat.paths)?0.2:0; g.add(tow);
+    ring.position.y=yb; g.add(ring);
+    const tow=inst(TW[n.l],{s:n.l===4?1.15:1.05});
+    tow.position.y+=(feat.ground||feat.paths)?0.2:0; g.add(tow);
   }
 }
 
 /* ---------- ЗЕЛЕНЬ ---------- */
-function place(key,x,z,s,ry){
-  const m=inst(key,{s,ry}); m.position.set(x,terrainH(x,z),z); worldGroup.add(m);
-}
+function put(key,x,z,s,ry){ const m=inst(key,{s,ry}); m.position.x=x; m.position.z=z; worldGroup.add(m); }
 function buildGreens(){
-  const trees=['oak','tdef','tfat','pineA','pineB','pineC','oakF','tdefF'];
+  const trees=['oak','tdef','tfat','pineA','pineB','pineC'];
   if(feat.greens){
-    // кластеры вокруг «центров интереса» + проплешины у башен и троп
-    const clusters=[[-11,-8],[11,-10],[13,9],[-10,11],[-14,3],[12,0],[-3,-12],[4,13],[-13,-13],[14,-2]];
+    // рощи вокруг центров интереса + мелочь; проплешины у троп и башен
+    const clusters=[[-13,-9],[12,-11],[14,10],[-11,12],[-16,3],[13,-1],[-3,-13],[5,14],[-15,-14],[16,-3],[3,-9],[-9,-2]];
     for(const [cx,cz] of clusters){
-      const dense=3+Math.floor(rnd()*4);
+      const dense=4+Math.floor(rnd()*4);
       for(let k=0;k<dense;k++){
-        const x=cx+(rnd()-0.5)*6, z=cz+(rnd()-0.5)*6;
-        if(Math.abs(x)>24||Math.abs(z)>24) continue;
-        if(nearAnyPath(x,z,1.8)||nearAnyNode(x,z,2.4)) continue;   // проплешины
+        const x=cx+(rnd()-0.5)*7, z=cz+(rnd()-0.5)*7;
+        if(Math.abs(x)>26||Math.abs(z)>26) continue;
+        if(distAnyPath(x,z)<2.0||nearAnyNode(x,z,2.6)) continue;   // проплешины
         const r=rnd();
-        if(r<0.45) place(trees[Math.floor(rnd()*trees.length)], x,z, 0.9+rnd()*0.5, rnd()*6);
-        else if(r<0.7) place(rnd()<0.5?'bush':'bushL', x,z, 0.7+rnd()*0.4, rnd()*6);
-        else if(r<0.9) place(['fR','fY','fP'][Math.floor(rnd()*3)], x,z, 0.8+rnd()*0.4, rnd()*6);
-        else place(rnd()<0.5?'grass':'grassL', x,z, 0.9+rnd()*0.4, rnd()*6);
+        if(r<0.42) put(trees[Math.floor(rnd()*trees.length)], x,z, 0.85+rnd()*0.45, rnd()*6);
+        else if(r<0.64) put(rnd()<0.5?'bush':'bushL', x,z, 0.75+rnd()*0.35, rnd()*6);
+        else if(r<0.82) put(['fR','fY','fP'][Math.floor(rnd()*3)], x,z, 0.8+rnd()*0.35, rnd()*6);
+        else if(r<0.94) put(rnd()<0.5?'grass':'grassL', x,z, 0.9+rnd()*0.4, rnd()*6);
+        else put(rnd()<0.5?'rock':'stump', x,z, 0.7+rnd()*0.3, rnd()*6);
       }
     }
-    // редкая «одиночная» трава в проплешинах для мягкого перехода
-    for(let k=0;k<28;k++){
-      const x=(rnd()-0.5)*44, z=(rnd()-0.5)*44;
-      if(nearAnyPath(x,z,1.4)||nearAnyNode(x,z,2.2)) continue;
-      place('grass', x,z, 0.7+rnd()*0.3, rnd()*6);
+    // мягкий переход: редкая трава/цветы в открытых местах
+    for(let k=0;k<46;k++){
+      const x=(rnd()-0.5)*46, z=(rnd()-0.5)*46;
+      if(distAnyPath(x,z)<1.5||nearAnyNode(x,z,2.4)) continue;
+      const r=rnd();
+      if(r<0.6) put('grass', x,z, 0.7+rnd()*0.35, rnd()*6);
+      else put(['fR','fY','fP'][Math.floor(rnd()*3)], x,z, 0.7+rnd()*0.3, rnd()*6);
     }
   }else{
-    // «было»: равномерный редкий разброс без кластеров и проплешин
-    for(let k=0;k<34;k++){
-      const x=(rnd()-0.5)*40, z=(rnd()-0.5)*40;
+    // «было»: равномерный редкий разброс, один масштаб, без группировки
+    for(let k=0;k<36;k++){
+      const x=(rnd()-0.5)*42, z=(rnd()-0.5)*42;
       const r=rnd();
-      if(r<0.4) place(trees[Math.floor(rnd()*trees.length)], x,z, 1.0, rnd()*6);
-      else if(r<0.7) place('grass', x,z, 1.0, rnd()*6);
-      else place(rnd()<0.5?'fR':'fY', x,z, 1.0, rnd()*6);
+      if(r<0.4) put(trees[Math.floor(rnd()*trees.length)], x,z, 1.0, rnd()*6);
+      else if(r<0.7) put('grass', x,z, 1.0, rnd()*6);
+      else put(rnd()<0.5?'fR':'fY', x,z, 1.0, rnd()*6);
     }
   }
 }
 
-/* ---------- ДАЛЬНИЙ ЛЕС (силуэт в тумане) ---------- */
+/* ---------- ДАЛЬНИЙ ЛЕС ---------- */
 function buildForest(){
   if(!feat.forest) return;
   const pines=['pineA','pineB','pineC'];
-  const R=26;
-  for(let a=0;a<Math.PI*2;a+=0.10){
-    const rr=R+(rnd()-0.5)*4;
-    const x=Math.cos(a)*rr, z=Math.sin(a)*rr;
-    place(pines[Math.floor(rnd()*pines.length)], x,z, 1.3+rnd()*0.8, rnd()*6);
-    if(rnd()<0.4){ const x2=Math.cos(a+0.04)*(rr+2.2), z2=Math.sin(a+0.04)*(rr+2.2);
-      place(pines[Math.floor(rnd()*pines.length)], x2,z2, 1.6+rnd()*0.8, rnd()*6); }
+  const R=27;
+  for(let a=0;a<Math.PI*2;a+=0.085){
+    const rr=R+(rnd()-0.5)*3.5;
+    put(pines[Math.floor(rnd()*pines.length)], Math.cos(a)*rr, Math.sin(a)*rr, 1.4+rnd()*0.9, rnd()*6);
+    if(rnd()<0.5){ const r2=rr+2.4;
+      put(pines[Math.floor(rnd()*pines.length)], Math.cos(a+0.03)*r2, Math.sin(a+0.03)*r2, 1.7+rnd()*0.9, rnd()*6); }
   }
-  // низкие холмы-«валы» на горизонте
-  for(let a=0;a<Math.PI*2;a+=0.5){
-    const x=Math.cos(a)*(R+5), z=Math.sin(a)*(R+5);
-    const hill=new THREE.Mesh(new THREE.SphereGeometry(4.5,16,10,0,Math.PI*2,0,Math.PI/2),
+  // низкие холмы-валы на горизонте (только тут, вдалеке, земле не мешают)
+  for(let a=0;a<Math.PI*2;a+=0.55){
+    const x=Math.cos(a)*(R+6), z=Math.sin(a)*(R+6);
+    const hill=new THREE.Mesh(new THREE.SphereGeometry(5,16,10,0,Math.PI*2,0,Math.PI/2),
       new THREE.MeshStandardMaterial({color:0x5f8a48,roughness:1}));
-    hill.position.set(x,-0.5,z); hill.scale.y=0.5; worldGroup.add(hill);
+    hill.position.set(x,-0.6,z); hill.scale.y=0.5; worldGroup.add(hill);
   }
 }
 
-/* ---------- (пере)сборка мира ---------- */
+/* ---------- (пере)сборка ---------- */
 function build(){
   seed=1337;
   if(worldGroup){ scene.remove(worldGroup);
@@ -356,22 +350,21 @@ function setupPost(){
 }
 
 /* ---------- орбита ---------- */
-let yaw=0.7, pitch=0.7, dist=30;
+let yaw=0.7, pitch=0.62, dist=24;
 function updateCam(){
-  camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+2,
+  camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+1.5,
                       Math.cos(yaw)*Math.cos(pitch)*dist);
-  camera.lookAt(0,0.5,0);
+  camera.lookAt(0,0.4,0);
 }
 function bindUI(){
   const el=renderer.domElement; let drag=false,px=0,py=0;
   el.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;el.setPointerCapture(e.pointerId);});
   el.addEventListener('pointermove',e=>{ if(!drag)return;
-    yaw-=(e.clientX-px)*0.006; pitch=Math.max(0.25,Math.min(1.35,pitch+(e.clientY-py)*0.005));
+    yaw-=(e.clientX-px)*0.006; pitch=Math.max(0.22,Math.min(1.35,pitch+(e.clientY-py)*0.005));
     px=e.clientX;py=e.clientY; });
   el.addEventListener('pointerup',()=>drag=false);
-  el.addEventListener('wheel',e=>{ dist=Math.max(16,Math.min(46,dist+Math.sign(e.deltaY)*1.5)); e.preventDefault();},{passive:false});
+  el.addEventListener('wheel',e=>{ dist=Math.max(14,Math.min(44,dist+Math.sign(e.deltaY)*1.5)); e.preventDefault();},{passive:false});
 
-  // мастер «было/стало»
   document.querySelectorAll('#master button').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('#master button').forEach(x=>x.classList.remove('on'));
     b.classList.add('on');
@@ -381,7 +374,6 @@ function bindUI(){
     document.querySelectorAll('.row').forEach(r=>r.querySelector('.toggle').classList.toggle('on',on));
     build();
   }));
-  // отдельные фичи
   document.querySelectorAll('.row').forEach(r=>r.addEventListener('click',()=>{
     const f=r.dataset.f; feat[f]=!feat[f];
     r.querySelector('.toggle').classList.toggle('on',feat[f]);

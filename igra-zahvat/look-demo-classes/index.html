@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Захват — демо классов: башня + юниты в движении</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:#0e1116;color:#eef3f8;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  #app{position:fixed;inset:0;}
+  .labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:5;}
+  canvas{display:block;touch-action:none;}
+  .clbl{transform:translate(-50%,-50%);white-space:nowrap;text-align:center;}
+  .clbl .ico{font-size:26px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));}
+  .clbl .nm{font-size:13px;font-weight:750;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);margin-top:2px;}
+  .clbl .rl{font-size:11px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.7);}
+
+  .panel{position:fixed;left:14px;bottom:14px;z-index:6;width:min(320px,calc(100vw - 28px));
+    background:rgba(16,20,27,.72);backdrop-filter:blur(16px) saturate(1.2);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px 16px;box-shadow:0 10px 40px rgba(0,0,0,.45);}
+  .panel h1{font-size:14px;font-weight:750;margin-bottom:2px;}
+  .panel .sub{font-size:11.5px;color:#9fb0c2;margin-bottom:12px;line-height:1.35;}
+  .seg{display:flex;gap:6px;}
+  .seg button{flex:1;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.05);color:#eef3f8;font-weight:700;font-size:13px;cursor:pointer;transition:.15s;}
+  .seg button.blue.on{background:#4a7bd6;border-color:#8fb2ee;color:#06101f;}
+  .seg button.red.on{background:#d0603f;border-color:#eaa088;color:#180a05;}
+  .feat{font-size:11px;color:#8fa2b6;line-height:1.5;margin-top:11px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;}
+  .hint{position:fixed;right:14px;bottom:14px;z-index:6;font-size:11px;color:#7f8ea0;
+    background:rgba(16,20,27,.6);padding:6px 10px;border-radius:10px;pointer-events:none;}
+  #loading{position:fixed;inset:0;display:grid;place-items:center;z-index:20;font-size:14px;color:#9fb0c2;background:#0e1116;transition:opacity .4s;}
+  .back{position:fixed;top:14px;left:14px;z-index:7;font-size:12px;color:#bcccdd;text-decoration:none;
+    background:rgba(16,20,27,.6);padding:6px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.1);}
+  .back:hover{color:#fff;}
+</style>
+<script type="importmap">
+{ "imports":{ "three":"../vendor/three.module.js", "three/addons/":"../vendor/jsm/" }}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="labels" id="labels"></div>
+<a class="back" href="../index.html">← к игре</a>
+
+<div class="panel">
+  <h1>Классы: башня + юниты</h1>
+  <div class="sub">Каждая башня разведена визуально (цвет-акцент + значок класса), а её юниты идут по кругу — проверь, легко ли считать роль. Тащи мышью — облёт.</div>
+  <div class="seg">
+    <button class="blue on" id="cBlue">Синие</button>
+    <button class="red" id="cRed">Красные</button>
+  </div>
+  <div class="feat">
+    🛡 Пузатики — защита · ⚔ Рыцари — атака · 🚜 Механизмы — осада · ✨ Духи — поддержка.
+    Класс читается по <b>силуэту</b>, <b>значку над башней</b> и <b>цвету-акценту цоколя</b>; цвет тела — команда.
+  </div>
+</div>
+<div class="hint">🖱 тащи — поворот · колесо — зум</div>
+<div id="loading">Собираю классы…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+let renderer, labelRenderer, scene, camera, composer;
+let team=0x4a7bd6;
+const TOWERS={};
+let stations=[];
+const clock=new THREE.Clock();
+
+/* класс → роль, значок, акцент цоколя, модель башни, кол-во и скорость юнитов */
+const CLASSES=[
+  {key:'chibi', name:'Пузатики', role:'Защита',    rc:'#7fe0c0', icon:'🛡', accent:0x2fb08a, tower:'tc', n:3, spd:0.55, build:styleChibi},
+  {key:'knight',name:'Рыцари',   role:'Атака',     rc:'#ffcf6b', icon:'⚔', accent:0xcaa23c, tower:'td', n:3, spd:0.7,  build:styleKnight},
+  {key:'mech',  name:'Механизмы',role:'Осада',     rc:'#ff9b57', icon:'🚜', accent:0xc9622e, tower:'td', n:2, spd:0.42, build:styleMech},
+  {key:'spirit',name:'Духи',     role:'Поддержка', rc:'#b79cff', icon:'✨', accent:0x7c5cff, tower:'tf', n:3, spd:0.95, build:styleSpirit},
+];
+const COLX=[-9,-3,3,9];
+
+function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.NoToneMapping;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  labelRenderer=new CSS2DRenderer({element:document.getElementById('labels')});
+  labelRenderer.setSize(innerWidth,innerHeight);
+
+  scene=new THREE.Scene();
+  scene.background=makeSky(['#dfeef7','#cadfee','#b3cfe4']);
+  scene.fog=new THREE.Fog(0xcfe2ef, 30, 66);
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+
+  camera=new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.1, 200);
+
+  scene.add(new THREE.HemisphereLight(0xdfeeff,0x6a5a48,0.55));
+  const sun=new THREE.DirectionalLight(0xfff1d6,1.5);
+  sun.position.set(8,15,7); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+  const sc=sun.shadow.camera; sc.left=-14;sc.right=14;sc.top=12;sc.bottom=-12;sc.near=1;sc.far=50;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.04; sun.shadow.radius=4; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xbcd2ff,0.3); fill.position.set(-8,6,-4); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffffff,0.55); rim.position.set(-5,5,-9); scene.add(rim);
+
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60).rotateX(-Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0x8fb26a,roughness:1}));
+  ground.receiveShadow=true; scene.add(ground);
+
+  const loader=new GLTFLoader();
+  Promise.all([['tb','tower-round-build-b'],['tc','tower-round-build-c'],['td','tower-round-build-d'],['tf','tower-round-build-f']]
+    .map(async([k,f])=>{ const g=await loader.loadAsync('../models/td/'+f+'.glb'); TOWERS[k]=g.scene; }))
+    .then(()=>{
+      buildStations();
+      document.getElementById('loading').style.opacity='0';
+      setTimeout(()=>document.getElementById('loading').style.display='none',400);
+    });
+
+  setupPost(); bindUI();
+  addEventListener('resize',onResize);
+  renderer.setAnimationLoop(frame);
+}
+
+/* ---------- helpers ---------- */
+function makeSky(cols){
+  const c=document.createElement('canvas'); c.width=4;c.height=256; const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,cols[0]); g.addColorStop(.62,cols[1]); g.addColorStop(1,cols[2]);
+  x.fillStyle=g; x.fillRect(0,0,4,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+function M(color,{rough=0.55,emi=0.12,metal=0}={}){
+  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,emissive:color,emissiveIntensity:emi}); }
+function Mplain(color,{rough=0.6,metal=0}={}){ return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal}); }
+function mesh(geo,mat,x=0,y=0,z=0){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); return m; }
+const STEEL=0xd3dae6, DARK=0x3a3f47, WOOD=0x8a6a3f, GOLD=0xffcf6b, LOAD=0xc9a15f;
+
+/* ===== unit builders (те же, что в демке стилей) ===== */
+function styleChibi(type,color){
+  const g=new THREE.Group(); const body=M(color,{rough:0.5});
+  const torso=mesh(new THREE.SphereGeometry(0.34,16,14),body,0,0.42,0); torso.scale.y=0.85; g.add(torso);
+  g.add(mesh(new THREE.SphereGeometry(0.26,16,14),body,0,0.92,0));
+  const eyeM=Mplain(0x24303a,{rough:0.3});
+  g.add(mesh(new THREE.SphereGeometry(0.045,8,8),eyeM,0.1,0.96,0.22)); g.add(mesh(new THREE.SphereGeometry(0.045,8,8),eyeM,-0.1,0.96,0.22));
+  const foot=Mplain(0x2f3640);
+  const lf=mesh(new THREE.SphereGeometry(0.09,8,8),foot,0.14,0.06,0), rf=mesh(new THREE.SphereGeometry(0.09,8,8),foot,-0.14,0.06,0);
+  lf.userData.leg=1; rf.userData.leg=-1; g.add(lf); g.add(rf);
+  // защитник — большой круглый щит
+  const sh=mesh(new THREE.CylinderGeometry(0.32,0.32,0.06,20).rotateX(Math.PI/2),Mplain(STEEL,{metal:0.2}),0,0.5,0.34);
+  g.add(sh); g.add(mesh(new THREE.SphereGeometry(0.07,10,8),M(GOLD,{emi:0.2}),0,0.5,0.4));
+  g.userData.bob=0.05; return g;
+}
+function styleKnight(type,color){
+  const g=new THREE.Group(); const tabard=M(color,{rough:0.5});
+  g.add(mesh(new THREE.CylinderGeometry(0.2,0.26,0.5,12),tabard,0,0.5,0));
+  g.add(mesh(new THREE.CylinderGeometry(0.27,0.27,0.08,12),Mplain(0x5a4a2e),0,0.34,0));
+  g.add(mesh(new THREE.SphereGeometry(0.15,14,12),Mplain(0xe7c9a0),0,0.86,0));
+  const helm=mesh(new THREE.SphereGeometry(0.17,14,12,0,Math.PI*2,0,Math.PI*0.6),Mplain(STEEL,{metal:0.3})); helm.position.y=0.9; g.add(helm);
+  g.add(mesh(new THREE.BoxGeometry(0.03,0.14,0.22),M(color,{emi:0.25}),0,1.03,0));
+  const leg=Mplain(0x3a3f47);
+  const l1=mesh(new THREE.CylinderGeometry(0.07,0.06,0.28,8),leg,0.1,0.14,0), l2=mesh(new THREE.CylinderGeometry(0.07,0.06,0.28,8),leg,-0.1,0.14,0);
+  l1.userData.leg=1; l2.userData.leg=-1; g.add(l1); g.add(l2);
+  // атакер — меч + наплечники
+  g.add(mesh(new THREE.SphereGeometry(0.1,10,8),Mplain(STEEL,{metal:0.3}),0.28,0.66,0));
+  g.add(mesh(new THREE.SphereGeometry(0.1,10,8),Mplain(STEEL,{metal:0.3}),-0.28,0.66,0));
+  const sword=new THREE.Group();
+  sword.add(mesh(new THREE.BoxGeometry(0.05,0.55,0.02),Mplain(0xeef2f7,{metal:0.4}),0,0.3,0));
+  sword.add(mesh(new THREE.BoxGeometry(0.2,0.04,0.04),Mplain(GOLD),0,0.03,0));
+  sword.position.set(0.34,0.6,0.05); sword.rotation.z=-0.35; g.add(sword);
+  g.userData.bob=0.035; return g;
+}
+function styleMech(type,color){
+  const g=new THREE.Group();
+  const paint=Mplain(color,{rough:0.45,metal:0.15}), steel=Mplain(0x9aa1ab,{rough:0.4,metal:0.4}),
+        tread=Mplain(0x2f333a,{rough:0.75}), dark=Mplain(0x3a3f47,{rough:0.6});
+  for(const s of [-1,1]){
+    g.add(mesh(new THREE.BoxGeometry(0.12,0.17,0.64),tread, s*0.27,0.13,0));
+    for(let i=-1;i<=1;i++){ const w=mesh(new THREE.CylinderGeometry(0.09,0.09,0.14,12).rotateZ(Math.PI/2),dark, s*0.27,0.1,i*0.2); w.userData.roll=1; g.add(w); }
+  }
+  g.add(mesh(new THREE.BoxGeometry(0.5,0.22,0.72),paint,0,0.33,0));
+  g.add(mesh(new THREE.CylinderGeometry(0.21,0.25,0.18,16),paint,0,0.51,-0.03));
+  g.add(mesh(new THREE.CylinderGeometry(0.045,0.05,0.62,10).rotateX(Math.PI/2),steel,0,0.51,0.42));
+  g.add(mesh(new THREE.SphereGeometry(0.06,10,8),M(0xff8a3a,{emi:0.5}),0,0.51,0.74));
+  g.userData.bob=0.015; return g;
+}
+function styleSpirit(type,color){
+  const g=new THREE.Group();
+  const gem=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.5,roughness:0.15,metalness:0.1,transparent:true,opacity:0.9});
+  const core=mesh(new THREE.IcosahedronGeometry(0.3,0),gem,0,0.7,0); core.userData.spin=1; g.add(core);
+  const glow=new THREE.PointLight(color,0.6,3,2); glow.position.y=0.7; g.add(glow);
+  const shardM=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.2,roughness:0.2,transparent:true,opacity:0.85});
+  for(let i=0;i<3;i++) g.add(mesh(new THREE.TetrahedronGeometry(0.06),shardM,0,0.32-i*0.09,0));
+  g.userData.bob=0.11; g.userData.float=true; return g;
+}
+
+/* ---------- станция класса: башня (с акцентом+значком) + юниты по кругу ---------- */
+function classTower(cl){
+  const g=new THREE.Group();
+  // акцент-цоколь под класс (разводит башни визуально)
+  g.add(mesh(new THREE.CylinderGeometry(0.9,1.02,0.16,28),Mplain(cl.accent,{rough:0.85}),0,0.08,0));
+  g.add(mesh(new THREE.CylinderGeometry(0.78,0.9,0.06,28),M(cl.accent,{emi:0.25,rough:0.6}),0,0.18,0));
+  const tow=TOWERS[cl.tower].clone(true); tow.scale.setScalar(1.25); tow.position.y=0.2;
+  tow.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } }); g.add(tow);
+  // флаг команды на вершине
+  const topY=new THREE.Box3().setFromObject(tow).max.y;
+  const flag=new THREE.Group();
+  flag.add(mesh(new THREE.CylinderGeometry(0.03,0.035,0.7,7),Mplain(0x6b5636),0,0.35,0));
+  flag.add(mesh(new THREE.PlaneGeometry(0.42,0.27),M(team,{emi:0.18,rough:0.6}),0.22,0.58,0));
+  flag.position.y=topY-0.15; g.add(flag); g.userData.flag=flag;
+  return g;
+}
+function buildStations(){
+  stations.forEach(s=>scene.remove(s.group));
+  document.getElementById('labels').innerHTML='';
+  stations=[];
+  CLASSES.forEach((cl,ci)=>{
+    const group=new THREE.Group(); group.position.set(COLX[ci],0,0); scene.add(group);
+    const tower=classTower(cl); tower.position.set(0,0,-1.6); group.add(tower);
+    // значок класса над башней + подпись роли
+    const d=document.createElement('div'); d.className='clbl';
+    d.innerHTML='<div class="ico">'+cl.icon+'</div><div class="nm">'+cl.name+'</div><div class="rl" style="color:'+cl.rc+'">'+cl.role+'</div>';
+    const lbl=new CSS2DObject(d); lbl.position.set(0,3.0,-1.6); group.add(lbl);
+    // юниты идут по кругу перед башней
+    const units=[];
+    for(let i=0;i<cl.n;i++){
+      const u=cl.build(cl.key,team); u.scale.setScalar(1.6);
+      u.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+      u.userData.phase=i/cl.n*Math.PI*2; group.add(u); units.push(u);
+    }
+    stations.push({group,units,cl,tower});
+  });
+}
+
+/* ---------- пост ---------- */
+function setupPost(){
+  try{
+    const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType});
+    composer=new EffectComposer(renderer,rt);
+    composer.addPass(new RenderPass(scene,camera));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.2,0.6,0.85));
+    composer.addPass(new OutputPass());
+    try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){}
+  }catch(e){ composer=null; }
+}
+
+/* ---------- орбита ---------- */
+let yaw=0.0, pitch=0.52, dist=22;
+function updateCam(){
+  camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+2.5,
+                      Math.cos(yaw)*Math.cos(pitch)*dist);
+  camera.lookAt(0,0.8,0);
+}
+function bindUI(){
+  const el=renderer.domElement; let drag=false,px=0,py=0;
+  el.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;el.setPointerCapture(e.pointerId);});
+  el.addEventListener('pointermove',e=>{ if(!drag)return;
+    yaw-=(e.clientX-px)*0.006; pitch=Math.max(0.2,Math.min(1.2,pitch+(e.clientY-py)*0.005)); px=e.clientX;py=e.clientY; });
+  el.addEventListener('pointerup',()=>drag=false);
+  el.addEventListener('wheel',e=>{ dist=Math.max(10,Math.min(30,dist+Math.sign(e.deltaY)*1.2)); e.preventDefault();},{passive:false});
+  const bB=document.getElementById('cBlue'), bR=document.getElementById('cRed');
+  bB.addEventListener('click',()=>{ team=0x4a7bd6; bB.classList.add('on'); bR.classList.remove('on'); buildStations(); });
+  bR.addEventListener('click',()=>{ team=0xd0603f; bR.classList.add('on'); bB.classList.remove('on'); buildStations(); });
+}
+function onResize(){
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight);
+  if(composer) composer.setSize(innerWidth,innerHeight);
+}
+function frame(){
+  const t=clock.getElapsedTime(); updateCam();
+  const rx=1.5, rz=0.95, cz=0.9;
+  for(const st of stations){
+    for(const u of st.units){
+      const a=t*st.cl.spd + u.userData.phase;
+      const px=Math.cos(a)*rx, pz=cz+Math.sin(a)*rz;
+      const bob=u.userData.float? 0.25+0.12*Math.sin(t*2+u.userData.phase)
+                                : (u.userData.bob||0)*Math.abs(Math.sin(t*6+u.userData.phase));
+      u.position.set(px,bob,pz);
+      // лицом по ходу
+      const dx=-Math.sin(a)*rx, dz=Math.cos(a)*rz;
+      u.rotation.y=Math.atan2(dx,dz);
+      u.traverse(o=>{
+        if(o.userData.leg) o.position.z=Math.sin(t*8+u.userData.phase)*0.08*o.userData.leg;
+        if(o.userData.roll) o.rotation.x=t*4;
+        if(o.userData.spin) o.rotation.y=t*o.userData.spin;
+      });
+    }
+    if(st.tower.userData.flag) st.tower.userData.flag.rotation.y=Math.sin(t*0.7)*0.15;
+  }
+  if(composer) composer.render(); else renderer.render(scene,camera);
+  labelRenderer.render(scene,camera);
+}
+
+init();
+</script>
+</body>
+</html>

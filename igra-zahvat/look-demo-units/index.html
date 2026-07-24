@@ -85,7 +85,7 @@ const TYPES=[
 const STYLES=[
   {key:'chibi',   name:'Пузатики',  build:styleChibi},
   {key:'knight',  name:'Рыцари',    build:styleKnight},
-  {key:'origami', name:'Оригами',   build:styleOrigami},
+  {key:'mech',    name:'Механизмы', build:styleMech},
   {key:'spirit',  name:'Духи-кристаллы', build:styleSpirit},
 ];
 const COLX=[-6,-2,2,6];         // столбцы = типы
@@ -212,31 +212,56 @@ function styleKnight(type,color){
   g.userData.bob=0.035; g.userData.sway=0.06; return g;
 }
 
-/* ================= СТИЛЬ 3: ОРИГАМИ (low-poly faceted) ================= */
-function styleOrigami(type,color){
+/* ================= СТИЛЬ 3: МЕХАНИЗМЫ (боевые машины) ================= */
+function styleMech(type,color){
   const g=new THREE.Group();
-  const body=new THREE.MeshStandardMaterial({color,roughness:0.35,metalness:0.05,flatShading:true,emissive:color,emissiveIntensity:0.1});
-  const torso=mesh(new THREE.ConeGeometry(0.3,0.6,5),body,0,0.5,0); g.add(torso);           // гранёный корпус
-  const head=mesh(new THREE.TetrahedronGeometry(0.2),body,0,0.95,0); head.rotation.y=0.6; g.add(head);
-  const legM=new THREE.MeshStandardMaterial({color:DARK,flatShading:true,roughness:0.5});
-  g.add(mesh(new THREE.ConeGeometry(0.07,0.2,4),legM,0.1,0.1,0)); g.add(mesh(new THREE.ConeGeometry(0.07,0.2,4),legM,-0.1,0.1,0));
-  const steelF=new THREE.MeshStandardMaterial({color:STEEL,flatShading:true,metalness:0.3,roughness:0.3});
-  if(type==='atk'){ // угловатый клинок + шипы
-    const blade=mesh(new THREE.ConeGeometry(0.09,0.6,4),steelF,0.34,0.6,0); blade.rotation.z=-0.5; g.add(blade);
-    torso.scale.set(1.1,1.15,1.1);
-    g.add(mesh(new THREE.TetrahedronGeometry(0.1),steelF,0,1.18,0));
-  } else if(type==='def'){ // клиновидный щит
-    const sh=mesh(new THREE.BoxGeometry(0.05,0.5,0.42),steelF,0.3,0.5,0); sh.rotation.x=0.0; g.add(sh);
-    const em=new THREE.MeshStandardMaterial({color,flatShading:true,emissive:color,emissiveIntensity:0.3,roughness:0.4});
-    g.add(mesh(new THREE.TetrahedronGeometry(0.12),em,0.33,0.5,0));
-  } else if(type==='eco'){ // куб-груз на спине
-    const load=new THREE.MeshStandardMaterial({color:LOAD,flatShading:true,roughness:0.7});
-    const box=mesh(new THREE.BoxGeometry(0.34,0.34,0.34),load,0,0.55,-0.32); box.rotation.y=0.4; g.add(box);
-  } else { // пехота — тонкий гранёный дротик
-    g.add(mesh(new THREE.CylinderGeometry(0.015,0.015,0.7,5),steelF,0.3,0.62,0));
-    g.add(mesh(new THREE.ConeGeometry(0.05,0.14,4),steelF,0.3,1.02,0));
+  const paint=Mplain(color,{rough:0.45,metal:0.15});      // окрашенные панели (цвет команды)
+  const steel=Mplain(0x9aa1ab,{rough:0.4,metal:0.4});
+  const tread=Mplain(0x2f333a,{rough:0.75});
+  const dark=Mplain(0x3a3f47,{rough:0.6});
+  // общая ходовая: гусеницы + катки
+  function tracks(len){
+    for(const s of [-1,1]){
+      g.add(mesh(new THREE.BoxGeometry(0.12,0.17,len),tread, s*0.27,0.13,0));
+      for(let i=-1;i<=1;i++) g.add(mesh(new THREE.CylinderGeometry(0.09,0.09,0.14,12).rotateZ(Math.PI/2),dark, s*0.27,0.1,i*len*0.32));
+    }
   }
-  g.userData.bob=0.045; g.userData.sway=0.1; return g;
+  function wheels4(w){
+    for(const s of [-1,1]) for(const z of [-w*0.32,w*0.32])
+      g.add(mesh(new THREE.CylinderGeometry(0.11,0.11,0.09,14).rotateZ(Math.PI/2),dark, s*0.24,0.11,z));
+  }
+  if(type==='atk'){ // ТАНК
+    tracks(0.64);
+    g.add(mesh(new THREE.BoxGeometry(0.5,0.22,0.72),paint,0,0.33,0));
+    g.add(mesh(new THREE.CylinderGeometry(0.21,0.25,0.18,16),paint,0,0.51,-0.03));
+    g.add(mesh(new THREE.CylinderGeometry(0.045,0.05,0.62,10).rotateX(Math.PI/2),steel,0,0.51,0.42));
+    g.add(mesh(new THREE.SphereGeometry(0.06,10,8),M(0xff8a3a,{emi:0.5}),0,0.51,0.74)); // дульный огонёк
+    g.add(mesh(new THREE.BoxGeometry(0.06,0.09,0.09),dark,0,0.63,-0.16));               // люк-башенка
+  } else if(type==='def'){ // БРОНЕ-МАШИНА (толстая лобовая плита)
+    tracks(0.66);
+    g.add(mesh(new THREE.BoxGeometry(0.58,0.26,0.62),paint,0,0.31,0));
+    const plate=mesh(new THREE.BoxGeometry(0.66,0.42,0.09),steel,0,0.38,0.34); plate.rotation.x=-0.22; g.add(plate);
+    g.add(mesh(new THREE.BoxGeometry(0.5,0.1,0.5),dark,0,0.49,-0.02));
+    g.add(mesh(new THREE.CylinderGeometry(0.03,0.03,0.26,8).rotateX(Math.PI/2),steel,0,0.5,0.3)); // короткий ствол
+    g.add(mesh(new THREE.CylinderGeometry(0.05,0.05,0.05,14).rotateX(Math.PI/2),M(color,{emi:0.3}),0.22,0.42,0.34)); // эмблема
+  } else if(type==='eco'){ // ГРУЗОВИК СНАБЖЕНИЯ
+    wheels4(0.66);
+    g.add(mesh(new THREE.BoxGeometry(0.3,0.24,0.3),paint,0,0.3,0.22));                  // кабина
+    g.add(mesh(new THREE.BoxGeometry(0.26,0.14,0.06),Mplain(0xbfe6ff,{rough:0.2,metal:0.3}),0,0.36,0.38)); // стекло
+    g.add(mesh(new THREE.BoxGeometry(0.44,0.05,0.46),dark,0,0.24,-0.14));               // платформа кузова
+    const load=Mplain(LOAD,{rough:0.8});
+    g.add(mesh(new THREE.BoxGeometry(0.16,0.17,0.16),load,-0.1,0.36,-0.16));
+    g.add(mesh(new THREE.BoxGeometry(0.16,0.17,0.16),load, 0.11,0.36,-0.22));
+    g.add(mesh(new THREE.BoxGeometry(0.15,0.2,0.15),load, 0.02,0.38,-0.02));
+  } else { // БАЛЛИСТА (базовый) — колёсная стреломётная повозка
+    wheels4(0.5);
+    g.add(mesh(new THREE.BoxGeometry(0.34,0.12,0.46),paint,0,0.26,0));
+    const arm=mesh(new THREE.TorusGeometry(0.22,0.03,8,18,Math.PI),steel,0,0.42,0.02); arm.rotation.x=Math.PI/2; g.add(arm);
+    g.add(mesh(new THREE.CylinderGeometry(0.02,0.02,0.52,7).rotateX(Math.PI/2),Mplain(WOOD),0,0.42,0.24)); // стрела
+    g.add(mesh(new THREE.ConeGeometry(0.05,0.13,7),steel,0,0.42,0.52));                 // наконечник
+    g.add(mesh(new THREE.BoxGeometry(0.06,0.14,0.03),dark,0,0.34,-0.16));               // тетива-опора
+  }
+  g.userData.bob=0.02; g.userData.sway=0.03; return g;
 }
 
 /* ================= СТИЛЬ 4: ДУХИ-КРИСТАЛЛЫ (glowing) ================= */

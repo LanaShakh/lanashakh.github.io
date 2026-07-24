@@ -261,7 +261,7 @@ function D(){ return DIFFS[diff]; }
 const TIPS=[
   'захвати 🌾 мельницу и держи рядом свои башни — аура производства решает.',
   'против ⚔ атаки ставь 🛡 защиту — она гасит 40% урона.',
-  '⚙ экономика в тылу, ⚔ атака на границе — как делает бот 😉',
+  '✨ Завод в тылу, ⚔ атака и 🚜 осада на границе — как делает бот 😉',
   'не распыляйся: одна цель — один кулак из двух-трёх связей.',
   'сними лишние связи тапом — войска будут копиться дома.',
   'дебют «Фундамент» открывает специализацию с первой секунды.',
@@ -283,13 +283,15 @@ function synergy(n){
   return 1;
 }
 function prod(n){ let p=PROD_BASE*n.l*synergy(n)*millBoost(n);
-  if(n.spec==='eco') p*=1.5;
+  if(n.spec==='spirit') p*=1.5;   // Духи — «Завод»: производство ×1.5 (бывш. эконом)
   if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); if(pTempo && simTime<20) p*=1.3; }
   else if(n.o===2){ p*=D().prod; if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
   return p; }
-const SPEC_ICON={ atk:'⚔', def:'🛡', eco:'⚙' };
-// стрелки зависят от гарнизона: 10+ → две, 30+ → три, 60+ → четыре (маяк даёт +1)
-function linkCap(n){ return (n.t>=60?4 : n.t>=30?3 : n.t>=10?2 : 1) + (n.trait==='beacon'?1:0); }
+// КЛАССЫ (стиль = роль). null = «рекрут». Иконка в подписи + акцент-цвет цоколя.
+const SPEC_ICON  ={ chibi:'🛡', knight:'⚔', mech:'🚜', spirit:'✨' };
+const CLASS_ACCENT={ chibi:0x2fb08a, knight:0xcaa23c, mech:0xc9622e, spirit:0x7c5cff };
+// стрелок = уровню башни (маяк +1) — стабильно, не «плавает» от числа войск
+function linkCap(n){ return Math.min(4,n.l) + (n.trait==='beacon'?1:0); }
 function flowNeed(k){ return k<=1?0 : k===2?10 : k===3?30 : 60; }
 // солдат меньше порога — стрелки остаются, но поток слабеет
 function flowMul(n,k){ const need=flowNeed(k); return (need<=0 || n.t>=need) ? 1 : Math.max(0.35, n.t/need); }
@@ -644,6 +646,16 @@ function makeTeamFlag(color,topY){
   return g;
 }
 
+// башня kit-модели — красная в текстуре. Тонируем всю модель в осветлённый цвет
+// команды (клонируя материалы), а сверху кладём колпак цвета команды.
+function tintTowerTeam(root,teamHex){
+  const tc=new THREE.Color(teamHex).lerp(new THREE.Color(0xffffff),0.42);
+  root.traverse(o=>{ if(!o.isMesh || !o.material) return;
+    const arr=Array.isArray(o.material)?o.material:[o.material];
+    const out=arr.map(m=>{ const c=m.clone(); if(c.map) c.color.copy(tc); return c; });
+    o.material=Array.isArray(o.material)?out:out[0]; });
+}
+
 const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group);
@@ -653,21 +665,29 @@ function buildTower(n){
   const csh=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3).rotateX(-Math.PI/2),
     new THREE.MeshBasicMaterial({ map:contactShadowTex(), transparent:true, opacity:0.5, depthWrite:false }));
   csh.position.y=0.015; csh.renderOrder=-1; group.add(csh);
-  // каменный цоколь — башня получает «вес», перестаёт висеть на траве
+  // каменный цоколь — цвет-акцент по классу (разводит башни визуально), иначе серый
+  const cocleCol = n.spec ? CLASS_ACCENT[n.spec] : 0x8b8f96;
   const base=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.84,0.18,24),
-    new THREE.MeshStandardMaterial({ color:0x8b8f96, roughness:0.95 }));
+    new THREE.MeshStandardMaterial({ color:cocleCol, roughness:0.9 }));
   base.position.y=0.09; base.castShadow=true; base.receiveShadow=true; base.userData.nodeId=n.id; group.add(base);
   // team ring on the ground (ownership); у врага — шестигранник (форма, не только цвет)
   const ring=new THREE.Mesh(new THREE.TorusGeometry(0.64,0.07,12,n.o===2?6:40).rotateX(Math.PI/2),
     new THREE.MeshStandardMaterial({ color:SOLID[n.o], emissive:SOLID[n.o], emissiveIntensity:0.5, roughness:0.5 }));
   ring.position.y=0.18; group.add(ring);
-  // TD-kit tower model, grows by level (b->c->d->f) — стоит на цоколе
+  // TD-kit tower model, grows by level (b->c->d->f) — стоит на цоколе, тонирована в цвет команды
   const tow=MODELS[TOWER[Math.min(4,n.l)]].clone(true);
+  tow.scale.setScalar(n.trait==='fort'?1.38:1.15); tow.position.y=0.17;
+  tintTowerTeam(tow, SOLID[n.o]);
   tow.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
-  tow.scale.setScalar(n.trait==='fort'?1.38:1.15); tow.position.y=0.17; group.add(tow);
+  group.add(tow);
+  // колпак-крыша цвета команды — накрывает «красную» крышу модели (ownership читается)
+  const box=new THREE.Box3().setFromObject(tow); const topY=box.max.y, hh=topY-box.min.y, ww=box.max.x-box.min.x;
+  const capH=hh*0.46;
+  const cap=new THREE.Mesh(new THREE.ConeGeometry(ww*0.34,capH,18),
+    new THREE.MeshStandardMaterial({ color:SOLID[n.o], roughness:0.5, emissive:SOLID[n.o], emissiveIntensity:0.14 }));
+  cap.position.y=topY-capH*0.5+0.03; cap.castShadow=true; cap.userData.nodeId=n.id; group.add(cap);
   // флаг команды на вершине (у своих/врага; нейтралам и маякам — нет, чтобы не пестрило)
   if((n.o===1||n.o===2) && n.trait!=='beacon'){
-    const topY=new THREE.Box3().setFromObject(tow).max.y;
     const flag=makeTeamFlag(SOLID[n.o], topY);
     flag.traverse(c=>{ if(c.isMesh) c.userData.nodeId=n.id; }); group.add(flag);
   }
@@ -689,7 +709,7 @@ function buildTower(n){
   const div=document.createElement('div'); div.className='tlabel'+(n.o===2?' en':n.o===0?' nt':'');
   const label=new CSS2DObject(div); label.position.set(0, 2.0, 0); group.add(label);
   nodeGroup.add(group);
-  n.view={group, div, label}; n.lr=n.l; n.or=n.o;
+  n.view={group, div, label}; n.lr=n.l; n.or=n.o; n.cr=n.spec;
 }
 
 // ---------------- simulation (same rules as before) ----------------
@@ -701,39 +721,46 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   const out=links.filter(L=>L.from===from); if(out.length>=linkCap(src)) removeLink(out[0]);
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
-function spawnSoldier(from,to){ soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
-  kind: from.spec||'inf',
-  dmg: (from.spec==='atk'?1.5:1)*(from.o===2 && CMD==='war'?1.2:1), fast: from.spec==='atk' }); }
+function spawnSoldier(from,to){ const c=from.spec;
+  const dmg=(c==='knight'?1.4 : c==='mech'?1.8 : 1)*(from.o===2 && CMD==='war'?1.2:1);
+  soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
+    kind: c||'recruit', dmg, fast:(c==='knight'||c==='spirit') }); }
 
-// войска разные на вид: пехотинец / танк (⚔) / щитоносец (🛡) / носильщик (⚙) — все в цвет команды
+// юниты = класс башни: 🛡 Пузатик / ⚔ Рыцарь / 🚜 Механизм / ✨ Дух / рекрут — все в цвет команды
+function _sm(geo,mat,x,y,z){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); return m; }
 function makeSoldierMesh(kind,color){
   const g=new THREE.Group();
-  const mat=new THREE.MeshStandardMaterial({ color, roughness:0.5, emissive:color, emissiveIntensity:0.12 });
-  if(kind==='atk'){        // танк
-    const body=new THREE.Mesh(new THREE.BoxGeometry(0.30,0.14,0.4), mat); body.position.y=0.09; g.add(body);
-    const tur=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.1,0.1,10), mat); tur.position.y=0.2; g.add(tur);
-    const gun=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.24,8).rotateX(Math.PI/2), mat);
-    gun.position.set(0,0.2,0.2); g.add(gun);
-  } else if(kind==='def'){ // щитоносец
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.09,0.14,4,10), mat); body.position.y=0.2; g.add(body);
-    const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.03,12).rotateX(Math.PI/2),
-      new THREE.MeshStandardMaterial({ color:0xdde3ee, roughness:0.35 })); sh.position.set(0,0.18,0.13); g.add(sh);
-  } else if(kind==='eco'){ // носильщик с мешком
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.09,0.12,4,10), mat); body.position.y=0.19; g.add(body);
-    const bag=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),
-      new THREE.MeshStandardMaterial({ color:0xc9a15f, roughness:0.85 })); bag.position.set(0,0.26,-0.11); g.add(bag);
-  } else {                 // пехотинец
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.085,0.13,4,10), mat); body.position.y=0.19; g.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8), mat); head.position.y=0.36; g.add(head);
+  const body=new THREE.MeshStandardMaterial({ color, roughness:0.5, emissive:color, emissiveIntensity:0.12 });
+  const steel=new THREE.MeshStandardMaterial({ color:0xd3dae6, metalness:0.35, roughness:0.35 });
+  if(kind==='knight'){          // Рыцарь — атака
+    g.add(_sm(new THREE.CylinderGeometry(0.08,0.1,0.2,10),body,0,0.2,0));
+    g.add(_sm(new THREE.SphereGeometry(0.07,12,10),steel,0,0.36,0));
+    g.add(_sm(new THREE.BoxGeometry(0.025,0.26,0.025),steel,0.12,0.3,0.02));   // меч
+  } else if(kind==='chibi'){    // Пузатик — защита
+    const t=_sm(new THREE.SphereGeometry(0.13,14,12),body,0,0.16,0); t.scale.y=0.85; g.add(t);
+    g.add(_sm(new THREE.SphereGeometry(0.1,14,12),body,0,0.34,0));
+    g.add(_sm(new THREE.CylinderGeometry(0.12,0.12,0.03,14).rotateX(Math.PI/2),steel,0,0.22,0.13)); // щит
+  } else if(kind==='mech'){     // Механизм — осада (танк)
+    g.add(_sm(new THREE.BoxGeometry(0.26,0.06,0.32),new THREE.MeshStandardMaterial({color:0x2f333a,roughness:0.75}),0,0.06,0));
+    g.add(_sm(new THREE.BoxGeometry(0.24,0.12,0.28),body,0,0.15,0));
+    g.add(_sm(new THREE.CylinderGeometry(0.08,0.1,0.08,12),body,0,0.24,-0.02));
+    g.add(_sm(new THREE.CylinderGeometry(0.022,0.026,0.28,8).rotateX(Math.PI/2),steel,0,0.24,0.2)); // ствол
+  } else if(kind==='spirit'){   // Дух — поддержка
+    const gm=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.4,roughness:0.15,transparent:true,opacity:0.92});
+    g.add(_sm(new THREE.IcosahedronGeometry(0.12,0),gm,0,0.28,0));
+    g.add(_sm(new THREE.TetrahedronGeometry(0.05),gm,0,0.12,0));
+  } else {                      // Рекрут — базовый (класс ещё не выбран)
+    g.add(_sm(new THREE.CapsuleGeometry(0.075,0.12,4,8),body,0,0.18,0));
+    g.add(_sm(new THREE.SphereGeometry(0.06,10,8),body,0,0.33,0));
   }
   g.traverse(c=>{ if(c.isMesh) c.castShadow=true; });
-  g.scale.setScalar(2.1);   // крупнее — теперь солдатики главный индикатор потока (стрелки убраны)
+  g.scale.setScalar(1.7);
   return g;
 }
 function applyArrival(node, owner, dmg){
   if(node.o===owner){ node.t+=1; }
   else { node.atk=0.6;
-    node.t-=(dmg||1)*(node.spec==='def'?0.6:1)*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
+    node.t-=(dmg||1)*(node.spec==='chibi'?0.6:1)*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
     if(node.t<=0){ const prev=node.o;
     node.o=owner; node.t=-node.t; node.atk=0; node.spec=null; removeLinksFrom(node.id);
     if(owner===1){ sfx('cap'); buzz(30); } else if(prev===1){ sfx('lost'); buzz([40,40,40]); } } }
@@ -773,7 +800,7 @@ function botThink(){
   for(const n of (endless || mapIndex>0) ? mine : []){
     if(n.l<2 || n.spec || Math.random()>D().spec) continue;
     let dMin=Infinity; for(const x of nodes){ if(x.o===1){ const d=Math.hypot(x.x-n.x,x.z-n.z); if(d<dMin) dMin=d; } }
-    n.spec = dMin<7 ? (Math.random()<0.5?'atk':'def') : 'eco';
+    n.spec = dMin<7 ? ['knight','chibi','mech'][(Math.random()*3)|0] : 'spirit';   // фронт — бой, тыл — Завод
   }
   // защита: соседи подкрепляют свою башню под атакой (на «легко» бот не защищается)
   for(const n of (D().defend?mine:[])){
@@ -859,7 +886,7 @@ function burst(n){ const ring=new THREE.Mesh(new THREE.TorusGeometry(0.7,0.09,10
 
 function syncVisuals(){
   for(const n of nodes){
-    if(n.lr!==n.l || n.or!==n.o){ if(n.or!==-1 && n.or!==n.o) burst(n); buildTower(n); }   // rebuild on level/owner change
+    if(n.lr!==n.l || n.or!==n.o || n.cr!==n.spec){ if(n.or!==-1 && n.or!==n.o) burst(n); buildTower(n); }   // rebuild on level/owner/class change
     const v=n.view; if(!v) continue;
     v.group.position.x = n.x;   // башни стоят статично (дрожание убрано)
     // label
@@ -871,7 +898,12 @@ function syncVisuals(){
   for(const s of soldiers){ if(!s.mesh){ s.mesh=makeSoldierMesh(s.kind, SOLID[s.o]); soldierGroup.add(s.mesh); }
     const tn=nodes[s.tid];
     s.mesh.rotation.y=Math.atan2(tn.x-s.x, tn.z-s.z);
-    s.mesh.position.set(s.x, GROUND_TOP+0.06+(s.kind==='atk'?0:Math.abs(Math.sin(performance.now()*0.007+(s.x+s.z)*3))*0.05), s.z); }
+    const ph=performance.now()*0.001, seed=(s.x+s.z)*3;
+    const y = s.kind==='mech'   ? 0                                            // танк не подпрыгивает
+           : s.kind==='spirit' ? 0.14+Math.abs(Math.sin(ph*1.6+seed))*0.06     // дух парит
+           :                     Math.abs(Math.sin(ph*8+seed))*0.06;           // шаг
+    s.mesh.position.set(s.x, GROUND_TOP+0.06+y, s.z);
+    if(s.kind==='spirit') s.mesh.rotation.z=Math.sin(ph*2+seed)*0.2; }
   // links — rebuild ribbon meshes when set changes
   const sig=links.map(L=>L.from+'>'+L.to+':'+L.o).join('|');
   if(sig!==linkSig){ linkSig=sig; rebuildLinks(); }
@@ -927,7 +959,7 @@ function hideSpec(){ specNode=null; const m=$('specMenu'); if(m) m.classList.rem
 function specHint(){
   if(localStorage.getItem('g_zahvat_spec_hint')) return;
   localStorage.setItem('g_zahvat_spec_hint','1');
-  const h=$('hint'); h.textContent='Башня 2 уровня! Тапни по ней и выбери путь: ⚔ атака · 🛡 защита · ⚙ экономика';
+  const h=$('hint'); h.textContent='Башня 2 уровня! Тапни по ней и выбери класс: 🛡 защита · ⚔ атака · 🚜 осада · ✨ Завод';
   h.style.opacity='1'; setTimeout(()=>{ h.style.opacity='0'; }, 7000);
 }
 

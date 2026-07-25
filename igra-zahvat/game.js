@@ -360,6 +360,7 @@ async function init(){
     const g = await loader.loadAsync('models/'+f); return [k, g.scene];
   }));
   for(const [k,s] of entries) MODELS[k]=s;
+  buildTowerTextures();   // перекрашенные под команды варианты текстуры башни
 
   buildGround();
   buildScenery();
@@ -647,13 +648,46 @@ function makeTeamFlag(color,topY){
   return g;
 }
 
-// башня kit-модели — красная в текстуре. Тонируем всю модель в осветлённый цвет
-// команды (клонируя материалы), а сверху кладём колпак цвета команды.
-function tintTowerTeam(root,teamHex){
-  const tc=new THREE.Color(teamHex).lerp(new THREE.Color(0xffffff),0.42);
+// Башня kit-модели красная в САМОЙ текстуре (палитра-атлас). Готовим по варианту
+// текстуры на команду: «тёплые/красные» свотчи перекрашиваются в цвет владельца
+// (яркость свотча сохраняется), серый камень и прочее — без изменений.
+const TOWER_TEX={};
+function buildTowerTextures(){
+  let src=null;
+  MODELS.tb.traverse(o=>{ if(!src && o.isMesh && o.material && o.material.map) src=o.material.map; });
+  if(!src || !src.image) return;
+  const img=src.image, W=img.width||512, H=img.height||512;
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const cx=c.getContext('2d', {willReadFrequently:true});
+  cx.drawImage(img,0,0,W,H);
+  const base=cx.getImageData(0,0,W,H);
+  for(const o of [0,1,2]){
+    const out=new ImageData(new Uint8ClampedArray(base.data), W, H);
+    const d=out.data, tc=new THREE.Color(SOLID[o]);
+    for(let i=0;i<d.length;i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      // красно-оранжевое семейство свотчей (крыша, поясок)
+      if(r>110 && r>g*1.35 && r>b*1.35){
+        const lum=Math.min(1,(r*0.6+g*0.3+b*0.1)/210);   // сохраняем светлоту свотча
+        d[i]  =Math.round(tc.r*255*lum + 255*(1-lum)*0.12);
+        d[i+1]=Math.round(tc.g*255*lum + 255*(1-lum)*0.12);
+        d[i+2]=Math.round(tc.b*255*lum + 255*(1-lum)*0.12);
+      }
+    }
+    const cc=document.createElement('canvas'); cc.width=W; cc.height=H;
+    cc.getContext('2d').putImageData(out,0,0);
+    const t=new THREE.CanvasTexture(cc);
+    t.flipY=src.flipY; t.colorSpace=src.colorSpace; t.wrapS=src.wrapS; t.wrapT=src.wrapT;
+    t.magFilter=src.magFilter; t.minFilter=src.minFilter; t.generateMipmaps=true; t.needsUpdate=true;
+    TOWER_TEX[o]=t;
+  }
+}
+// подменяем текстуру башни на вариант владельца (материалы клонируем, чтобы не задеть общий кит)
+function tintTowerTeam(root,owner){
+  const tex=TOWER_TEX[owner]; if(!tex) return;
   root.traverse(o=>{ if(!o.isMesh || !o.material) return;
     const arr=Array.isArray(o.material)?o.material:[o.material];
-    const out=arr.map(m=>{ const c=m.clone(); if(c.map) c.color.copy(tc); return c; });
+    const out=arr.map(m=>{ if(!m.map) return m; const c=m.clone(); c.map=tex; c.needsUpdate=true; return c; });
     o.material=Array.isArray(o.material)?out:out[0]; });
 }
 
@@ -678,15 +712,10 @@ function buildTower(n){
   // TD-kit tower model, grows by level (b->c->d->f) — стоит на цоколе, тонирована в цвет команды
   const tow=MODELS[TOWER[Math.min(4,n.l)]].clone(true);
   tow.scale.setScalar(n.trait==='fort'?1.38:1.15); tow.position.y=0.17;
-  tintTowerTeam(tow, SOLID[n.o]);
+  tintTowerTeam(tow, n.o);           // крыша и поясок — уже в цвете владельца (перекрашенная текстура)
   tow.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; c.userData.nodeId=n.id; } });
   group.add(tow);
-  // колпак-крыша цвета команды — накрывает «красную» крышу модели (ownership читается)
-  const box=new THREE.Box3().setFromObject(tow); const topY=box.max.y, hh=topY-box.min.y, ww=box.max.x-box.min.x;
-  const capH=hh*0.46;
-  const cap=new THREE.Mesh(new THREE.ConeGeometry(ww*0.34,capH,18),
-    new THREE.MeshStandardMaterial({ color:SOLID[n.o], roughness:0.5, emissive:SOLID[n.o], emissiveIntensity:0.14 }));
-  cap.position.y=topY-capH*0.5+0.03; cap.castShadow=true; cap.userData.nodeId=n.id; group.add(cap);
+  const topY=new THREE.Box3().setFromObject(tow).max.y;
   // флаг команды на вершине (у своих/врага; нейтралам и маякам — нет, чтобы не пестрило)
   if((n.o===1||n.o===2) && n.trait!=='beacon'){
     const flag=makeTeamFlag(SOLID[n.o], topY);

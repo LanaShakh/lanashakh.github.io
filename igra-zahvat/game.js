@@ -721,10 +721,13 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   const out=links.filter(L=>L.from===from); if(out.length>=linkCap(src)) removeLink(out[0]);
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
+// прочность в полевой стычке: пузатик самый живучий, дух — самый хрупкий
+const CLASS_HP={ chibi:1.8, knight:1.3, mech:1.5, spirit:0.7, recruit:1 };
 function spawnSoldier(from,to){ const c=from.spec;
   const dmg=(c==='knight'?1.4 : c==='mech'?1.8 : 1)*(from.o===2 && CMD==='war'?1.2:1);
   soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
-    kind: c||'recruit', dmg, fast:(c==='knight'||c==='spirit') }); }
+    kind: c||'recruit', dmg, hp:CLASS_HP[c||'recruit'], dead:0,
+    fast:(c==='knight'||c==='spirit') }); }
 
 // юниты = класс башни: 🛡 Пузатик / ⚔ Рыцарь / 🚜 Механизм / ✨ Дух / рекрут — все в цвет команды
 function _sm(geo,mat,x,y,z){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); return m; }
@@ -732,29 +735,34 @@ function makeSoldierMesh(kind,color){
   const g=new THREE.Group();
   const body=new THREE.MeshStandardMaterial({ color, roughness:0.5, emissive:color, emissiveIntensity:0.12 });
   const steel=new THREE.MeshStandardMaterial({ color:0xd3dae6, metalness:0.35, roughness:0.35 });
-  if(kind==='knight'){          // Рыцарь — атака
-    g.add(_sm(new THREE.CylinderGeometry(0.08,0.1,0.2,10),body,0,0.2,0));
-    g.add(_sm(new THREE.SphereGeometry(0.07,12,10),steel,0,0.36,0));
-    g.add(_sm(new THREE.BoxGeometry(0.025,0.26,0.025),steel,0.12,0.3,0.02));   // меч
-  } else if(kind==='chibi'){    // Пузатик — защита
-    const t=_sm(new THREE.SphereGeometry(0.13,14,12),body,0,0.16,0); t.scale.y=0.85; g.add(t);
-    g.add(_sm(new THREE.SphereGeometry(0.1,14,12),body,0,0.34,0));
-    g.add(_sm(new THREE.CylinderGeometry(0.12,0.12,0.03,14).rotateX(Math.PI/2),steel,0,0.22,0.13)); // щит
+  const dark=new THREE.MeshStandardMaterial({ color:0x3a3f47, roughness:0.6 });
+  if(kind==='knight'){          // Рыцарь — атака (туника, шлем, меч)
+    g.add(_sm(new THREE.CylinderGeometry(0.13,0.17,0.32,12),body,0,0.32,0));
+    g.add(_sm(new THREE.CylinderGeometry(0.175,0.175,0.05,12),dark,0,0.22,0));
+    g.add(_sm(new THREE.SphereGeometry(0.11,14,12),steel,0,0.56,0));
+    g.add(_sm(new THREE.BoxGeometry(0.02,0.09,0.14),body,0,0.66,0));                 // гребень
+    g.add(_sm(new THREE.BoxGeometry(0.035,0.36,0.03),steel,0.21,0.42,0.03));         // меч
+  } else if(kind==='chibi'){    // Пузатик — защита (круглый + большой щит)
+    const t=_sm(new THREE.SphereGeometry(0.22,16,14),body,0,0.26,0); t.scale.y=0.85; g.add(t);
+    g.add(_sm(new THREE.SphereGeometry(0.17,16,14),body,0,0.58,0));
+    g.add(_sm(new THREE.SphereGeometry(0.03,8,8),dark,0.07,0.61,0.15));
+    g.add(_sm(new THREE.SphereGeometry(0.03,8,8),dark,-0.07,0.61,0.15));
+    g.add(_sm(new THREE.CylinderGeometry(0.21,0.21,0.04,18).rotateX(Math.PI/2),steel,0,0.32,0.22)); // щит
   } else if(kind==='mech'){     // Механизм — осада (танк)
-    g.add(_sm(new THREE.BoxGeometry(0.26,0.06,0.32),new THREE.MeshStandardMaterial({color:0x2f333a,roughness:0.75}),0,0.06,0));
-    g.add(_sm(new THREE.BoxGeometry(0.24,0.12,0.28),body,0,0.15,0));
-    g.add(_sm(new THREE.CylinderGeometry(0.08,0.1,0.08,12),body,0,0.24,-0.02));
-    g.add(_sm(new THREE.CylinderGeometry(0.022,0.026,0.28,8).rotateX(Math.PI/2),steel,0,0.24,0.2)); // ствол
-  } else if(kind==='spirit'){   // Дух — поддержка
-    const gm=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.4,roughness:0.15,transparent:true,opacity:0.92});
-    g.add(_sm(new THREE.IcosahedronGeometry(0.12,0),gm,0,0.28,0));
-    g.add(_sm(new THREE.TetrahedronGeometry(0.05),gm,0,0.12,0));
+    g.add(_sm(new THREE.BoxGeometry(0.4,0.1,0.5),new THREE.MeshStandardMaterial({color:0x2f333a,roughness:0.75}),0,0.09,0));
+    g.add(_sm(new THREE.BoxGeometry(0.36,0.17,0.44),body,0,0.23,0));
+    g.add(_sm(new THREE.CylinderGeometry(0.14,0.16,0.13,14),body,0,0.38,-0.03));
+    g.add(_sm(new THREE.CylinderGeometry(0.032,0.038,0.42,8).rotateX(Math.PI/2),steel,0,0.38,0.3)); // ствол
+  } else if(kind==='spirit'){   // Дух — поддержка (парящий кристалл)
+    const gm=new THREE.MeshStandardMaterial({color:0xdff2ff,emissive:color,emissiveIntensity:1.5,roughness:0.15,transparent:true,opacity:0.92});
+    g.add(_sm(new THREE.IcosahedronGeometry(0.2,0),gm,0,0.46,0));
+    g.add(_sm(new THREE.TetrahedronGeometry(0.08),gm,0,0.22,0));
+    g.add(_sm(new THREE.TetrahedronGeometry(0.05),gm,0,0.08,0));
   } else {                      // Рекрут — базовый (класс ещё не выбран)
-    g.add(_sm(new THREE.CapsuleGeometry(0.075,0.12,4,8),body,0,0.18,0));
-    g.add(_sm(new THREE.SphereGeometry(0.06,10,8),body,0,0.33,0));
+    g.add(_sm(new THREE.CapsuleGeometry(0.13,0.18,4,10),body,0,0.28,0));
+    g.add(_sm(new THREE.SphereGeometry(0.1,12,10),body,0,0.52,0));
   }
   g.traverse(c=>{ if(c.isMesh) c.castShadow=true; });
-  g.scale.setScalar(1.7);
   return g;
 }
 function applyArrival(node, owner, dmg){
@@ -780,8 +788,24 @@ function step(dt){
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
     if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1){ sfx('lvl'); if(n.l===2 && (endless||mapIndex>0)) specHint(); } }
   }
+  // полевые стычки: встречные вражеские юниты сходятся и падают (слабый гибнет)
+  const CLASH=0.42, CLASH2=CLASH*CLASH;
+  for(let i=0;i<soldiers.length;i++){ const a=soldiers[i]; if(a.dead) continue;
+    for(let j=i+1;j<soldiers.length;j++){ const b=soldiers[j];
+      if(b.dead || b.o===a.o) continue;                       // дерутся только враги
+      const dx=a.x-b.x, dz=a.z-b.z; if(dx*dx+dz*dz>CLASH2) continue;
+      const m=Math.min(a.hp,b.hp); a.hp-=m; b.hp-=m;          // размен прочностью
+      if(a.hp<=0.001) a.dead=0.45; if(b.hp<=0.001) b.dead=0.45;
+      if(a.dead) break;
+    }
+  }
   // soldiers move in world (x,z)
   for(let i=soldiers.length-1;i>=0;i--){ const s=soldiers[i], tn=nodes[s.tid];
+    if(s.dead>0){ s.dead-=dt;                                  // падает — не идёт и не бьёт
+      if(s.dead<=0){ if(s.mesh){ soldierGroup.remove(s.mesh);
+          s.mesh.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); if(c.material.dispose) c.material.dispose(); } }); }
+        soldiers.splice(i,1); }
+      continue; }
     const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
     if(d<=0.5){ applyArrival(tn,s.o,s.dmg);
       if(s.mesh){ soldierGroup.remove(s.mesh);
@@ -897,8 +921,14 @@ function syncVisuals(){
   // soldiers meshes — фигурка по типу, лицом по ходу движения
   for(const s of soldiers){ if(!s.mesh){ s.mesh=makeSoldierMesh(s.kind, SOLID[s.o]); soldierGroup.add(s.mesh); }
     const tn=nodes[s.tid];
-    s.mesh.rotation.y=Math.atan2(tn.x-s.x, tn.z-s.z);
     const ph=performance.now()*0.001, seed=(s.x+s.z)*3;
+    if(s.dead>0){                       // падение: заваливается набок, оседает и тает
+      const k=1-Math.max(0,s.dead)/0.45;
+      s.mesh.rotation.z=k*Math.PI*0.5; s.mesh.position.set(s.x, GROUND_TOP+0.06-k*0.05, s.z);
+      s.mesh.scale.setScalar(Math.max(0.15,1-k*0.55));
+      s.mesh.traverse(c=>{ if(c.isMesh && c.material){ c.material.transparent=true; c.material.opacity=Math.max(0,1-k); } });
+      continue; }
+    s.mesh.rotation.y=Math.atan2(tn.x-s.x, tn.z-s.z);
     const y = s.kind==='mech'   ? 0                                            // танк не подпрыгивает
            : s.kind==='spirit' ? 0.14+Math.abs(Math.sin(ph*1.6+seed))*0.06     // дух парит
            :                     Math.abs(Math.sin(ph*8+seed))*0.06;           // шаг

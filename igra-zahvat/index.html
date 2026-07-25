@@ -22,10 +22,17 @@
     box-shadow:0 3px 8px rgba(0,0,0,.25); white-space:nowrap; }
   .tlabel.en{ border-radius:7px; }              /* врага отличает и форма, не только цвет */
   .tlabel.nt{ border-style:dashed; }
-  /* башня доросла до 2 уровня и ждёт выбора класса — пульсируем, чтобы игрок заметил */
+  /* плашка над башней, ждущей выбора класса.
+     ВАЖНО: transform у самого элемента занят CSS2DRenderer'ом — анимируем только внутренний span */
+  .pickchip span{ display:inline-block; background:linear-gradient(140deg,#ffd166,#ffa62b); color:#3a2400;
+    font-weight:800; font-size:12px; padding:3px 10px; border-radius:999px; white-space:nowrap;
+    box-shadow:0 4px 14px rgba(255,180,60,.6); border:2px solid rgba(255,255,255,.65);
+    animation:chipBob .9s ease-in-out infinite alternate; }
+  @keyframes chipBob{ from{ transform:translateY(0) scale(1); } to{ transform:translateY(-5px) scale(1.07); } }
+  /* башня ждёт выбора класса — подсвечиваем подпись (без transform!) */
   .tlabel.pick{ animation:pickPulse .85s ease-in-out infinite alternate; }
-  @keyframes pickPulse{ from{ transform:translate(-50%,-50%) scale(1); box-shadow:0 3px 8px rgba(0,0,0,.25); }
-                        to{ transform:translate(-50%,-50%) scale(1.14); box-shadow:0 0 16px 5px rgba(255,209,102,.85); } }
+  @keyframes pickPulse{ from{ box-shadow:0 3px 8px rgba(0,0,0,.25); border-color:#888; }
+                        to{ box-shadow:0 0 18px 6px rgba(255,209,102,.9); border-color:#ffc23d; } }
 
   .powbar{ position:fixed; top:0; left:0; right:0; height:5px; z-index:11; display:flex; }
   .powbar div{ transition:width .35s ease; }

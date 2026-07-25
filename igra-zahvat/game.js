@@ -563,7 +563,6 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
-  pickPrompted=false;
   showIntro(m,label);   // интро перед каждым боем; на карте 1 — упрощённое, без дебютов
 }
 
@@ -697,7 +696,8 @@ function tintTowerTeam(root,owner){
 const TOWER={1:'tb',2:'tc',3:'td',4:'tf'}; // level -> Tower Defense Kit model
 function buildTower(n){
   if(n.view){ nodeGroup.remove(n.view.group);
-    if(n.view.div && n.view.div.parentNode) n.view.div.parentNode.removeChild(n.view.div); }
+    if(n.view.div && n.view.div.parentNode) n.view.div.parentNode.removeChild(n.view.div);
+    if(n.view.pickDiv && n.view.pickDiv.parentNode) n.view.pickDiv.parentNode.removeChild(n.view.pickDiv); }
   const group=new THREE.Group(); group.position.set(n.x, GROUND_TOP, n.z); group.scale.setScalar(1.0);
   // мягкая контактная тень — башня «прилипает» к земле
   const csh=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3).rotateX(-Math.PI/2),
@@ -741,8 +741,19 @@ function buildTower(n){
   // number label
   const div=document.createElement('div'); div.className='tlabel'+(n.o===2?' en':n.o===0?' nt':'');
   const label=new CSS2DObject(div); label.position.set(0, 2.0, 0); group.add(label);
+  // башня ждёт выбора класса — заметный призыв: золотое кольцо + плашка «выбери класс»
+  let pickRing=null, pickDiv=null;
+  if(n.o===1 && n.l>=2 && !n.spec){
+    pickRing=new THREE.Mesh(new THREE.TorusGeometry(0.95,0.075,12,40).rotateX(Math.PI/2),
+      new THREE.MeshStandardMaterial({ color:0xffd166, emissive:0xffc23d, emissiveIntensity:1.2, roughness:0.35,
+                                       transparent:true, opacity:0.95, depthWrite:false }));
+    pickRing.position.y=0.22; pickRing.userData.nodeId=n.id; group.add(pickRing);
+    pickDiv=document.createElement('div'); pickDiv.className='pickchip';
+    pickDiv.innerHTML='<span>⭐ выбери класс</span>';   // анимируем span, transform элемента занят CSS2D
+    const pl=new CSS2DObject(pickDiv); pl.position.set(0,2.62,0); group.add(pl);
+  }
   nodeGroup.add(group);
-  n.view={group, div, label}; n.lr=n.l; n.or=n.o; n.cr=n.spec;
+  n.view={group, div, label, pickRing, pickDiv}; n.lr=n.l; n.or=n.o; n.cr=n.spec;
 }
 
 // ---------------- simulation (same rules as before) ----------------
@@ -823,7 +834,9 @@ function step(dt){
       if(n.o===1){ sfx('lvl');
         // 2 уровень — открываем выбор класса сразу и объясняем (иначе никто не догадается тапнуть)
         // во время туториала не перебиваем его — звёздочка на башне останется
-        if(n.l===2 && !n.spec && !pickPrompted && tutStep<0){ pickPrompted=true; specHint(); setTimeout(()=>{ if(!n.spec && !ended) openSpec(n); }, 500); }
+        // каждая башня, впервые дошедшая до L2, сама предлагает выбрать класс
+        if(n.l===2 && !n.spec && !n.prompted && tutStep<0){ n.prompted=true; specHint();
+          setTimeout(()=>{ if(!n.spec && !ended && !$('specMenu').classList.contains('show')) openSpec(n); }, 500); }
       } }
   }
   // полевые стычки: встречные вражеские юниты сходятся и падают (слабый гибнет)
@@ -956,6 +969,8 @@ function syncVisuals(){
     v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]+' ':'')
                       + Math.floor(n.t) + (canPick?' ⭐':'');
     if(v.pick!==canPick){ v.pick=canPick; v.div.classList.toggle('pick',canPick); }   // пульс: «тапни — выбери класс»
+    if(v.pickRing){ const k=1+Math.sin(performance.now()*0.005)*0.13;                 // дышащее кольцо-призыв
+      v.pickRing.scale.set(k,1,k); v.pickRing.material.opacity=0.75+0.25*Math.sin(performance.now()*0.005); }
     v.div.style.borderColor = CSS[n.o];
     v.div.style.color = CSS[n.o];
   }
@@ -1021,7 +1036,7 @@ function rebuildLinks(){
 }
 
 // ---------------- специализация: выбор по тапу на свою башню ----------------
-let specNode=null, pickPrompted=false;
+let specNode=null;
 function worldToScreen(x,y,z){ const v=new THREE.Vector3(x,y,z).project(camera);
   return { x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight }; }
 function openSpec(n){ specNode=n; const p=worldToScreen(n.x,2.2,n.z);

@@ -271,6 +271,9 @@ const TIPS=[
 
 let CMD=null, pTempo=false, eTempo=false;   // командир карты и дебюты «Темп»
 function cap(n){ let c=CAP_BASE*n.l; if(n.o===1 && HLVL>=5) c*=1.2; return c; }
+// порог перехода на след. уровень. L1→L2 занижен (25), чтобы класс открывался рано
+// и башня доходила до него сама в покое; выше — как раньше, по ёмкости (нужны подкрепления)
+function levelNeed(n){ return n.l===1 ? 25 : cap(n); }
 function millBoost(n){ for(const m of nodes){ if(m!==n && m.o===n.o && m.trait==='mill' &&
   Math.hypot(m.x-n.x,m.z-n.z)<5.5) return 1.3; } return 1; }
 // синергия L4: башня 4 уровня производит +25% и даёт +25% всем своим башням, связанным с ней
@@ -816,10 +819,11 @@ function step(dt){
     if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
     else { const per=(prod(n)/out.length)*flowMul(n,out.length)*dt;
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
-    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++;
+    if(n.t>levelNeed(n)+0.001 && n.l<MAX_LEVEL){ n.l++;
       if(n.o===1){ sfx('lvl');
         // 2 уровень — открываем выбор класса сразу и объясняем (иначе никто не догадается тапнуть)
-        if(n.l===2 && !n.spec && !pickPrompted){ pickPrompted=true; specHint(); setTimeout(()=>{ if(!n.spec && !ended) openSpec(n); }, 500); }
+        // во время туториала не перебиваем его — звёздочка на башне останется
+        if(n.l===2 && !n.spec && !pickPrompted && tutStep<0){ pickPrompted=true; specHint(); setTimeout(()=>{ if(!n.spec && !ended) openSpec(n); }, 500); }
       } }
   }
   // полевые стычки: встречные вражеские юниты сходятся и падают (слабый гибнет)

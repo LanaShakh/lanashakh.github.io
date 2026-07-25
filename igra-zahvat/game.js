@@ -560,7 +560,7 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
-  setTimeout(()=>{ if(!ended && tutStep<0) specHint(); }, 4000);   // разовая подсказка про выбор класса
+  pickPrompted=false;
   showIntro(m,label);   // интро перед каждым боем; на карте 1 — упрощённое, без дебютов
 }
 
@@ -816,7 +816,11 @@ function step(dt){
     if(out.length===0){ const c=cap(n); if(n.t<c && n.atk<=0) n.t=Math.min(c, n.t+prod(n)*dt); }
     else { const per=(prod(n)/out.length)*flowMul(n,out.length)*dt;
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
-    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++; if(n.o===1) sfx('lvl'); }
+    if(n.t>cap(n)+0.001 && n.l<MAX_LEVEL){ n.l++;
+      if(n.o===1){ sfx('lvl');
+        // 2 уровень — открываем выбор класса сразу и объясняем (иначе никто не догадается тапнуть)
+        if(n.l===2 && !n.spec && !pickPrompted){ pickPrompted=true; specHint(); setTimeout(()=>{ if(!n.spec && !ended) openSpec(n); }, 500); }
+      } }
   }
   // полевые стычки: встречные вражеские юниты сходятся и падают (слабый гибнет)
   const CLASH=0.42, CLASH2=CLASH*CLASH;
@@ -852,7 +856,7 @@ function botThink(){
   for(const L of links.filter(L=>L.o===2)){ const tn=nodes[L.to]; if(tn.o===2 && tn.t>=cap(tn)-0.5) removeLink(L); }
   // бот тоже выбирает классы: приграничным — бой, тыловым — Завод (на всех картах)
   for(const n of mine){
-    if(n.spec || Math.random()>D().spec) continue;
+    if(n.l<2 || n.spec || Math.random()>D().spec) continue;
     let dMin=Infinity; for(const x of nodes){ if(x.o===1){ const d=Math.hypot(x.x-n.x,x.z-n.z); if(d<dMin) dMin=d; } }
     n.spec = dMin<7 ? ['knight','chibi','mech'][(Math.random()*3)|0] : 'spirit';   // фронт — бой, тыл — Завод
   }
@@ -944,7 +948,10 @@ function syncVisuals(){
     const v=n.view; if(!v) continue;
     v.group.position.x = n.x;   // башни стоят статично (дрожание убрано)
     // label
-    v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]+' ':'')+Math.floor(n.t);
+    const canPick = (n.o===1 && n.l>=2 && !n.spec);
+    v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]+' ':'')
+                      + Math.floor(n.t) + (canPick?' ⭐':'');
+    if(v.pick!==canPick){ v.pick=canPick; v.div.classList.toggle('pick',canPick); }   // пульс: «тапни — выбери класс»
     v.div.style.borderColor = CSS[n.o];
     v.div.style.color = CSS[n.o];
   }
@@ -1010,7 +1017,7 @@ function rebuildLinks(){
 }
 
 // ---------------- специализация: выбор по тапу на свою башню ----------------
-let specNode=null;
+let specNode=null, pickPrompted=false;
 function worldToScreen(x,y,z){ const v=new THREE.Vector3(x,y,z).project(camera);
   return { x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight }; }
 function openSpec(n){ specNode=n; const p=worldToScreen(n.x,2.2,n.z);
@@ -1019,7 +1026,7 @@ function hideSpec(){ specNode=null; const m=$('specMenu'); if(m) m.classList.rem
 function specHint(){
   if(localStorage.getItem('g_zahvat_spec_hint')) return;
   localStorage.setItem('g_zahvat_spec_hint','1');
-  const h=$('hint'); h.textContent='Тапни свою башню и выбери класс войск: 🛡 защита · ⚔ атака · 🚜 осада · ✨ Завод';
+  const h=$('hint'); h.textContent='⭐ Башня 2 уровня! Выбери класс её войск: 🛡 защита · ⚔ атака · 🚜 осада · ✨ Завод. Потом — тап по башне со звёздочкой.';
   h.style.opacity='1'; setTimeout(()=>{ h.style.opacity='0'; }, 7000);
 }
 
@@ -1047,7 +1054,7 @@ function bindInput(){
     if(drag){ const n=pickNode(e);
       if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id);
       else if(!far){ const src=nodes[drag.fromId];      // тап по своей башне — меню специализации (со 2-й карты)
-        if(!src.spec) openSpec(src); else hideSpec(); }   // класс можно выбрать сразу, на любой карте
+        if(src.l>=2 && !src.spec) openSpec(src); else hideSpec(); }   // класс — со 2 уровня (на любой карте)
       drag=null; dragLine.visible=false; }
     else if(!far){ hideSpec(); const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
     downXY=null; });
@@ -1055,7 +1062,7 @@ function bindInput(){
 
   document.querySelectorAll('#specMenu button').forEach(b=>{
     b.addEventListener('pointerup',e=>{ e.stopPropagation();
-      if(specNode && specNode.o===1 && !specNode.spec){ specNode.spec=b.dataset.s; sfx('lvl'); buzz(20); }
+      if(specNode && specNode.o===1 && !specNode.spec && specNode.l>=2){ specNode.spec=b.dataset.s; sfx('lvl'); buzz(20); }
       hideSpec(); }); });
   document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
     rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };

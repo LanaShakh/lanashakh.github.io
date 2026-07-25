@@ -22,6 +22,10 @@
     box-shadow:0 3px 8px rgba(0,0,0,.25); white-space:nowrap; }
   .tlabel.en{ border-radius:7px; }              /* врага отличает и форма, не только цвет */
   .tlabel.nt{ border-style:dashed; }
+  /* башня доросла до 2 уровня и ждёт выбора класса — пульсируем, чтобы игрок заметил */
+  .tlabel.pick{ animation:pickPulse .85s ease-in-out infinite alternate; }
+  @keyframes pickPulse{ from{ transform:translate(-50%,-50%) scale(1); box-shadow:0 3px 8px rgba(0,0,0,.25); }
+                        to{ transform:translate(-50%,-50%) scale(1.14); box-shadow:0 0 16px 5px rgba(255,209,102,.85); } }
 
   .powbar{ position:fixed; top:0; left:0; right:0; height:5px; z-index:11; display:flex; }
   .powbar div{ transition:width .35s ease; }

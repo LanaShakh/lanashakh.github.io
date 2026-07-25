@@ -286,11 +286,24 @@ function synergy(n){
   return 1;
 }
 function prod(n){ let p=PROD_BASE*n.l*synergy(n)*millBoost(n);
-  if(n.spec==='spirit') p*=1.5;   // Духи — «Завод»: производство ×1.5 (бывш. эконом)
+  p*=cstat(n.spec).prod;          // производство зависит от класса (✨ Завод — самый быстрый)
   if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); if(pTempo && simTime<20) p*=1.3; }
   else if(n.o===2){ p*=D().prod; if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
   return p; }
-// КЛАССЫ (стиль = роль). null = «рекрут». Иконка в подписи + акцент-цвет цоколя.
+// КЛАССЫ (стиль = роль). null = «рекрут».
+// ⚖️ БАЛАНС — вся математика классов живёт здесь, крутить только эти числа:
+//   dmg  — урон по чужой башне за юнита      rein — сколько добавляет своей башне
+//   spd  — скорость движения (1 = обычная)    prod — производство башни
+//   def  — множитель ВХОДЯЩЕГО урона по башне этого класса (меньше = крепче)
+//   hp   — прочность в полевой стычке (кто кого сшибает по дороге)
+const CLASS_STATS={
+  chibi : { dmg:0.8, rein:1.3, spd:0.9,  prod:1.0,  def:0.55, hp:1.8 }, // 🛡 стена: слабо бьёт, крепко держит, живучий
+  knight: { dmg:1.5, rein:1.0, spd:1.15, prod:1.0,  def:1.0,  hp:1.3 }, // ⚔ острие: лучший урон, быстрые
+  mech  : { dmg:2.2, rein:0.7, spd:0.72, prod:0.85, def:1.0,  hp:1.5 }, // 🚜 осада: ломает башни, медленный, плохо держит
+  spirit: { dmg:0.7, rein:1.2, spd:1.35, prod:1.6,  def:1.0,  hp:0.7 }, // ✨ завод: экономика и логистика, хрупкий
+};
+const RECRUIT_STATS={ dmg:1, rein:1, spd:1, prod:1, def:1, hp:1 };      // без класса
+function cstat(spec){ return (spec && CLASS_STATS[spec]) || RECRUIT_STATS; }
 const SPEC_ICON  ={ chibi:'🛡', knight:'⚔', mech:'🚜', spirit:'✨' };
 const CLASS_ACCENT={ chibi:0x2fb08a, knight:0xcaa23c, mech:0xc9622e, spirit:0x7c5cff };
 // стрелок = уровню башни (маяк +1) — стабильно, не «плавает» от числа войск
@@ -766,12 +779,13 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
 // прочность в полевой стычке: пузатик самый живучий, дух — самый хрупкий
-const CLASS_HP={ chibi:1.8, knight:1.3, mech:1.5, spirit:0.7, recruit:1 };
-function spawnSoldier(from,to){ const c=from.spec;
-  const dmg=(c==='knight'?1.4 : c==='mech'?1.8 : 1)*(from.o===2 && CMD==='war'?1.2:1);
+function spawnSoldier(from,to){ const st=cstat(from.spec);
   soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
-    kind: c||'recruit', dmg, hp:CLASS_HP[c||'recruit'], dead:0,
-    fast:(c==='knight'||c==='spirit') }); }
+    kind: from.spec||'recruit', dead:0,
+    dmg: st.dmg*(from.o===2 && CMD==='war'?1.2:1),   // урон по чужой башне
+    rein: st.rein,                                   // вклад в свою башню
+    spd: st.spd,                                     // скорость марша
+    hp:  st.hp }); }                                 // прочность в стычке
 
 // юниты = класс башни: 🛡 Пузатик / ⚔ Рыцарь / 🚜 Механизм / ✨ Дух / рекрут — все в цвет команды
 function _sm(geo,mat,x,y,z){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); return m; }
@@ -809,10 +823,10 @@ function makeSoldierMesh(kind,color){
   g.traverse(c=>{ if(c.isMesh) c.castShadow=true; });
   return g;
 }
-function applyArrival(node, owner, dmg){
-  if(node.o===owner){ node.t+=1; }
+function applyArrival(node, owner, dmg, rein){
+  if(node.o===owner){ node.t+=(rein||1); }          // свои — усиливают (у 🛡/✨ вклад больше, у 🚜 меньше)
   else { node.atk=0.6;
-    node.t-=(dmg||1)*(node.spec==='chibi'?0.6:1)*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
+    node.t-=(dmg||1)*cstat(node.spec).def*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
     if(node.t<=0){ const prev=node.o;
     node.o=owner; node.t=-node.t; node.atk=0; node.spec=null; removeLinksFrom(node.id);
     if(owner===1){ sfx('cap'); buzz(30); } else if(prev===1){ sfx('lost'); buzz([40,40,40]); } } }
@@ -858,11 +872,11 @@ function step(dt){
         soldiers.splice(i,1); }
       continue; }
     const dx=tn.x-s.x, dz=tn.z-s.z, d=Math.hypot(dx,dz);
-    if(d<=0.5){ applyArrival(tn,s.o,s.dmg);
+    if(d<=0.5){ applyArrival(tn,s.o,s.dmg,s.rein);
       if(s.mesh){ soldierGroup.remove(s.mesh);
         s.mesh.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); if(c.material.dispose) c.material.dispose(); } }); }
       soldiers.splice(i,1); continue; }
-    const v=3.1*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.fast?1.2:1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
+    const v=3.1*(s.o===1 && HLVL>=4 ? 1.15 : 1)*(s.spd||1)*(s.o===2 && CMD==='wind'?1.2:1)*dt; s.x+=dx/d*v; s.z+=dz/d*v;
   }
   botTimer-=dt; if(botTimer<=0){ botTimer=BOT_INTERVAL*(CMD==='haste'?0.65:1)*D().think; botThink(); }
   checkEnd();

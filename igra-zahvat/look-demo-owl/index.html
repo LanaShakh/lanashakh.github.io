@@ -79,70 +79,102 @@ const TOWERS=[{x:-5,z:-2},{x:4.5,z:-3},{x:1,z:4}];
 let owl=null, bubbleDiv=null, bubbleObj=null;
 
 /* ---------- материалы: плоские грани, как у кита ---------- */
-const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,flatShading:true,roughness:o.r??0.62,metalness:0,
+const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,flatShading:!!o.flat,roughness:o.r??0.72,metalness:0,
   emissive:o.e??0x000000, emissiveIntensity:o.ei??0});
-const COL={ body:0x9c6b43, belly:0xe4c79c, face:0xf2ddbe, wing:0x835636, beak:0xf2a03d,
-            eye:0xffffff, pupil:0x2b2118, foot:0xe0913a, tuft:0x7d5230 };
+const COL={ body:0x8d5f3c, bodyD:0x6f4a2e, belly:0xdcbc90, face:0xf4e3c6, wing:0x714a2d,
+            beak:0x3d3a36, iris:0xf6a72a, irisD:0xd4800f, eyeW:0xfff6e6, pupil:0x1b1512,
+            foot:0x3d3a36, tuft:0x6b4527, brow:0xf4e3c6 };
 
 /* ============ ФИЛИН ============ */
 function makeOwl(){
-  const g=new THREE.Group();
-  const rig={};
-
+  const g=new THREE.Group(); const rig={};
   const bodyG=new THREE.Group(); g.add(bodyG); rig.body=bodyG;
 
-  // туловище — «яйцо»
-  const body=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,13), M(COL.body));
-  body.scale.set(1,1.12,0.92); body.position.y=0.5; bodyG.add(body);
-  // светлое брюшко
-  const belly=new THREE.Mesh(new THREE.SphereGeometry(0.4,14,11), M(COL.belly));
-  belly.scale.set(0.86,1.0,0.6); belly.position.set(0,0.47,0.22); bodyG.add(belly);
-  // хвост
-  const tail=new THREE.Mesh(new THREE.ConeGeometry(0.26,0.42,4), M(COL.wing));
-  tail.rotation.set(Math.PI*0.62,Math.PI*0.25,0); tail.position.set(0,0.3,-0.42); bodyG.add(tail);
+  // ── туловище: пухлая «груша», гладкое затенение
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.55,40,30), M(COL.body));
+  body.scale.set(1,1.05,0.9); body.position.y=0.55; bodyG.add(body);
+  // светлая грудка + «пестрины» (V-образные пёрышки) — сразу читается птица
+  const belly=new THREE.Mesh(new THREE.SphereGeometry(0.46,32,24), M(COL.belly));
+  belly.scale.set(0.8,0.92,0.55); belly.position.set(0,0.5,0.26); bodyG.add(belly);
+  for(let i=0;i<3;i++){ for(const s2 of [-1,1]){
+    const f=new THREE.Mesh(new THREE.ConeGeometry(0.035,0.1,6), M(COL.bodyD));
+    f.rotation.set(Math.PI*0.5, 0, s2*0.6);
+    f.position.set(s2*0.1,0.66-i*0.16,0.44-i*0.02); bodyG.add(f); } }
+  // хвост — три пера веером
+  for(let i=-1;i<=1;i++){
+    const t=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,0.3,6,12), M(COL.wing));
+    t.scale.set(1,1,0.4); t.rotation.set(Math.PI*0.62,0,i*0.22);
+    t.position.set(i*0.1,0.28,-0.44); bodyG.add(t); }
 
-  // голова
-  const headG=new THREE.Group(); headG.position.set(0,1.0,0.02); bodyG.add(headG); rig.head=headG;
-  const head=new THREE.Mesh(new THREE.SphereGeometry(0.4,16,13), M(COL.body));
-  head.scale.set(1.1,0.95,1); headG.add(head);
-  // лицевой диск
-  const face=new THREE.Mesh(new THREE.SphereGeometry(0.33,14,11), M(COL.face));
-  face.scale.set(1.05,0.92,0.5); face.position.set(0,-0.02,0.24); headG.add(face);
-  // ушки-кисточки
-  for(const s of [-1,1]){
-    const t=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.28,4), M(COL.tuft));
-    t.position.set(s*0.26,0.34,-0.02); t.rotation.set(0.15,0,s*0.32); headG.add(t);
-  }
-  // глаза (белок + зрачок); белок сплющиваем при моргании
+  // ── голова: широкая, сидит прямо на теле (у сов нет шеи)
+  const headG=new THREE.Group(); headG.position.set(0,1.02,0.02); bodyG.add(headG); rig.head=headG;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.46,40,30), M(COL.body));
+  head.scale.set(1.14,0.94,0.98); headG.add(head);
+
+  // лицевой диск «сердечком»: два перекрывающихся круга + переносица
+  const faceM=M(COL.face,{r:0.8});
+  for(const s2 of [-1,1]){
+    const d=new THREE.Mesh(new THREE.SphereGeometry(0.29,32,24), faceM);
+    d.scale.set(0.92,1.02,0.34); d.position.set(s2*0.15,0.0,0.34); headG.add(d); }
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(0.13,24,18), faceM);
+  nose.scale.set(0.7,1.25,0.34); nose.position.set(0,-0.06,0.37); headG.add(nose);
+
+  // ── ГЛАЗА: главный признак совы — большие, с радужкой и бликом
   rig.eyes=[];
-  for(const s of [-1,1]){
-    const e=new THREE.Mesh(new THREE.SphereGeometry(0.135,14,12), M(COL.eye,{r:0.28}));
-    e.position.set(s*0.15,0.03,0.42); headG.add(e);
-    const p=new THREE.Mesh(new THREE.SphereGeometry(0.075,12,10), M(COL.pupil,{r:0.2}));
-    p.position.set(s*0.15,0.03,0.5); headG.add(p);
-    rig.eyes.push(e); rig.eyes.push(p);
+  for(const s2 of [-1,1]){
+    const eye=new THREE.Group(); eye.position.set(s2*0.19,0.03,0.44); headG.add(eye);
+    const ring=new THREE.Mesh(new THREE.SphereGeometry(0.155,28,20), M(COL.bodyD,{r:0.85}));
+    ring.scale.set(1,1,0.3); eye.add(ring);
+    const white=new THREE.Mesh(new THREE.SphereGeometry(0.138,28,20), M(COL.eyeW,{r:0.4}));
+    white.scale.set(1,1,0.3); white.position.z=0.02; eye.add(white);
+    const iris=new THREE.Mesh(new THREE.SphereGeometry(0.112,28,20), M(COL.iris,{r:0.35,e:COL.irisD,ei:0.35}));
+    iris.scale.set(1,1,0.3); iris.position.z=0.035; eye.add(iris);
+    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.062,24,18), M(COL.pupil,{r:0.25}));
+    pup.scale.set(1,1,0.3); pup.position.z=0.05; eye.add(pup);
+    const gl=new THREE.Mesh(new THREE.SphereGeometry(0.03,16,12), M(0xffffff,{r:0.2,e:0xffffff,ei:0.5}));
+    gl.scale.set(1,1,0.3); gl.position.set(-s2*0.035,0.045,0.062); eye.add(gl);
+    rig.eyes.push(eye);                       // моргаем всей группой
   }
-  // клюв
-  const beak=new THREE.Mesh(new THREE.ConeGeometry(0.085,0.19,4), M(COL.beak,{r:0.45}));
-  beak.rotation.x=Math.PI*0.52; beak.position.set(0,-0.12,0.46); headG.add(beak);
+  // брови-надбровья — придают характер
+  for(const s2 of [-1,1]){
+    const b=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.022,10,20,Math.PI*0.72), M(COL.brow,{r:0.8}));
+    b.position.set(s2*0.19,0.09,0.47); b.rotation.set(0,0,Math.PI*0.14*(s2>0?1:-1)+Math.PI*0.14); headG.add(b); }
 
-  // крылья: пивот у плеча, чтобы махали правдоподобно
+  // ── клюв: маленький, крючком, между глаз
+  const beak=new THREE.Mesh(new THREE.ConeGeometry(0.062,0.16,10), M(COL.beak,{r:0.5}));
+  beak.rotation.x=Math.PI; beak.position.set(0,-0.09,0.52); headG.add(beak);
+  const beakTip=new THREE.Mesh(new THREE.SphereGeometry(0.032,14,10), M(COL.beak,{r:0.5}));
+  beakTip.position.set(0,-0.17,0.50); headG.add(beakTip);
+
+  // ── ушные кисточки (филин!) — крупные, разведены в стороны
+  for(const s2 of [-1,1]){
+    const t=new THREE.Mesh(new THREE.ConeGeometry(0.145,0.26,12), M(COL.tuft));
+    t.position.set(s2*0.34,0.3,-0.06); t.rotation.set(-0.34,0,s2*0.68); headG.add(t);
+    const ti=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.15,10), M(COL.body));
+    ti.position.set(s2*0.33,0.28,0.0); ti.rotation.set(-0.34,0,s2*0.68); headG.add(ti); }
+
+  // ── крылья: гладкая лопасть + три пера на конце
   rig.wings=[];
-  for(const s of [-1,1]){
-    const pivot=new THREE.Group(); pivot.position.set(s*0.38,0.66,0); bodyG.add(pivot);
-    // перо-«лопасть» уходит наружу от плеча — в полёте читается как расправленное крыло
-    const w=new THREE.Mesh(new THREE.SphereGeometry(0.36,12,9), M(COL.wing));
-    w.scale.set(1.05,0.24,0.72); w.position.set(s*0.34,0,-0.02); pivot.add(w);
-    const tip=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.36,4), M(COL.tuft));
-    tip.rotation.set(0,0,-s*Math.PI*0.5); tip.position.set(s*0.72,-0.01,-0.05); pivot.add(tip);
-    pivot.userData.side=s; rig.wings.push(pivot);
+  for(const s2 of [-1,1]){
+    const pivot=new THREE.Group(); pivot.position.set(s2*0.38,0.68,0); bodyG.add(pivot);
+    const w=new THREE.Mesh(new THREE.SphereGeometry(0.38,28,20), M(COL.wing));
+    w.scale.set(1.05,0.26,0.7); w.position.set(s2*0.34,0,-0.02); pivot.add(w);
+    for(let i=-1;i<=1;i++){
+      const f=new THREE.Mesh(new THREE.CapsuleGeometry(0.045,0.22,6,10), M(COL.bodyD));
+      f.scale.set(1,1,0.5); f.rotation.set(0,0,-s2*Math.PI*0.5+i*0.16);
+      f.position.set(s2*0.74,-0.005+i*0.012,-0.05+i*0.07); pivot.add(f); }
+    pivot.userData.side=s2; rig.wings.push(pivot);
   }
-  // лапки
+  // ── лапы с коготками
   rig.feet=[];
-  for(const s of [-1,1]){
-    const f=new THREE.Mesh(new THREE.SphereGeometry(0.1,10,8), M(COL.foot,{r:0.5}));
-    f.scale.set(1,0.55,1.25); f.position.set(s*0.17,0.05,0.06); bodyG.add(f); rig.feet.push(f);
-  }
+  for(const s2 of [-1,1]){
+    const f=new THREE.Group(); f.position.set(s2*0.17,0.06,0.1); bodyG.add(f);
+    const p=new THREE.Mesh(new THREE.SphereGeometry(0.085,16,12), M(COL.foot,{r:0.55}));
+    p.scale.set(1,0.6,1.2); f.add(p);
+    for(let i=-1;i<=1;i++){
+      const c=new THREE.Mesh(new THREE.ConeGeometry(0.022,0.09,8), M(COL.foot,{r:0.5}));
+      c.rotation.x=-Math.PI*0.5; c.position.set(i*0.05,-0.01,0.1); f.add(c); }
+    rig.feet.push(f); }
 
   g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
   g.scale.setScalar(0.62);
@@ -254,7 +286,7 @@ function bindUI(){
   el.addEventListener('pointermove',e=>{ if(!drag)return; yaw-=(e.clientX-px)*0.006;
     pitch=Math.max(0.15,Math.min(1.1,pitch+(e.clientY-py)*0.005)); px=e.clientX;py=e.clientY; });
   el.addEventListener('pointerup',()=>drag=false);
-  el.addEventListener('wheel',e=>{ dist=Math.max(8,Math.min(28,dist+Math.sign(e.deltaY))); e.preventDefault(); },{passive:false});
+  el.addEventListener('wheel',e=>{ dist=Math.max(2.6,Math.min(28,dist+Math.sign(e.deltaY)*0.7)); e.preventDefault(); },{passive:false});
   document.getElementById('bNext').onclick=()=>flyTo((owlState.idx+1)%TOWERS.length);
   document.getElementById('bTalk').onclick=()=>say(PHRASES[(Math.random()*PHRASES.length)|0]);
 }
@@ -303,12 +335,12 @@ function frame(){
       w.rotation.z = s*(0.02 + Math.sin(t*flapSpeed)*0.85);
       w.rotation.y = s*Math.sin(t*flapSpeed+0.7)*0.25;
     }else{                                    // сложены вдоль тела, чуть дышат
-      w.rotation.z = s*(1.16 + Math.sin(t*flapSpeed)*flapAmp*0.35);
+      w.rotation.z = -s*(1.02 + Math.sin(t*flapSpeed)*flapAmp*0.3);   // складываем ВНИЗ вдоль тела
       w.rotation.y = 0;
     }
   }
   // --- лапки поджимаются в полёте ---
-  for(const f of rig.feet) f.position.y = (S.mode==='fly') ? 0.16 : 0.05;
+  for(const f of rig.feet){ f.position.y = (S.mode==='fly') ? 0.2 : 0.06; f.rotation.x = (S.mode==='fly') ? -0.9 : 0; }
 
   // --- голова: осматривается, кивает при речи ---
   rig.head.rotation.y = Math.sin(t*0.7)*0.28 + (S.mode==='fly'?0:Math.sin(t*0.31)*0.15);
@@ -319,7 +351,7 @@ function frame(){
   S.blinkT-=dt;
   if(S.blinkT<=0){ S.blink=0.13; S.blinkT=2+Math.random()*3; }
   if(S.blink>0){ S.blink-=dt; const k=Math.max(0,S.blink/0.13);
-    const sy=1-0.92*Math.sin(Math.PI*k); rig.eyes.forEach(e=>e.scale.y=sy); }
+    const sy=1-0.9*Math.sin(Math.PI*k); rig.eyes.forEach(e=>e.scale.y=sy); }
   else rig.eyes.forEach(e=>e.scale.y=1);
 
   // --- тень ---

@@ -77,7 +77,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 let renderer, labelRenderer, scene, camera, composer;
 const clock=new THREE.Clock();
 const TOWERS=[{x:-5,z:-2},{x:4.5,z:-3},{x:1,z:4}];
-const HOME={x:-1.5,z:7.5};   // домик, куда Филин улетает без дела
+const HOME={x:-2.5,z:8.5};   // домик, куда Филин улетает без дела
 let owl=null, bubbleDiv=null, bubbleObj=null;
 
 /* ---------- материалы: плоские грани, как у кита ---------- */
@@ -183,37 +183,113 @@ function makeOwl(){
 }
 
 
-/* ============ ДОМИК ФИЛИНА (дупло-скворечник на столбе) ============ */
+/* ============ РЕЗИДЕНЦИЯ ФИЛИНА — дом на дереве ============
+   makeOwlKingdom(level) — уровень задаёт богатство декора (будем прокачивать) */
 let HOME_Y=2.0;
-function makeHouse(){
+const WOOD=0x8a5a33, WOOD_D=0x6b4426, BARK=0x6f4d33, LEAF=0x4f9c45, LEAF2=0x67b45a,
+      ROOF=0xb8503c, ROOF_D=0x8f3a2c, GOLD=0xf3c04a, GLOW=0xffd98a;
+function mk(geo,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0){ const m=new THREE.Mesh(geo,mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz); return m; }
+
+function makeOwlKingdom(level=2){
   const g=new THREE.Group(); g.position.set(HOME.x,0,HOME.z);
-  const W=(c,o={})=>M(c,o);
-  // столб
-  const post=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.13,2.0,14), W(0x7a5a38));
-  post.position.y=1.0; g.add(post);
-  // корпус
-  const box=new THREE.Mesh(new THREE.BoxGeometry(0.86,0.8,0.78), W(0xb07f4d,{r:0.8}));
-  box.position.y=2.4; g.add(box);
-  // крыша — аккуратная четырёхскатная «шапка» с навесом
-  const roof=new THREE.Mesh(new THREE.ConeGeometry(0.82,0.52,4), W(0xc4553f,{r:0.7}));
-  roof.rotation.y=Math.PI/4; roof.position.y=3.06; g.add(roof);
-  const eave=new THREE.Mesh(new THREE.BoxGeometry(0.98,0.06,0.9), W(0x8f3a2c,{r:0.75}));
-  eave.position.y=2.82; g.add(eave);
-  const knob=new THREE.Mesh(new THREE.SphereGeometry(0.06,14,10), W(0x8f3a2c));
-  knob.position.y=3.34; g.add(knob);
-  // лёток (дырка) + тёмная глубина
-  const holeRim=new THREE.Mesh(new THREE.TorusGeometry(0.19,0.035,12,26), W(0x8a5f36));
-  holeRim.position.set(0,2.44,0.39); g.add(holeRim);
-  const hole=new THREE.Mesh(new THREE.CircleGeometry(0.185,26), W(0x241a12,{r:1}));
-  hole.position.set(0,2.44,0.395); g.add(hole);
-  // жёрдочка — на неё садится Филин
-  const perch=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.42,10), W(0x6f4a2e));
-  perch.rotation.x=Math.PI/2; perch.position.set(0,2.02,0.54); g.add(perch);
-  HOME_Y=2.06;
+  const wood=M(WOOD,{r:0.85}), woodD=M(WOOD_D,{r:0.85}), bark=M(BARK,{r:0.95}),
+        roofM=M(ROOF,{r:0.8}), roofD=M(ROOF_D,{r:0.8}), gold=M(GOLD,{r:0.3,e:GOLD,ei:0.25}),
+        leaf=M(LEAF,{r:0.9}), leaf2=M(LEAF2,{r:0.9}), glow=M(GLOW,{r:0.3,e:GLOW,ei:0.9});
+
+  // ── СТВОЛ + корни
+  g.add(mk(new THREE.CylinderGeometry(0.32,1.05,8.9,18),bark,0,4.45,0));
+  for(let i=0;i<7;i++){ const a=i/7*Math.PI*2;
+    const r=mk(new THREE.CapsuleGeometry(0.17,0.5,6,12),bark,Math.cos(a)*0.72,0.2,Math.sin(a)*0.72,0.95,0,0);
+    r.rotation.y=-a; g.add(r); }
+  // ветви
+  const br=[[1.15,6.9,0.2,0.5],[-1.2,7.3,-0.3,-0.55],[0.2,7.6,-1.1,0.2]];
+  for(const [x,y,z,rz] of br){ const b=mk(new THREE.CylinderGeometry(0.1,0.16,1.5,10),bark,x*0.55,y,z*0.55,0.5,0,rz);
+    b.lookAt(new THREE.Vector3(x*2,y+0.5,z*2)); g.add(b); }
+
+  // ── КРОНА
+  const crown=[[0,9.2,0,1.8],[1.5,8.7,0.35,1.25],[-1.4,8.85,-0.4,1.3],[0.3,8.6,-1.4,1.15],[-0.35,9.7,1.0,1.0]];
+  crown.forEach(([x,y,z,r],i)=> g.add(mk(new THREE.IcosahedronGeometry(r,1), i%2?leaf:leaf2, x,y,z)));
+
+  // ── ДОМ: корпус на стволе + балкон
+  const H=2.55;                                  // центр дома
+  g.add(mk(new THREE.CylinderGeometry(1.05,1.16,1.6,14),wood,0,H,0));
+  for(let i=0;i<5;i++)                            // доски-пояски
+    g.add(mk(new THREE.TorusGeometry(1.19,0.035,8,20),woodD,0,H-0.6+i*0.3,0,Math.PI/2));
+  // балкон
+  g.add(mk(new THREE.CylinderGeometry(1.62,1.62,0.12,20),wood,0,H-0.82,0));
+  for(let i=0;i<18;i++){ const a=i/18*Math.PI*2;
+    if(Math.abs(a-Math.PI/2)<0.5) continue;       // проём у двери
+    g.add(mk(new THREE.CylinderGeometry(0.045,0.045,0.42,8),woodD,Math.cos(a)*1.5,H-0.55,Math.sin(a)*1.5)); }
+  g.add(mk(new THREE.TorusGeometry(1.5,0.05,8,26),wood,0,H-0.34,0,Math.PI/2));
+
+  // дверь-арка + тёмная глубина
+  g.add(mk(new THREE.CylinderGeometry(0.42,0.42,0.12,16,1,false,0,Math.PI),woodD,0,H-0.05,1.1,Math.PI/2,0,0));
+  g.add(mk(new THREE.BoxGeometry(0.84,0.72,0.1),woodD,0,H-0.4,1.1));
+  g.add(mk(new THREE.CircleGeometry(0.36,20),M(0x241a12,{r:1}),0,H-0.02,1.17));
+  g.add(mk(new THREE.BoxGeometry(0.8,0.62,0.06),M(0x2a1d14,{r:1}),0,H-0.4,1.15));
+  // окна с тёплым светом
+  for(const s2 of [-1,1]){
+    g.add(mk(new THREE.CircleGeometry(0.26,18),glow, s2*0.78,H+0.18,0.86, 0, s2*0.72, 0));
+    g.add(mk(new THREE.TorusGeometry(0.27,0.045,8,20),woodD, s2*0.79,H+0.18,0.87, 0, s2*0.72, 0)); }
+
+  // ── КРЫША: черепица «в три яруса» + шпиль
+  g.add(mk(new THREE.ConeGeometry(1.68,2.0,12),roofM,0,H+1.8,0));                    // цельный скат
+  g.add(mk(new THREE.TorusGeometry(1.32,0.07,8,24),roofD,0,H+1.28,0,Math.PI/2));     // пояс черепицы
+  g.add(mk(new THREE.TorusGeometry(0.86,0.06,8,20),roofD,0,H+2.06,0,Math.PI/2));
+  g.add(mk(new THREE.ConeGeometry(0.6,0.8,10),roofD,0,H+3.05,0));                    // шапка вокруг ствола
+  g.add(mk(new THREE.TorusGeometry(0.4,0.07,8,18),woodD,0,H+3.4,0,Math.PI/2));       // «воротник» ствола
+
+  // ── КОРОНА на шпиле: он же тут король 👑
+  // корона надета НА СТВОЛ — дерево коронованное (иначе она тонет в стволе)
+  const CY=H+3.75, CR=0.52;
+  g.add(mk(new THREE.CylinderGeometry(CR,CR,0.2,16,1,true),gold,0,CY,0));
+  g.add(mk(new THREE.TorusGeometry(CR,0.05,8,20),gold,0,CY-0.1,0,Math.PI/2));
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2;
+    g.add(mk(new THREE.ConeGeometry(0.1,0.3,6),gold,Math.cos(a)*CR,CY+0.24,Math.sin(a)*CR));
+    g.add(mk(new THREE.SphereGeometry(0.05,10,8),gold,Math.cos(a)*CR,CY+0.42,Math.sin(a)*CR)); }
+
+  // ── ДЕКОР
+  // флаг-вымпел на шпиле
+  g.add(mk(new THREE.CylinderGeometry(0.035,0.04,1.5,8),woodD,1.42,H-0.05,0.5));
+  const flag=mk(new THREE.PlaneGeometry(0.56,0.34),M(0xf0d27a,{r:0.6,e:GOLD,ei:0.15}),1.7,H+0.45,0.5);
+  flag.material.side=THREE.DoubleSide; g.add(flag);
+  g.add(mk(new THREE.SphereGeometry(0.055,10,8),gold,1.42,H+0.72,0.5));
+  // фонарики на ветвях и у двери
+  const lamps=[[1.05,H+0.55,0.72],[-1.05,H+0.55,0.72],[0,H+0.62,1.18],[1.5,7.3,0.4],[-1.45,7.6,-0.3]];
+  for(const [x,y,z] of lamps){
+    g.add(mk(new THREE.CylinderGeometry(0.02,0.02,0.18,6),woodD,x,y+0.16,z));
+    g.add(mk(new THREE.SphereGeometry(0.1,14,10),glow,x,y,z));
+    g.add(mk(new THREE.ConeGeometry(0.11,0.1,8),woodD,x,y+0.1,z)); }
+  // лестница к балкону
+  for(let i=0;i<7;i++) g.add(mk(new THREE.BoxGeometry(0.5,0.05,0.12),woodD,0,0.28+i*0.25,1.62+i*0.03));
+  for(const s2 of [-1,1]) g.add(mk(new THREE.CylinderGeometry(0.04,0.04,1.95,8),wood,s2*0.26,1.0,1.68,0.12,0,0));
+  // почтовый ящик (смешная деталь)
+  g.add(mk(new THREE.CylinderGeometry(0.045,0.045,0.9,8),woodD,1.35,0.45,1.5));
+  g.add(mk(new THREE.CylinderGeometry(0.16,0.16,0.34,12,1,false,0,Math.PI),M(0xd05a44,{r:0.6}),1.35,0.95,1.5,0,0,Math.PI/2));
+  g.add(mk(new THREE.BoxGeometry(0.02,0.16,0.1),gold,1.5,1.05,1.5));
+  // бочка и стопка книг на балконе (мудрая птица!)
+  g.add(mk(new THREE.CylinderGeometry(0.22,0.2,0.36,12),woodD,-1.1,H-0.58,0.72));
+  g.add(mk(new THREE.TorusGeometry(0.22,0.025,8,16),wood,-1.1,H-0.5,0.72,Math.PI/2));
+  const bookC=[0xc4553f,0x3f7fc4,0x4fae63];
+  bookC.forEach((c,i)=> g.add(mk(new THREE.BoxGeometry(0.34,0.09,0.26),M(c,{r:0.7}),1.02,H-0.7+i*0.1,0.62,0,i*0.25,0)));
+  // телескоп — сова смотрит на звёзды 🔭
+  g.add(mk(new THREE.CylinderGeometry(0.06,0.09,0.62,10),M(0x50606e,{r:0.4,e:0x223,ei:0.1}),-1.15,H-0.15,0.95,-0.7,0.4,0));
+  for(const s2 of [-1,0,1]) g.add(mk(new THREE.CylinderGeometry(0.025,0.025,0.5,6),woodD,-1.15+s2*0.1,H-0.5,0.95,0.3*s2,0,0.2*s2));
+  // грибочки и трава у корней
+  for(let i=0;i<5;i++){ const a=i*1.7, r=1.15+((i*37)%20)/40;
+    g.add(mk(new THREE.CylinderGeometry(0.045,0.055,0.14,8),M(0xf0e3cf,{r:0.9}),Math.cos(a)*r,0.07,Math.sin(a)*r));
+    g.add(mk(new THREE.SphereGeometry(0.1,12,8,0,Math.PI*2,0,Math.PI/2),M(0xc4553f,{r:0.7}),Math.cos(a)*r,0.14,Math.sin(a)*r)); }
+  // табличка «тут живёт король» — щит с короной
+  g.add(mk(new THREE.BoxGeometry(0.46,0.3,0.05),wood,0.72,H-0.62,1.12,0,-0.2,0.1));
+  g.add(mk(new THREE.CylinderGeometry(0.16,0.16,0.03,12),gold,0.72,H-0.6,1.16,Math.PI/2,0,0));
+
+  HOME_Y=H-0.76+0.06;                    // сидит на балконе
   g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  g.userData.level=level;
   return g;
 }
-function homePoint(){ return new THREE.Vector3(HOME.x, HOME_Y, HOME.z+0.56); }
+function homePoint(){ return new THREE.Vector3(HOME.x, HOME_Y, HOME.z+1.42); }
 function flyHome(){
   const S=owlState; S.idx=-1; S.from.copy(S.pos); S.to.copy(homePoint());
   S.dur=Math.max(1.0, S.from.distanceTo(S.to)/5.2); S.t=0; S.mode='fly'; S.goingHome=true; hideBubble();
@@ -292,7 +368,7 @@ function init(){
     setTimeout(()=>document.getElementById('loading').style.display='none',400);
   });
 
-  scene.add(makeHouse());
+  scene.add(makeOwlKingdom(2));
   owl=makeOwl(); owl.rotation.order='YXZ'; scene.add(owl);
   owl.userData.shadow=blobShadow(); scene.add(owl.userData.shadow);
   owlState.pos.copy(perchPoint(0)); owlState.idx=0;

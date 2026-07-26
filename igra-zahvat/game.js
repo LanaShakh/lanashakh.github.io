@@ -214,24 +214,354 @@ function confetti(){ const cv=$('confetti'), ctx=cv.getContext('2d');
       ctx.fillStyle=p.c; ctx.fillRect(-p.r,-p.r*0.6,p.r*2,p.r*1.2); ctx.restore(); }
     requestAnimationFrame(tick); })(); }
 
+
+// ================= КОМЕНДАНТ ФИЛИН: птица, резиденция и поведение =================
+/* ---------- материалы: плоские грани, как у кита ---------- */
+const OM=(c,o={})=>new THREE.MeshStandardMaterial({color:c,flatShading:!!o.flat,roughness:o.r??0.72,metalness:0,
+  emissive:o.e??0x000000, emissiveIntensity:o.ei??0});
+const OCOL={ body:0x8d5f3c, bodyD:0x6f4a2e, belly:0xdcbc90, face:0xf4e3c6, wing:0x714a2d,
+            beak:0x3d3a36, iris:0xf6a72a, irisD:0xd4800f, eyeW:0xfff6e6, pupil:0x1b1512,
+            foot:0x3d3a36, tuft:0x6b4527, brow:0xf4e3c6 };
+
+/* ============ ФИЛИН ============ */
+function makeOwl(){
+  const g=new THREE.Group(); const rig={};
+  const bodyG=new THREE.Group(); g.add(bodyG); rig.body=bodyG;
+
+  // ── туловище: пухлая «груша», гладкое затенение
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.55,40,30), OM(OCOL.body));
+  body.scale.set(1,1.05,0.9); body.position.y=0.55; bodyG.add(body);
+  // светлая грудка + «пестрины» (V-образные пёрышки) — сразу читается птица
+  const belly=new THREE.Mesh(new THREE.SphereGeometry(0.5,36,28), OM(OCOL.belly,{r:0.85}));
+  belly.scale.set(0.74,0.86,0.42); belly.position.set(0,0.5,0.2); bodyG.add(belly);   // утоплена — край мягкий
+  // хвост — три пера веером
+  for(let i=-1;i<=1;i++){
+    const t=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,0.3,6,12), OM(OCOL.wing));
+    t.scale.set(1,1,0.4); t.rotation.set(Math.PI*0.62,0,i*0.22);
+    t.position.set(i*0.1,0.28,-0.44); bodyG.add(t); }
+
+  // ── голова: широкая, сидит прямо на теле (у сов нет шеи)
+  const headG=new THREE.Group(); headG.position.set(0,1.02,0.02); bodyG.add(headG); rig.head=headG;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.46,40,30), OM(OCOL.body));
+  head.scale.set(1.14,0.94,0.98); headG.add(head);
+
+  // лицевой диск «сердечком»: два перекрывающихся круга + переносица
+  const faceM=OM(OCOL.face,{r:0.8});
+  for(const s2 of [-1,1]){
+    const d=new THREE.Mesh(new THREE.SphereGeometry(0.29,32,24), faceM);
+    d.scale.set(0.92,1.02,0.34); d.position.set(s2*0.15,0.0,0.34); headG.add(d); }
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(0.13,24,18), faceM);
+  nose.scale.set(0.7,1.25,0.34); nose.position.set(0,-0.06,0.37); headG.add(nose);
+
+  // ── ГЛАЗА: главный признак совы — большие, с радужкой и бликом
+  rig.eyes=[];
+  for(const s2 of [-1,1]){
+    const eye=new THREE.Group(); eye.position.set(s2*0.19,0.03,0.44); headG.add(eye);
+    const ring=new THREE.Mesh(new THREE.SphereGeometry(0.155,28,20), OM(OCOL.bodyD,{r:0.85}));
+    ring.scale.set(1,1,0.3); eye.add(ring);
+    const white=new THREE.Mesh(new THREE.SphereGeometry(0.138,28,20), OM(OCOL.eyeW,{r:0.4}));
+    white.scale.set(1,1,0.3); white.position.z=0.02; eye.add(white);
+    const iris=new THREE.Mesh(new THREE.SphereGeometry(0.118,28,20), OM(OCOL.iris,{r:0.35,e:COL.irisD,ei:0.3}));
+    iris.scale.set(1,1,0.3); iris.position.z=0.035; eye.add(iris);
+    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.082,26,20), OM(0x0d0b0a,{r:0.18}));   // крупный чёрный зрачок
+    pup.scale.set(1,1,0.34); pup.position.z=0.055; eye.add(pup);
+    const gl=new THREE.Mesh(new THREE.SphereGeometry(0.028,16,12), OM(0xffffff,{r:0.15,e:0xffffff,ei:0.6}));
+    gl.scale.set(1,1,0.3); gl.position.set(-s2*0.03,0.05,0.075); eye.add(gl);
+    const gl2=new THREE.Mesh(new THREE.SphereGeometry(0.014,12,10), OM(0xffffff,{r:0.15,e:0xffffff,ei:0.5}));
+    gl2.scale.set(1,1,0.3); gl2.position.set(s2*0.045,-0.04,0.072); eye.add(gl2);
+    rig.eyes.push(eye);                       // моргаем всей группой
+  }
+  // брови-надбровья — придают характер
+  for(const s2 of [-1,1]){
+    const b=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.022,10,20,Math.PI*0.72), OM(OCOL.brow,{r:0.8}));
+    b.position.set(s2*0.19,0.09,0.47); b.rotation.set(0,0,Math.PI*0.14*(s2>0?1:-1)+Math.PI*0.14); headG.add(b); }
+
+  // ── клюв: маленький, крючком, между глаз
+  const beak=new THREE.Mesh(new THREE.ConeGeometry(0.062,0.16,10), OM(OCOL.beak,{r:0.5}));
+  beak.rotation.x=Math.PI; beak.position.set(0,-0.09,0.52); headG.add(beak);
+  const beakTip=new THREE.Mesh(new THREE.SphereGeometry(0.032,14,10), OM(OCOL.beak,{r:0.5}));
+  beakTip.position.set(0,-0.17,0.50); headG.add(beakTip);
+
+  // ── ушные кисточки (филин!) — крупные, разведены в стороны
+  for(const s2 of [-1,1]){
+    const t=new THREE.Mesh(new THREE.ConeGeometry(0.145,0.26,12), OM(OCOL.tuft));
+    t.position.set(s2*0.34,0.3,-0.06); t.rotation.set(-0.34,0,s2*0.68); headG.add(t);
+    const ti=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.15,10), OM(OCOL.body));
+    ti.position.set(s2*0.33,0.28,0.0); ti.rotation.set(-0.34,0,s2*0.68); headG.add(ti); }
+
+  // ── крылья: гладкая лопасть + три пера на конце
+  rig.wings=[];
+  for(const s2 of [-1,1]){
+    const pivot=new THREE.Group(); pivot.position.set(s2*0.38,0.68,0); bodyG.add(pivot);
+    const w=new THREE.Mesh(new THREE.SphereGeometry(0.38,28,20), OM(OCOL.wing));
+    w.scale.set(1.05,0.26,0.7); w.position.set(s2*0.34,0,-0.02); pivot.add(w);
+    for(let i=-1;i<=1;i++){
+      const f=new THREE.Mesh(new THREE.CapsuleGeometry(0.045,0.22,6,10), OM(OCOL.bodyD));
+      f.scale.set(1,1,0.5); f.rotation.set(0,0,-s2*Math.PI*0.5+i*0.16);
+      f.position.set(s2*0.74,-0.005+i*0.012,-0.05+i*0.07); pivot.add(f); }
+    pivot.userData.side=s2; rig.wings.push(pivot);
+  }
+  // ── лапы с коготками
+  rig.feet=[];
+  for(const s2 of [-1,1]){
+    const f=new THREE.Group(); f.position.set(s2*0.17,0.06,0.1); bodyG.add(f);
+    const p=new THREE.Mesh(new THREE.SphereGeometry(0.085,16,12), OM(OCOL.foot,{r:0.55}));
+    p.scale.set(1,0.6,1.2); f.add(p);
+    for(let i=-1;i<=1;i++){
+      const c=new THREE.Mesh(new THREE.ConeGeometry(0.022,0.09,8), OM(OCOL.foot,{r:0.5}));
+      c.rotation.x=-Math.PI*0.5; c.position.set(i*0.05,-0.01,0.1); f.add(c); }
+    rig.feet.push(f); }
+
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
+  g.scale.setScalar(1.15);   // игровая камера далеко — птица должна читаться
+  g.userData.rig=rig;
+  return g;
+}
+
+
+/* ============ РЕЗИДЕНЦИЯ ФИЛИНА — дом на дереве ============
+   makeOwlKingdom(level) — уровень задаёт богатство декора (будем прокачивать) */
+let OWL_Y=2.0;
+const OWOOD=0x8a5a33, OWOOD_D=0x6b4426, OBARK=0x6f4d33, OLEAF=0x4f9c45, OLEAF2=0x67b45a,
+      OROOF=0xb8503c, OROOF_D=0x8f3a2c, OGOLD=0xf3c04a, OGLOW=0xffd98a;
+function omk(geo,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0){ const m=new THREE.Mesh(geo,mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz); return m; }
+
+function makeOwlKingdom(level=2){
+  const g=new THREE.Group(); 
+  const wood=OM(OWOOD,{r:0.85}), woodD=OM(OWOOD_D,{r:0.85}), bark=OM(OBARK,{r:0.95}),
+        roofM=OM(OROOF,{r:0.8}), roofD=OM(OROOF_D,{r:0.8}), gold=OM(OGOLD,{r:0.3,e:OGOLD,ei:0.25}),
+        leaf=OM(OLEAF,{r:0.9}), leaf2=OM(OLEAF2,{r:0.9}), glow=OM(OGLOW,{r:0.3,e:OGLOW,ei:0.9});
+
+  // ── СТВОЛ + корни
+  g.add(omk(new THREE.CylinderGeometry(0.32,1.05,8.9,18),bark,0,4.45,0));
+  for(let i=0;i<7;i++){ const a=i/7*Math.PI*2;
+    const r=omk(new THREE.CapsuleGeometry(0.17,0.5,6,12),bark,Math.cos(a)*0.72,0.2,Math.sin(a)*0.72,0.95,0,0);
+    r.rotation.y=-a; g.add(r); }
+  // ветви
+  const br=[[1.15,6.9,0.2,0.5],[-1.2,7.3,-0.3,-0.55],[0.2,7.6,-1.1,0.2]];
+  for(const [x,y,z,rz] of br){ const b=omk(new THREE.CylinderGeometry(0.1,0.16,1.5,10),bark,x*0.55,y,z*0.55,0.5,0,rz);
+    b.lookAt(new THREE.Vector3(x*2,y+0.5,z*2)); g.add(b); }
+
+  // ── КРОНА
+  const crown=[[0,9.2,0,1.8],[1.5,8.7,0.35,1.25],[-1.4,8.85,-0.4,1.3],[0.3,8.6,-1.4,1.15],[-0.35,9.7,1.0,1.0]];
+  crown.forEach(([x,y,z,r],i)=> g.add(omk(new THREE.IcosahedronGeometry(r,1), i%2?leaf:leaf2, x,y,z)));
+
+  // ── ДОМ: корпус на стволе + балкон
+  const H=2.55;                                  // центр дома
+  g.add(omk(new THREE.CylinderGeometry(1.05,1.16,1.6,14),wood,0,H,0));
+  for(let i=0;i<5;i++)                            // доски-пояски
+    g.add(omk(new THREE.TorusGeometry(1.19,0.035,8,20),woodD,0,H-0.6+i*0.3,0,Math.PI/2));
+  // балкон
+  g.add(omk(new THREE.CylinderGeometry(1.62,1.62,0.12,20),wood,0,H-0.82,0));
+  for(let i=0;i<18;i++){ const a=i/18*Math.PI*2;
+    if(Math.abs(a-Math.PI/2)<0.5) continue;       // проём у двери
+    g.add(omk(new THREE.CylinderGeometry(0.045,0.045,0.42,8),woodD,Math.cos(a)*1.5,H-0.55,Math.sin(a)*1.5)); }
+  g.add(omk(new THREE.TorusGeometry(1.5,0.05,8,26),wood,0,H-0.34,0,Math.PI/2));
+
+  // дверь-арка + тёмная глубина
+  g.add(omk(new THREE.CylinderGeometry(0.42,0.42,0.12,16,1,false,0,Math.PI),woodD,0,H-0.05,1.1,Math.PI/2,0,0));
+  g.add(omk(new THREE.BoxGeometry(0.84,0.72,0.1),woodD,0,H-0.4,1.1));
+  g.add(omk(new THREE.CircleGeometry(0.36,20),OM(0x241a12,{r:1}),0,H-0.02,1.17));
+  g.add(omk(new THREE.BoxGeometry(0.8,0.62,0.06),OM(0x2a1d14,{r:1}),0,H-0.4,1.15));
+  // окна с тёплым светом
+  for(const s2 of [-1,1]){
+    g.add(omk(new THREE.CircleGeometry(0.26,18),glow, s2*0.78,H+0.18,0.86, 0, s2*0.72, 0));
+    g.add(omk(new THREE.TorusGeometry(0.27,0.045,8,20),woodD, s2*0.79,H+0.18,0.87, 0, s2*0.72, 0)); }
+
+  // ── КРЫША: черепица «в три яруса» + шпиль
+  g.add(omk(new THREE.ConeGeometry(1.68,2.0,12),roofM,0,H+1.8,0));                    // цельный скат
+  g.add(omk(new THREE.TorusGeometry(1.32,0.07,8,24),roofD,0,H+1.28,0,Math.PI/2));     // пояс черепицы
+  g.add(omk(new THREE.TorusGeometry(0.86,0.06,8,20),roofD,0,H+2.06,0,Math.PI/2));
+  g.add(omk(new THREE.ConeGeometry(0.6,0.8,10),roofD,0,H+3.05,0));                    // шапка вокруг ствола
+  g.add(omk(new THREE.TorusGeometry(0.4,0.07,8,18),woodD,0,H+3.4,0,Math.PI/2));       // «воротник» ствола
+
+  // ── КОРОНА на шпиле: он же тут король 👑
+  // корона надета НА СТВОЛ — дерево коронованное (иначе она тонет в стволе)
+  const CY=H+3.75, CR=0.52;
+  g.add(omk(new THREE.CylinderGeometry(CR,CR,0.2,16,1,true),gold,0,CY,0));
+  g.add(omk(new THREE.TorusGeometry(CR,0.05,8,20),gold,0,CY-0.1,0,Math.PI/2));
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2;
+    g.add(omk(new THREE.ConeGeometry(0.1,0.3,6),gold,Math.cos(a)*CR,CY+0.24,Math.sin(a)*CR));
+    g.add(omk(new THREE.SphereGeometry(0.05,10,8),gold,Math.cos(a)*CR,CY+0.42,Math.sin(a)*CR)); }
+
+  // ── ДЕКОР
+  // флаг-вымпел на шпиле
+  g.add(omk(new THREE.CylinderGeometry(0.035,0.04,1.5,8),woodD,1.42,H-0.05,0.5));
+  const flag=omk(new THREE.PlaneGeometry(0.56,0.34),OM(0xf0d27a,{r:0.6,e:OGOLD,ei:0.15}),1.7,H+0.45,0.5);
+  flag.material.side=THREE.DoubleSide; g.add(flag);
+  g.add(omk(new THREE.SphereGeometry(0.055,10,8),gold,1.42,H+0.72,0.5));
+  // фонарики на ветвях и у двери
+  const lamps=[[1.05,H+0.55,0.72],[-1.05,H+0.55,0.72],[0,H+0.62,1.18],[1.5,7.3,0.4],[-1.45,7.6,-0.3]];
+  for(const [x,y,z] of lamps){
+    g.add(omk(new THREE.CylinderGeometry(0.02,0.02,0.18,6),woodD,x,y+0.16,z));
+    g.add(omk(new THREE.SphereGeometry(0.1,14,10),glow,x,y,z));
+    g.add(omk(new THREE.ConeGeometry(0.11,0.1,8),woodD,x,y+0.1,z)); }
+  // лестница к балкону
+  for(let i=0;i<7;i++) g.add(omk(new THREE.BoxGeometry(0.5,0.05,0.12),woodD,0,0.28+i*0.25,1.62+i*0.03));
+  for(const s2 of [-1,1]) g.add(omk(new THREE.CylinderGeometry(0.04,0.04,1.95,8),wood,s2*0.26,1.0,1.68,0.12,0,0));
+  // почтовый ящик (смешная деталь)
+  g.add(omk(new THREE.CylinderGeometry(0.045,0.045,0.9,8),woodD,1.35,0.45,1.5));
+  g.add(omk(new THREE.CylinderGeometry(0.16,0.16,0.34,12,1,false,0,Math.PI),OM(0xd05a44,{r:0.6}),1.35,0.95,1.5,0,0,Math.PI/2));
+  g.add(omk(new THREE.BoxGeometry(0.02,0.16,0.1),gold,1.5,1.05,1.5));
+  // бочка и стопка книг на балконе (мудрая птица!)
+  g.add(omk(new THREE.CylinderGeometry(0.22,0.2,0.36,12),woodD,-1.1,H-0.58,0.72));
+  g.add(omk(new THREE.TorusGeometry(0.22,0.025,8,16),wood,-1.1,H-0.5,0.72,Math.PI/2));
+  const bookC=[0xc4553f,0x3f7fc4,0x4fae63];
+  bookC.forEach((c,i)=> g.add(omk(new THREE.BoxGeometry(0.34,0.09,0.26),OM(c,{r:0.7}),1.02,H-0.7+i*0.1,0.62,0,i*0.25,0)));
+  // телескоп — сова смотрит на звёзды 🔭
+  g.add(omk(new THREE.CylinderGeometry(0.06,0.09,0.62,10),OM(0x50606e,{r:0.4,e:0x223,ei:0.1}),-1.15,H-0.15,0.95,-0.7,0.4,0));
+  for(const s2 of [-1,0,1]) g.add(omk(new THREE.CylinderGeometry(0.025,0.025,0.5,6),woodD,-1.15+s2*0.1,H-0.5,0.95,0.3*s2,0,0.2*s2));
+  // грибочки и трава у корней
+  for(let i=0;i<5;i++){ const a=i*1.7, r=1.15+((i*37)%20)/40;
+    g.add(omk(new THREE.CylinderGeometry(0.045,0.055,0.14,8),OM(0xf0e3cf,{r:0.9}),Math.cos(a)*r,0.07,Math.sin(a)*r));
+    g.add(omk(new THREE.SphereGeometry(0.1,12,8,0,Math.PI*2,0,Math.PI/2),OM(0xc4553f,{r:0.7}),Math.cos(a)*r,0.14,Math.sin(a)*r)); }
+  // табличка «тут живёт король» — щит с короной
+  g.add(omk(new THREE.BoxGeometry(0.46,0.3,0.05),wood,0.72,H-0.62,1.12,0,-0.2,0.1));
+  g.add(omk(new THREE.CylinderGeometry(0.16,0.16,0.03,12),gold,0.72,H-0.6,1.16,Math.PI/2,0,0));
+
+  OWL_Y=H-0.76+0.06;                    // сидит на балконе
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  g.userData.level=level;
+  return g;
+}
+
+const OWL_HOME={x:-11.5,z:1.6};                 // резиденция — слева, вне игрового поля
+let owl=null, owlHouse=null, owlBubble=null, owlBubbleObj=null, owlShadow=null;
+const OW={ mode:'perch', t:0, dur:1, from:new THREE.Vector3(), to:new THREE.Vector3(),
+           pos:new THREE.Vector3(), yaw:0, targetYaw:0, bank:0,
+           blinkT:1.5, blink:0, talk:0, grump:0, goingHome:false, ready:false };
+const OWL_GRUMBLE=[
+  'Пфф! Ну и разбирайся сам… 🍂','Ухожу-ухожу! У короля и без вас дел хватает.',
+  'Хм! Ох уж эта молодёжь…','Ладно-ладно. Но я предупреждал!',
+  'Ворчу и улетаю. Ворчу. И улетаю.','В моём дворце хотя бы слушают!'];
+
+function owlHomePoint(){ return new THREE.Vector3(OWL_HOME.x, GROUND_TOP+OWL_Y, OWL_HOME.z+1.42); }
+function owlInit(){
+  owlHouse=makeOwlKingdom(2); owlHouse.position.set(OWL_HOME.x,GROUND_TOP,OWL_HOME.z); scene.add(owlHouse);
+  owl=makeOwl(); owl.rotation.order='YXZ'; scene.add(owl);
+  owlShadow=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial({ map:contactShadowTex(), transparent:true, opacity:0.45, depthWrite:false }));
+  owlShadow.renderOrder=-1; scene.add(owlShadow);
+  owlBubble=document.createElement('div'); owlBubble.className='obubble';
+  owlBubble.innerHTML='<div class="box"></div>';
+  owlBubbleObj=new CSS2DObject(owlBubble); owlBubbleObj.visible=false; scene.add(owlBubbleObj);
+  OW.pos.copy(owlHomePoint()); OW.ready=true;
+}
+function owlSay(txt){
+  if(!OW.ready) return;
+  owlBubble.querySelector('.box').innerHTML=txt;
+  owlBubbleObj.visible=true; owlBubble.classList.remove('in'); void owlBubble.offsetWidth;
+  owlBubble.classList.add('in'); OW.talk=2.4;
+}
+function owlHush(){ if(owlBubbleObj) owlBubbleObj.visible=false; }
+function owlFlyTo(v){
+  if(!OW.ready) return;
+  OW.from.copy(OW.pos); OW.to.copy(v);
+  OW.dur=Math.max(0.9, OW.from.distanceTo(OW.to)/6.5); OW.t=0; OW.mode='fly'; OW.goingHome=false;
+}
+function owlFlyToNode(n){ if(n) owlFlyTo(new THREE.Vector3(n.x+0.95, GROUND_TOP+0.28, n.z+0.95)); }   // на цоколь перед башней — не спорит с подписью
+function owlGoHome(grumble){
+  if(!OW.ready) return;
+  if(grumble){ owlSay(OWL_GRUMBLE[(Math.random()*OWL_GRUMBLE.length)|0]); OW.grump=1.6;
+    setTimeout(()=>{ owlHush(); OW.goingHome=true; owlFlyTo(owlHomePoint()); OW.goingHome=true; }, 1500); }
+  else { owlHush(); owlFlyTo(owlHomePoint()); OW.goingHome=true; }
+}
+function owlUpdate(dt,t){
+  if(!OW.ready) return;
+  const rig=owl.userData.rig;
+  let flapSpeed=1.6, flapAmp=0.14, pitchTilt=0;
+  if(OW.mode==='fly'){
+    OW.t+=dt/OW.dur; const k=Math.min(1,OW.t);
+    const e=k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+    OW.pos.lerpVectors(OW.from,OW.to,e); OW.pos.y+=Math.sin(Math.PI*e)*2.1;
+    const dir=new THREE.Vector3().subVectors(OW.to,OW.from);
+    OW.targetYaw=Math.atan2(dir.x,dir.z);
+    OW.bank=Math.sin(Math.PI*e)*0.28*Math.sign(dir.x||1);
+    pitchTilt=(e<0.5?-0.22:0.18)*Math.sin(Math.PI*e);
+    flapSpeed=16; flapAmp=0.95;
+    if(k>=1){ OW.mode='perch'; OW.bank=0; OW.goingHome=false;
+      if(OW.pending){ const txt=OW.pending; OW.pending=null; setTimeout(()=>owlSay(txt),180); } }
+  } else {
+    OW.bank*=0.9;
+    OW.targetYaw=Math.atan2(camera.position.x-OW.pos.x, camera.position.z-OW.pos.z);
+  }
+  let dy=((OW.targetYaw-OW.yaw+Math.PI)%(Math.PI*2))-Math.PI;
+  OW.yaw+=dy*Math.min(1,dt*(OW.mode==='fly'?6:2.2));
+  owl.position.copy(OW.pos); owl.rotation.set(pitchTilt, OW.yaw, OW.bank);
+
+  const breathe=1+Math.sin(t*2.2)*0.022;
+  rig.body.scale.set(breathe,1/breathe,breathe);
+  rig.body.position.y=(OW.mode==='perch')?Math.sin(t*2.2)*0.012:Math.sin(t*9)*0.03;
+  for(const w of rig.wings){ const s=w.userData.side;
+    if(OW.mode==='fly'){ w.rotation.z=s*(0.02+Math.sin(t*flapSpeed)*0.85); w.rotation.y=s*Math.sin(t*flapSpeed+0.7)*0.25; }
+    else { w.rotation.z=-s*(1.02+Math.sin(t*flapSpeed)*flapAmp*0.3)+(OW.grump>0?-s*Math.sin(t*17)*0.22:0); w.rotation.y=0; } }
+  for(const f of rig.feet){ f.position.y=(OW.mode==='fly')?0.2:0.06; f.rotation.x=(OW.mode==='fly')?-0.9:0; }
+  if(OW.mode==='fly') rig.head.rotation.y=Math.sin(t*0.7)*0.28;
+  else { let res=((OW.targetYaw-OW.yaw+Math.PI)%(Math.PI*2))-Math.PI;
+    res=Math.max(-0.55,Math.min(0.55,res)); rig.head.rotation.y=res+Math.sin(t*0.45)*0.07; }
+  if(OW.grump>0){ OW.grump-=dt; rig.head.rotation.y+=Math.sin(t*20)*0.16; }
+  let pitchBase=0;
+  if(OW.mode!=='fly'){ const hp=new THREE.Vector3(); rig.head.getWorldPosition(hp);
+    const dyc=camera.position.y-hp.y;
+    const dxz=Math.max(0.001,Math.hypot(camera.position.x-hp.x, camera.position.z-hp.z));
+    pitchBase=-Math.max(-0.3,Math.min(0.75,Math.atan2(dyc,dxz))); }
+  if(OW.talk>0){ OW.talk-=dt; rig.head.rotation.x=pitchBase+Math.sin(t*13)*0.09; }
+  else rig.head.rotation.x=pitchBase+Math.sin(t*1.1)*0.03;
+  OW.blinkT-=dt;
+  if(OW.blinkT<=0){ OW.blink=0.13; OW.blinkT=2+Math.random()*3; }
+  if(OW.blink>0){ OW.blink-=dt; const k=Math.max(0,OW.blink/0.13);
+    const sy=1-0.9*Math.sin(Math.PI*k); rig.eyes.forEach(e=>e.scale.y=sy); }
+  else rig.eyes.forEach(e=>e.scale.y=1);
+  owlShadow.position.set(OW.pos.x,GROUND_TOP+0.02,OW.pos.z);
+  const h=Math.max(0.2,OW.pos.y-GROUND_TOP), k2=THREE.MathUtils.clamp(1.6/h,0.25,1.1);
+  owlShadow.scale.setScalar(k2); owlShadow.material.opacity=0.45*k2;
+  owlBubbleObj.position.set(OW.pos.x, OW.pos.y+1.95, OW.pos.z);   // выше птицы, чтобы не накрывать её
+}
+
 // ---------------- туториал: ведёт комендант Филин 🦉 ----------------
 const TUT_KEY='g_zahvat_tut';
 let tutStep=-1;
 const TUT_STEPS=[
-  { txt:'Привет! Я <b>комендант Филин</b>. Потяни пальцем линию от <b>синей</b> башни к серой — отправим войска!',
-    done:()=>links.some(L=>L.o===1) },
+  { txt:'Привет! Я <b>комендант Филин</b>, король этих мест. Потяни пальцем линию от <b>синей</b> башни к серой — отправим войска!',
+    at:()=>nodes.find(n=>n.o===1), done:()=>links.some(L=>L.o===1) },
   { txt:'Пошли! Когда у серой башни кончатся защитники — она станет нашей. Подожди чуть-чуть…',
-    done:()=>nodes.filter(n=>n.o===1).length>=2 },
+    at:()=>nodes.find(n=>n.o===0), done:()=>nodes.filter(n=>n.o===1).length>=2 },
   { txt:'Отлично! 🎉 Пока башня ни с кем не воюет, войска в ней растут. Захвати и вторую серую башню.',
-    done:()=>nodes.filter(n=>n.o===1).length>=3 },
-  { txt:'Чем больше войск в башне, тем больше стрелок: от 10 — две, от 30 — три. Теперь тяни линию к <b>красной</b> башне!',
+    at:()=>nodes.find(n=>n.o===0), done:()=>nodes.filter(n=>n.o===1).length>=3 },
+  // — про классы —
+  { txt:'Гляди: башня набрала войск и выросла до <b>2 уровня</b>. Видишь ⭐ и золотое кольцо? Тапни по ней!',
+    at:()=>nodes.find(n=>n.o===1 && n.l>=2 && !n.spec) || nodes.find(n=>n.o===1),
+    pick:true, done:()=>nodes.some(n=>n.o===1 && n.l>=2) && $('specMenu').classList.contains('show') },
+  { txt:'Выбирай класс войск: 🛡 держат оборону · ⚔ бьют сильнее · 🚜 ломают башни · ✨ ускоряют производство.<br><b>Бери ⚔ Рыцарей — мы идём в атаку!</b>',
+    at:()=>nodes.find(n=>n.o===1 && n.l>=2 && !n.spec) || nodes.find(n=>n.o===1),
+    pick:true, done:()=>nodes.some(n=>n.o===1 && n.spec) },
+  { txt:'Теперь из башни идут <b>рыцари</b>. Чем выше уровень башни — тем больше стрелок можно вести. Тяни линию к <b>красной</b> башне!',
+    at:()=>nodes.find(n=>n.o===1 && n.spec) || nodes.find(n=>n.o===1),
     done:()=>links.some(L=>L.o===1 && nodes[L.to] && nodes[L.to].o===2) },
   { txt:'В атаку! Захвати все красные башни — и карта наша. ⚔️ Лишнюю связь можно убрать: тапни по линии.',
-    done:()=>false },
+    at:()=>nodes.find(n=>n.o===2), done:()=>false },
 ];
-function tutShow(){ const el=$('tut'); el.classList.remove('show'); void el.offsetWidth;
-  el.classList.add('show'); $('tutTxt').innerHTML=TUT_STEPS[tutStep].txt; }
-function tutHide(){ $('tut').classList.remove('show'); }
+function tutShow(){
+  const st=TUT_STEPS[tutStep];
+  const target=st.at?st.at():null;
+  const far = target && Math.hypot(target.x-OW.pos.x, target.z-OW.pos.z)>0.8;
+  owlHush();
+  if(far){ owlFlyToNode(target); OW.pending=st.txt; }   // скажет, когда сядет
+  else owlSay(st.txt);
+  $('tutSkip').style.display='block';
+}
+function tutHide(){ $('tutSkip').style.display='none'; owlGoHome(false); }
+// разрешено ли сейчас авто-открытие меню класса (на шагах про классы — да)
+function tutAllowsPick(){ return tutStep<0 || !!(TUT_STEPS[tutStep] && TUT_STEPS[tutStep].pick); }
+// «прогнать Филина» = пропустить обучение
+function tutSkip(){
+  if(tutStep<0) return;
+  tutStep=-1; $('tutSkip').style.display='none';
+  localStorage.setItem(TUT_KEY,'1');
+  owlGoHome(true);
+  $('hint').style.opacity='0';
+}
 function tutTick(){ if(tutStep<0) return;
   if(TUT_STEPS[tutStep].done()){ tutStep++;
     if(tutStep>=TUT_STEPS.length){ tutStep=-1; tutHide(); }
@@ -418,6 +748,7 @@ async function init(){
 
   buildGround();
   buildScenery();
+  owlInit();
   document.getElementById('loading').style.display='none';
 
   // drag line
@@ -887,7 +1218,7 @@ function step(dt){
       if(n.o===1){ sfx('lvl');
         // L2 — выбор класса, L3 — выбор ветки: меню всплывает само (иначе никто не догадается тапнуть).
         // во время туториала не перебиваем его — призыв на башне останется
-        if(pickMode(n) && !n.prompted?.[n.l] && tutStep<0){
+        if(pickMode(n) && !n.prompted?.[n.l] && tutAllowsPick()){
           n.prompted=n.prompted||{}; n.prompted[n.l]=true;
           if(n.l===2) specHint();
           setTimeout(()=>{ if(!ended && pickMode(n) && !$('specMenu').classList.contains('show')) openSpec(n); }, 500); }
@@ -1183,6 +1514,7 @@ function bindInput(){
         const br=branchOf(n); if(br) showHint(br.ic+' '+br.name+' — '+br.desc, 4000); }
     }
     hideSpec(); });
+  document.getElementById('tutSkip').onclick=(e)=>{ e.stopPropagation(); tutSkip(); };
   document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
     rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };
   const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';
@@ -1255,6 +1587,7 @@ function frame(){
   for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.t+=dt; const k=b.t/0.6;
     if(k>=1){ scene.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); bursts.splice(i,1); continue; }
     b.m.scale.setScalar(1+k*2.2); b.m.material.opacity=0.9*(1-k); }
+  owlUpdate(dt, now*0.001);
   syncVisuals();
   if(composer) composer.render(); else renderer.render(scene,camera);
   labelRenderer.render(scene,camera);

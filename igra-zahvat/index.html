@@ -34,6 +34,22 @@
   @keyframes pickPulse{ from{ box-shadow:0 3px 8px rgba(0,0,0,.25); border-color:#888; }
                         to{ box-shadow:0 0 18px 6px rgba(255,209,102,.9); border-color:#ffc23d; } }
 
+  /* реплика Филина — облачко над птицей (transform занят CSS2DRenderer, анимируем .box) */
+  .obubble{ pointer-events:none; }
+  .obubble .box{ position:relative; background:#fff; color:#22303c; border-radius:14px;
+    padding:9px 13px; font-size:13.5px; line-height:1.35; font-weight:600; max-width:min(70vw,290px);
+    box-shadow:0 8px 24px rgba(0,0,0,.35); border:2px solid #ffd166; text-align:left; }
+  .obubble .box b{ color:#c2761b; }
+  .obubble .box::after{ content:""; position:absolute; left:50%; bottom:-9px; transform:translateX(-50%);
+    border:8px solid transparent; border-top-color:#ffd166; }
+  .obubble.in .box{ animation:obubIn .28s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes obubIn{ from{ transform:scale(.6) translateY(10px); opacity:0; } to{ transform:scale(1) translateY(0); opacity:1; } }
+  /* кнопка «прогнать Филина» = пропустить обучение */
+  #tutSkip{ position:fixed; z-index:13; display:none; left:50%; transform:translateX(-50%);
+    bottom:max(14px,env(safe-area-inset-bottom)); padding:9px 16px; border-radius:999px; cursor:pointer;
+    border:1.5px solid rgba(255,255,255,.25); background:rgba(15,18,38,.82); color:#e7ecff;
+    font-family:inherit; font-size:13px; font-weight:700; backdrop-filter:blur(8px); }
+  #tutSkip:active{ transform:translateX(-50%) scale(.96); }
   .powbar{ position:fixed; top:0; left:0; right:0; height:5px; z-index:11; display:flex; }
   .powbar div{ transition:width .35s ease; }
   #powP{ background:#3b82f6; width:33%; }
@@ -167,7 +183,7 @@
   </div>
   <div class="hint" id="hint">Тяни от своей башни к другой — создать связь. Убрать: тапни по линии.</div>
 
-  <div class="tut" id="tut"><div class="ava">🦉</div><div class="txt" id="tutTxt"></div></div>
+  <button id="tutSkip" title="Пропустить обучение">🏠 Прогнать Филина</button>
   <canvas id="confetti"></canvas>
   <div id="count"></div>
 

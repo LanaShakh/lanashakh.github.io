@@ -459,7 +459,7 @@ function owlHush(){ if(owlBubbleObj) owlBubbleObj.visible=false; }
 function owlFlyTo(v){
   if(!OW.ready) return;
   OW.from.copy(OW.pos); OW.to.copy(v);
-  OW.dur=Math.max(0.9, OW.from.distanceTo(OW.to)/6.5); OW.t=0; OW.mode='fly'; OW.goingHome=false;
+  OW.dur=Math.max(1.6, OW.from.distanceTo(OW.to)/3.4);   // не спеша — чтобы разглядеть OW.t=0; OW.mode='fly'; OW.goingHome=false;
 }
 function owlFlyToNode(n){ if(n) owlFlyTo(new THREE.Vector3(n.x+0.95, GROUND_TOP+0.28, n.z+0.95)); }   // на цоколь перед башней — не спорит с подписью
 function owlGoHome(grumble){
@@ -483,9 +483,10 @@ function owlRotationTip(){
   const how = touch ? 'жми кнопки <b>⟲ ⟳</b> справа внизу'
                     : 'зажми <b>правую кнопку</b> и веди мышью — или жми <b>⟲ ⟳</b> справа внизу';
   owlTip('g_zahvat_rot_tip', 'Кстати! Карту можно <b>крутить</b>: '+how+'. Гляди!', ()=>{
-    rotateCam(1);                                   // показывает наглядно
-    setTimeout(()=>{ rotateCam(1); }, 1600);
-    setTimeout(()=>{ owlHush(); owlGoHome(false); }, 3600);
+    setTimeout(()=>rotateCam(1), 2200);             // показывает наглядно, не сразу
+    setTimeout(()=>tiltCam(-1),  5200);             // и что можно наклонять
+    setTimeout(()=>tiltCam(1),   8200);
+    setTimeout(()=>{ owlHush(); owlGoHome(false); }, 13000);   // остаётся, пока не прочитаешь
   });
 }
 function owlUpdate(dt,t){
@@ -704,17 +705,22 @@ function flowMul(n,k){ const need=flowNeed(k); return (need<=0 || n.t>=need) ? 1
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
 // ---- ракурс камеры (одна переменная: кнопка её крутит, позже можно жестами) ----
-const CAM_R=Math.hypot(18,18), CAM_H=21;
+const CAM_D=Math.hypot(Math.hypot(18,18),21);            // дистанция до центра
+const PITCH_MIN=0.34, PITCH_MAX=1.30;                    // от «почти сбоку» до «сверху»
 let camYaw=Math.PI/4, camYawTarget=Math.PI/4;
+let camPitch=Math.atan2(21,Math.hypot(18,18)), camPitchTarget=camPitch;   // стартовый наклон — как было
 function applyCam(){
-  camera.position.set(Math.sin(camYaw)*CAM_R, CAM_H, Math.cos(camYaw)*CAM_R);
+  const cp=Math.cos(camPitch);
+  camera.position.set(Math.sin(camYaw)*CAM_D*cp, Math.sin(camPitch)*CAM_D, Math.cos(camYaw)*CAM_D*cp);
   camera.lookAt(0,0.4,0);
 }
 function rotateCam(dir){ camYawTarget += dir*Math.PI/2; sfx('link'); }
+function tiltCam(dir){ camPitchTarget=Math.max(PITCH_MIN,Math.min(PITCH_MAX,camPitchTarget+dir*0.26)); sfx('link'); }
 function stepCam(dt){
-  if(Math.abs(camYawTarget-camYaw)<0.0005){ camYaw=camYawTarget; return; }
-  camYaw += (camYawTarget-camYaw)*Math.min(1, dt*5.5);   // плавный доворот
-  applyCam();
+  const dy=camYawTarget-camYaw, dp=camPitchTarget-camPitch;
+  if(Math.abs(dy)<0.0005 && Math.abs(dp)<0.0005){ camYaw=camYawTarget; camPitch=camPitchTarget; return; }
+  const k=Math.min(1, dt*3.6);                            // плавный, неспешный доворот
+  camYaw+=dy*k; camPitch+=dp*k; applyCam();
 }
 function camViewSize(){ const aspect=innerWidth/innerHeight;
   const halfW=(ISL_W+ISL_D)*0.5*0.62, halfH=(ISL_W+ISL_D)*0.5*0.40;
@@ -1529,12 +1535,15 @@ function bindInput(){
   const el=renderer.domElement;
   el.addEventListener('contextmenu',e=>e.preventDefault());          // правая кнопка — вращение, не меню
   el.addEventListener('pointerdown',e=>{ audio();
-    if(e.button===2 || e.button===1){ camDrag={x:e.clientX}; el.setPointerCapture(e.pointerId); return; }
+    if(e.button===2 || e.button===1){ camDrag={x:e.clientX,y:e.clientY}; el.setPointerCapture(e.pointerId); return; }
     hideSpec(); if(ended) return; downXY={x:e.clientX,y:e.clientY};
     const n=pickNode(e); if(n && n.o===1){ drag={fromId:n.id}; dragLine.visible=true; document.getElementById('hint').style.opacity='0'; } });
   el.addEventListener('pointermove',e=>{
-    if(camDrag){ const dx=e.clientX-camDrag.x; camDrag.x=e.clientX;
-      camYaw-=dx*0.008; camYawTarget=camYaw; applyCam(); return; }
+    if(camDrag){ const dx=e.clientX-camDrag.x, dyv=e.clientY-camDrag.y;
+      camDrag.x=e.clientX; camDrag.y=e.clientY;
+      camYaw-=dx*0.008; camYawTarget=camYaw;
+      camPitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,camPitch-dyv*0.006)); camPitchTarget=camPitch;
+      applyCam(); return; }
     if(!drag) return; const g=pickGround(e); if(!g) return;
     const a=nodes[drag.fromId]; dragLine.geometry.setFromPoints([new THREE.Vector3(a.x,GROUND_TOP+0.4,a.z), new THREE.Vector3(g.x,GROUND_TOP+0.2,g.z)]); });
   el.addEventListener('pointerup',e=>{
@@ -1561,6 +1570,8 @@ function bindInput(){
   document.getElementById('tutSkip').onclick=(e)=>{ e.stopPropagation(); tutSkip(); };
   document.getElementById('rotL').onclick=()=>rotateCam(-1);
   document.getElementById('rotR').onclick=()=>rotateCam(1);
+  document.getElementById('tiltU').onclick=()=>tiltCam(1);
+  document.getElementById('tiltD').onclick=()=>tiltCam(-1);
   document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
     rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };
   const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';

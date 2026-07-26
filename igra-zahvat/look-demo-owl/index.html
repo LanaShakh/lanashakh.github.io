@@ -291,8 +291,14 @@ function makeOwlKingdom(level=2){
 }
 function homePoint(){ return new THREE.Vector3(HOME.x, HOME_Y, HOME.z+1.42); }
 function flyHome(){
-  const S=owlState; S.idx=-1; S.from.copy(S.pos); S.to.copy(homePoint());
-  S.dur=Math.max(1.0, S.from.distanceTo(S.to)/5.2); S.t=0; S.mode='fly'; S.goingHome=true; hideBubble();
+  const S=owlState;
+  // сначала ворчит НА МЕСТЕ (в полёте облачко читается плохо), потом улетает
+  say(GRUMBLE[(Math.random()*GRUMBLE.length)|0]); S.grump=1.6;
+  setTimeout(()=>{
+    hideBubble();
+    S.idx=-1; S.from.copy(S.pos); S.to.copy(homePoint());
+    S.dur=Math.max(1.0, S.from.distanceTo(S.to)/5.2); S.t=0; S.mode='fly'; S.goingHome=true;
+  }, 1500);
 }
 
 /* ---------- «тень» под птицей ---------- */
@@ -318,6 +324,14 @@ function flyTo(i){
   owlState.dur=Math.max(0.9, owlState.from.distanceTo(owlState.to)/5.2);
   owlState.t=0; owlState.mode='fly'; hideBubble();
 }
+const GRUMBLE=[
+  'Пфф! Ну и разбирайся сам… 🍂',
+  'Ухожу-ухожу! У короля и без вас дел хватает.',
+  'Хм! Ох уж эта молодёжь…',
+  'Ладно-ладно. Но я предупреждал!',
+  'Ворчу и улетаю. Ворчу. И улетаю.',
+  'В моём дворце хотя бы слушают!'
+];
 const PHRASES=[
   'Потяни линию от <b>синей</b> башни к серой — отправим войска!',
   'Башня выросла до <b>2 уровня</b> — выбери ей класс войск! ⭐',
@@ -427,14 +441,16 @@ function frame(){
     pitchTilt = (e<0.5? -0.22 : 0.18)*Math.sin(Math.PI*e);           // нос вверх/вниз
     flapSpeed=16; flapAmp=0.95;                                       // частый мах
     if(k>=1){ S.mode='perch'; S.bank=0;
-      if(S.goingHome){ S.goingHome=false; S.targetYaw=0.35; }      // дома просто сидит
+      if(S.goingHome){ S.goingHome=false; }                        // дома просто сидит и смотрит на тебя
       else setTimeout(()=>say(PHRASES[S.idx%PHRASES.length]), 250); }
   } else {
     S.bank*=0.9;
+    // сидит — медленно разворачивается к зрителю (смотрит «в глаза»)
+    S.targetYaw=Math.atan2(camera.position.x-S.pos.x, camera.position.z-S.pos.z);
     flapSpeed=1.6; flapAmp=0.13 + (S.talk>0?0.06:0);                  // сидит: лёгкое подрагивание
   }
   // плавный доворот к цели
-  let dy=((S.targetYaw-S.yaw+Math.PI)%(Math.PI*2))-Math.PI; S.yaw+=dy*Math.min(1,dt*6);
+  let dy=((S.targetYaw-S.yaw+Math.PI)%(Math.PI*2))-Math.PI; S.yaw+=dy*Math.min(1,dt*(S.mode==='fly'?6:2.2));
 
   owl.position.copy(S.pos);
   owl.rotation.set(pitchTilt, S.yaw, S.bank);
@@ -451,7 +467,7 @@ function frame(){
       w.rotation.z = s*(0.02 + Math.sin(t*flapSpeed)*0.85);
       w.rotation.y = s*Math.sin(t*flapSpeed+0.7)*0.25;
     }else{                                    // сложены вдоль тела, чуть дышат
-      w.rotation.z = -s*(1.02 + Math.sin(t*flapSpeed)*flapAmp*0.3);   // складываем ВНИЗ вдоль тела
+      w.rotation.z = -s*(1.02 + Math.sin(t*flapSpeed)*flapAmp*0.3) + (S.grump>0? -s*Math.sin(t*17)*0.22 : 0);   // складываем ВНИЗ; при ворчании топорщатся
       w.rotation.y = 0;
     }
   }
@@ -459,7 +475,15 @@ function frame(){
   for(const f of rig.feet){ f.position.y = (S.mode==='fly') ? 0.2 : 0.06; f.rotation.x = (S.mode==='fly') ? -0.9 : 0; }
 
   // --- голова: осматривается, кивает при речи ---
-  rig.head.rotation.y = Math.sin(t*0.7)*0.28 + (S.mode==='fly'?0:Math.sin(t*0.31)*0.15);
+  if(S.mode==='fly'){
+    rig.head.rotation.y = Math.sin(t*0.7)*0.28;
+  }else{
+    // остаток угла до камеры добираем головой — получается взгляд в упор
+    let res=((S.targetYaw-S.yaw+Math.PI)%(Math.PI*2))-Math.PI;
+    res=Math.max(-0.55,Math.min(0.55,res));
+    rig.head.rotation.y = res + Math.sin(t*0.45)*0.07;
+  }
+  if(S.grump>0){ S.grump-=dt; rig.head.rotation.y += Math.sin(t*20)*0.16; }   // ворчит — мотает головой
   if(S.talk>0){ S.talk-=dt; rig.head.rotation.x = Math.sin(t*13)*0.09; }
   else rig.head.rotation.x = Math.sin(t*1.1)*0.03;
 

@@ -682,6 +682,19 @@ function flowNeed(k){ return k<=1?0 : k===2?10 : k===3?30 : 60; }
 function flowMul(n,k){ const need=flowNeed(k); return (need<=0 || n.t>=need) ? 1 : Math.max(0.35, n.t/need); }
 function synergyOn(n){ return n.l>=4; }            // L4 unlocks synergy
 function worldPos(nx,ny){ return new THREE.Vector3((nx-0.5)*ISL_W*GROUNDPAD, GROUND_TOP, (ny-0.5)*ISL_D*GROUNDPAD); }
+// ---- ракурс камеры (одна переменная: кнопка её крутит, позже можно жестами) ----
+const CAM_R=Math.hypot(18,18), CAM_H=21;
+let camYaw=Math.PI/4, camYawTarget=Math.PI/4;
+function applyCam(){
+  camera.position.set(Math.sin(camYaw)*CAM_R, CAM_H, Math.cos(camYaw)*CAM_R);
+  camera.lookAt(0,0.4,0);
+}
+function rotateCam(dir){ camYawTarget += dir*Math.PI/2; sfx('link'); }
+function stepCam(dt){
+  if(Math.abs(camYawTarget-camYaw)<0.0005){ camYaw=camYawTarget; return; }
+  camYaw += (camYawTarget-camYaw)*Math.min(1, dt*5.5);   // плавный доворот
+  applyCam();
+}
 function camViewSize(){ const aspect=innerWidth/innerHeight;
   const halfW=(ISL_W+ISL_D)*0.5*0.62, halfH=(ISL_W+ISL_D)*0.5*0.40;
   return Math.max(halfH, halfW/aspect)*1.06; }
@@ -709,7 +722,8 @@ async function init(){
   // camera: isometric orthographic
   const aspect = innerWidth/innerHeight; const vs = camViewSize();
   camera = new THREE.OrthographicCamera(-vs*aspect, vs*aspect, vs, -vs, 0.1, 200);
-  camera.position.set(18, 21, 18); camera.lookAt(0, 0.4, 0);
+  camYaw=camYawTarget=Math.PI/4;                 // стартовый ракурс — как было
+  applyCam();
 
   // lights (IBL provides ambient; sun gives shape + shadows)
   scene.add(new THREE.HemisphereLight(0xdfeeff, 0x5c7a42, 0.5));
@@ -1516,6 +1530,8 @@ function bindInput(){
     }
     hideSpec(); });
   document.getElementById('tutSkip').onclick=(e)=>{ e.stopPropagation(); tutSkip(); };
+  document.getElementById('rotL').onclick=()=>rotateCam(-1);
+  document.getElementById('rotR').onclick=()=>rotateCam(1);
   document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
     rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };
   const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';
@@ -1588,6 +1604,7 @@ function frame(){
   for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.t+=dt; const k=b.t/0.6;
     if(k>=1){ scene.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); bursts.splice(i,1); continue; }
     b.m.scale.setScalar(1+k*2.2); b.m.material.opacity=0.9*(1-k); }
+  stepCam(dt);
   owlUpdate(dt, now*0.001);
   syncVisuals();
   if(composer) composer.render(); else renderer.render(scene,camera);

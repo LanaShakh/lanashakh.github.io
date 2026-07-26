@@ -53,6 +53,7 @@
   <div class="row">
     <button id="bNext">Лететь к следующей</button>
     <button id="bTalk">Сказать</button>
+    <button id="bHome">🏠 Прогнать</button>
   </div>
   <div class="feat">
     Собран из примитивов в стиле кита: <b>мах крыльев</b>, <b>наклон в вираже</b>, <b>посадка</b>,
@@ -76,6 +77,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 let renderer, labelRenderer, scene, camera, composer;
 const clock=new THREE.Clock();
 const TOWERS=[{x:-5,z:-2},{x:4.5,z:-3},{x:1,z:4}];
+const HOME={x:-1.5,z:7.5};   // домик, куда Филин улетает без дела
 let owl=null, bubbleDiv=null, bubbleObj=null;
 
 /* ---------- материалы: плоские грани, как у кита ---------- */
@@ -94,12 +96,8 @@ function makeOwl(){
   const body=new THREE.Mesh(new THREE.SphereGeometry(0.55,40,30), M(COL.body));
   body.scale.set(1,1.05,0.9); body.position.y=0.55; bodyG.add(body);
   // светлая грудка + «пестрины» (V-образные пёрышки) — сразу читается птица
-  const belly=new THREE.Mesh(new THREE.SphereGeometry(0.46,32,24), M(COL.belly));
-  belly.scale.set(0.8,0.92,0.55); belly.position.set(0,0.5,0.26); bodyG.add(belly);
-  for(let i=0;i<3;i++){ for(const s2 of [-1,1]){
-    const f=new THREE.Mesh(new THREE.ConeGeometry(0.035,0.1,6), M(COL.bodyD));
-    f.rotation.set(Math.PI*0.5, 0, s2*0.6);
-    f.position.set(s2*0.1,0.66-i*0.16,0.44-i*0.02); bodyG.add(f); } }
+  const belly=new THREE.Mesh(new THREE.SphereGeometry(0.5,36,28), M(COL.belly,{r:0.85}));
+  belly.scale.set(0.74,0.86,0.42); belly.position.set(0,0.5,0.2); bodyG.add(belly);   // утоплена — край мягкий
   // хвост — три пера веером
   for(let i=-1;i<=1;i++){
     const t=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,0.3,6,12), M(COL.wing));
@@ -127,12 +125,14 @@ function makeOwl(){
     ring.scale.set(1,1,0.3); eye.add(ring);
     const white=new THREE.Mesh(new THREE.SphereGeometry(0.138,28,20), M(COL.eyeW,{r:0.4}));
     white.scale.set(1,1,0.3); white.position.z=0.02; eye.add(white);
-    const iris=new THREE.Mesh(new THREE.SphereGeometry(0.112,28,20), M(COL.iris,{r:0.35,e:COL.irisD,ei:0.35}));
+    const iris=new THREE.Mesh(new THREE.SphereGeometry(0.118,28,20), M(COL.iris,{r:0.35,e:COL.irisD,ei:0.3}));
     iris.scale.set(1,1,0.3); iris.position.z=0.035; eye.add(iris);
-    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.062,24,18), M(COL.pupil,{r:0.25}));
-    pup.scale.set(1,1,0.3); pup.position.z=0.05; eye.add(pup);
-    const gl=new THREE.Mesh(new THREE.SphereGeometry(0.03,16,12), M(0xffffff,{r:0.2,e:0xffffff,ei:0.5}));
-    gl.scale.set(1,1,0.3); gl.position.set(-s2*0.035,0.045,0.062); eye.add(gl);
+    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.082,26,20), M(0x0d0b0a,{r:0.18}));   // крупный чёрный зрачок
+    pup.scale.set(1,1,0.34); pup.position.z=0.055; eye.add(pup);
+    const gl=new THREE.Mesh(new THREE.SphereGeometry(0.028,16,12), M(0xffffff,{r:0.15,e:0xffffff,ei:0.6}));
+    gl.scale.set(1,1,0.3); gl.position.set(-s2*0.03,0.05,0.075); eye.add(gl);
+    const gl2=new THREE.Mesh(new THREE.SphereGeometry(0.014,12,10), M(0xffffff,{r:0.15,e:0xffffff,ei:0.5}));
+    gl2.scale.set(1,1,0.3); gl2.position.set(s2*0.045,-0.04,0.072); eye.add(gl2);
     rig.eyes.push(eye);                       // моргаем всей группой
   }
   // брови-надбровья — придают характер
@@ -180,6 +180,43 @@ function makeOwl(){
   g.scale.setScalar(0.62);
   g.userData.rig=rig;
   return g;
+}
+
+
+/* ============ ДОМИК ФИЛИНА (дупло-скворечник на столбе) ============ */
+let HOME_Y=2.0;
+function makeHouse(){
+  const g=new THREE.Group(); g.position.set(HOME.x,0,HOME.z);
+  const W=(c,o={})=>M(c,o);
+  // столб
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.13,2.0,14), W(0x7a5a38));
+  post.position.y=1.0; g.add(post);
+  // корпус
+  const box=new THREE.Mesh(new THREE.BoxGeometry(0.86,0.8,0.78), W(0xb07f4d,{r:0.8}));
+  box.position.y=2.4; g.add(box);
+  // крыша — аккуратная четырёхскатная «шапка» с навесом
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(0.82,0.52,4), W(0xc4553f,{r:0.7}));
+  roof.rotation.y=Math.PI/4; roof.position.y=3.06; g.add(roof);
+  const eave=new THREE.Mesh(new THREE.BoxGeometry(0.98,0.06,0.9), W(0x8f3a2c,{r:0.75}));
+  eave.position.y=2.82; g.add(eave);
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(0.06,14,10), W(0x8f3a2c));
+  knob.position.y=3.34; g.add(knob);
+  // лёток (дырка) + тёмная глубина
+  const holeRim=new THREE.Mesh(new THREE.TorusGeometry(0.19,0.035,12,26), W(0x8a5f36));
+  holeRim.position.set(0,2.44,0.39); g.add(holeRim);
+  const hole=new THREE.Mesh(new THREE.CircleGeometry(0.185,26), W(0x241a12,{r:1}));
+  hole.position.set(0,2.44,0.395); g.add(hole);
+  // жёрдочка — на неё садится Филин
+  const perch=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.42,10), W(0x6f4a2e));
+  perch.rotation.x=Math.PI/2; perch.position.set(0,2.02,0.54); g.add(perch);
+  HOME_Y=2.06;
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  return g;
+}
+function homePoint(){ return new THREE.Vector3(HOME.x, HOME_Y, HOME.z+0.56); }
+function flyHome(){
+  const S=owlState; S.idx=-1; S.from.copy(S.pos); S.to.copy(homePoint());
+  S.dur=Math.max(1.0, S.from.distanceTo(S.to)/5.2); S.t=0; S.mode='fly'; S.goingHome=true; hideBubble();
 }
 
 /* ---------- «тень» под птицей ---------- */
@@ -255,6 +292,7 @@ function init(){
     setTimeout(()=>document.getElementById('loading').style.display='none',400);
   });
 
+  scene.add(makeHouse());
   owl=makeOwl(); owl.rotation.order='YXZ'; scene.add(owl);
   owl.userData.shadow=blobShadow(); scene.add(owl.userData.shadow);
   owlState.pos.copy(perchPoint(0)); owlState.idx=0;
@@ -289,6 +327,7 @@ function bindUI(){
   el.addEventListener('wheel',e=>{ dist=Math.max(2.6,Math.min(28,dist+Math.sign(e.deltaY)*0.7)); e.preventDefault(); },{passive:false});
   document.getElementById('bNext').onclick=()=>flyTo((owlState.idx+1)%TOWERS.length);
   document.getElementById('bTalk').onclick=()=>say(PHRASES[(Math.random()*PHRASES.length)|0]);
+  document.getElementById('bHome').onclick=()=>flyHome();
 }
 function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); labelRenderer.setSize(innerWidth,innerHeight);
@@ -312,7 +351,8 @@ function frame(){
     pitchTilt = (e<0.5? -0.22 : 0.18)*Math.sin(Math.PI*e);           // нос вверх/вниз
     flapSpeed=16; flapAmp=0.95;                                       // частый мах
     if(k>=1){ S.mode='perch'; S.bank=0;
-      setTimeout(()=>say(PHRASES[S.idx%PHRASES.length]), 250); }
+      if(S.goingHome){ S.goingHome=false; S.targetYaw=0.35; }      // дома просто сидит
+      else setTimeout(()=>say(PHRASES[S.idx%PHRASES.length]), 250); }
   } else {
     S.bank*=0.9;
     flapSpeed=1.6; flapAmp=0.13 + (S.talk>0?0.06:0);                  // сидит: лёгкое подрагивание

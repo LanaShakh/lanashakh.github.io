@@ -313,7 +313,7 @@ function makeOwl(){
     rig.feet.push(f); }
 
   g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
-  g.scale.setScalar(1.15);   // игровая камера далеко — птица должна читаться
+  g.scale.setScalar(0.92);   // соразмерно башням и собственному дому
   g.userData.rig=rig;
   return g;
 }
@@ -426,7 +426,7 @@ function makeOwlKingdom(level=2){
   return g;
 }
 
-const OWL_HOME={x:-11.5,z:1.6};                 // резиденция — слева, вне игрового поля
+const OWL_HOME={x:9.3,z:1.3}, OWL_HSCALE=0.72;   // резиденция справа от поля; масштаб под размер башен
 let owl=null, owlHouse=null, owlBubble=null, owlBubbleObj=null, owlShadow=null;
 const OW={ mode:'perch', t:0, dur:1, from:new THREE.Vector3(), to:new THREE.Vector3(),
            pos:new THREE.Vector3(), yaw:0, targetYaw:0, bank:0,
@@ -436,9 +436,10 @@ const OWL_GRUMBLE=[
   'Хм! Ох уж эта молодёжь…','Ладно-ладно. Но я предупреждал!',
   'Ворчу и улетаю. Ворчу. И улетаю.','В моём дворце хотя бы слушают!'];
 
-function owlHomePoint(){ return new THREE.Vector3(OWL_HOME.x, GROUND_TOP+OWL_Y, OWL_HOME.z+1.42); }
+function owlHomePoint(){ return new THREE.Vector3(OWL_HOME.x, GROUND_TOP+OWL_Y*OWL_HSCALE, OWL_HOME.z+1.42*OWL_HSCALE); }
 function owlInit(){
-  owlHouse=makeOwlKingdom(2); owlHouse.position.set(OWL_HOME.x,GROUND_TOP,OWL_HOME.z); scene.add(owlHouse);
+  owlHouse=makeOwlKingdom(2); owlHouse.position.set(OWL_HOME.x,GROUND_TOP,OWL_HOME.z);
+  owlHouse.scale.setScalar(OWL_HSCALE); scene.add(owlHouse);
   owl=makeOwl(); owl.rotation.order='YXZ'; scene.add(owl);
   owlShadow=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4).rotateX(-Math.PI/2),
     new THREE.MeshBasicMaterial({ map:contactShadowTex(), transparent:true, opacity:0.45, depthWrite:false }));

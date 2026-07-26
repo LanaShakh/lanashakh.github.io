@@ -270,7 +270,7 @@ const TIPS=[
 ];
 
 let CMD=null, pTempo=false, eTempo=false;   // командир карты и дебюты «Темп»
-function cap(n){ let c=CAP_BASE*n.l; if(n.o===1 && HLVL>=5) c*=1.2; return c; }
+function cap(n){ let c=CAP_BASE*n.l*bmod(n,'cap',1); if(n.o===1 && HLVL>=5) c*=1.2; return c; }
 // порог перехода на след. уровень. L1→L2 занижен (25), чтобы класс открывался рано
 // и башня доходила до него сама в покое; выше — как раньше, по ёмкости (нужны подкрепления)
 function levelNeed(n){ return n.l===1 ? 25 : cap(n); }
@@ -278,15 +278,17 @@ function millBoost(n){ for(const m of nodes){ if(m!==n && m.o===n.o && m.trait==
   Math.hypot(m.x-n.x,m.z-n.z)<5.5) return 1.3; } return 1; }
 // синергия L4: башня 4 уровня производит +25% и даёт +25% всем своим башням, связанным с ней
 function synergy(n){
-  if(n.l>=4) return 1.25;
+  let s = (n.l>=4) ? 1.25 : 1;
+  if(n.l>=4 && n.spec==='spirit') s=1.5;                 // 🌟 Метрополия — сама качает сильнее
   for(const L of links){
-    if(L.from===n.id){ const t=nodes[L.to]; if(t && t.o===n.o && t.l>=4) return 1.25; }
-    else if(L.to===n.id){ const f=nodes[L.from]; if(f && f.o===n.o && f.l>=4) return 1.25; }
+    const other = L.from===n.id ? nodes[L.to] : (L.to===n.id ? nodes[L.from] : null);
+    if(!other || other.o!==n.o || other.l<4) continue;
+    s=Math.max(s, other.spec==='spirit' ? 1.5 : 1.25);   // 🌟 связанные с Метрополией — тоже +50%
   }
-  return 1;
+  return s;
 }
 function prod(n){ let p=PROD_BASE*n.l*synergy(n)*millBoost(n);
-  p*=cstat(n.spec).prod;          // производство зависит от класса (✨ Завод — самый быстрый)
+  p*=tstats(n).prod;              // производство: класс × ветка L3
   if(n.o===1){ if(HLVL>=1) p*=1.1; if(rushT>0) p*=(HLVL>=6?3:2); if(pTempo && simTime<20) p*=1.3; }
   else if(n.o===2){ p*=D().prod; if(CMD==='greed') p*=1.15; if(eTempo && simTime<20) p*=1.3; }
   return p; }
@@ -304,10 +306,46 @@ const CLASS_STATS={
 };
 const RECRUIT_STATS={ dmg:1, rein:1, spd:1, prod:1, def:1, hp:1 };      // без класса
 function cstat(spec){ return (spec && CLASS_STATS[spec]) || RECRUIT_STATS; }
+
+// L3 — ВЕТКА ВНУТРИ КЛАССА (не новый класс). mod: множители к статам, cap/links — к башне
+const BRANCHES={
+  chibi : [ {k:'bastion',  ic:'🏰', name:'Бастион',  desc:'башня почти не проседает', mod:{def:0.7, hp:1.2}},
+            {k:'garrison', ic:'🚩', name:'Гарнизон', desc:'+35% ёмкости и +1 связь',  mod:{cap:1.35, links:1}} ],
+  knight: [ {k:'assault',  ic:'🗡', name:'Штурм',    desc:'+40% урона',               mod:{dmg:1.4}},
+            {k:'onslaught',ic:'💨', name:'Натиск',   desc:'быстрее и больше войск',   mod:{spd:1.25, prod:1.3}} ],
+  mech  : [ {k:'breaker',  ic:'🧱', name:'Стенобит', desc:'+60% урона по башням',     mod:{dmg:1.6}},
+            {k:'conveyor', ic:'⚙',  name:'Конвейер', desc:'клепает быстрее и катит бодрее', mod:{prod:1.45, spd:1.25}} ],
+  spirit: [ {k:'factory',  ic:'🏭', name:'Завод',    desc:'+50% производства',        mod:{prod:1.5}},
+            {k:'logistic', ic:'🧭', name:'Логистика',desc:'+1 связь, вклад и скорость', mod:{links:1, rein:1.3, spd:1.2}} ],
+};
+// L4 — ЭПИК класса (включается сам на 4 уровне)
+const EPICS={
+  chibi : {ic:'🏰', name:'Аура-бастион', desc:'связанные свои башни держат удар'},
+  knight: {ic:'⚔',  name:'Осадный залп', desc:'периодически шлёт элитный отряд'},
+  mech  : {ic:'🐏', name:'Таран',        desc:'периодически выкатывает таран'},
+  spirit: {ic:'🌟', name:'Метрополия',   desc:'разгоняет производство связанных башен'},
+};
+const EPIC_EVERY=7;            // сек между эпик-выпусками (⚔/🚜)
+function branchOf(n){ const list=BRANCHES[n.spec]; if(!list||!n.br) return null; return list.find(b=>b.k===n.br)||null; }
+function bmod(n,key,dflt){ const b=branchOf(n); return (b && b.mod[key]!=null) ? b.mod[key] : dflt; }
+// итоговые статы башни: класс × ветка
+function tstats(n){ const base=cstat(n.spec), b=branchOf(n); if(!b) return base;
+  const o={...base}; for(const k of ['dmg','rein','spd','prod','def','hp']) if(b.mod[k]!=null) o[k]*=b.mod[k];
+  return o; }
+function epicOn(n){ return n.l>=4 && !!n.spec; }
+// 🏰 аура-бастион: L4-пузатики укрепляют себя и связанные свои башни
+function bastionAura(n){
+  for(const L of links){
+    const other = L.from===n.id ? nodes[L.to] : (L.to===n.id ? nodes[L.from] : null);
+    if(other && other.o===n.o && other.l>=4 && other.spec==='chibi') return 0.8;
+  }
+  return (n.l>=4 && n.spec==='chibi') ? 0.8 : 1;
+}
 const SPEC_ICON  ={ chibi:'🛡', knight:'⚔', mech:'🚜', spirit:'✨' };
+const CLASS_NAME ={ chibi:'Пузатики — защита', knight:'Рыцари — атака', mech:'Механизмы — осада', spirit:'Духи — Завод' };
 const CLASS_ACCENT={ chibi:0x2fb08a, knight:0xcaa23c, mech:0xc9622e, spirit:0x7c5cff };
 // стрелок = уровню башни (маяк +1) — стабильно, не «плавает» от числа войск
-function linkCap(n){ return Math.min(4,n.l) + (n.trait==='beacon'?1:0); }
+function linkCap(n){ return Math.min(4,n.l) + (n.trait==='beacon'?1:0) + bmod(n,'links',0); }
 function flowNeed(k){ return k<=1?0 : k===2?10 : k===3?30 : 60; }
 // солдат меньше порога — стрелки остаются, но поток слабеет
 function flowMul(n,k){ const need=flowNeed(k); return (need<=0 || n.t>=need) ? 1 : Math.max(0.35, n.t/need); }
@@ -756,17 +794,18 @@ function buildTower(n){
   const label=new CSS2DObject(div); label.position.set(0, 2.0, 0); group.add(label);
   // башня ждёт выбора класса — заметный призыв: золотое кольцо + плашка «выбери класс»
   let pickRing=null, pickDiv=null;
-  if(n.o===1 && n.l>=2 && !n.spec){
+  const pm=pickMode(n);
+  if(pm){
     pickRing=new THREE.Mesh(new THREE.TorusGeometry(0.95,0.075,12,40).rotateX(Math.PI/2),
       new THREE.MeshStandardMaterial({ color:0xffd166, emissive:0xffc23d, emissiveIntensity:1.2, roughness:0.35,
                                        transparent:true, opacity:0.95, depthWrite:false }));
     pickRing.position.y=0.22; pickRing.userData.nodeId=n.id; group.add(pickRing);
     pickDiv=document.createElement('div'); pickDiv.className='pickchip';
-    pickDiv.innerHTML='<span>⭐ выбери класс</span>';   // анимируем span, transform элемента занят CSS2D
+    pickDiv.innerHTML='<span>⭐ '+(pm==='class'?'выбери класс':'выбери ветку')+'</span>';   // анимируем span, transform занят CSS2D
     const pl=new CSS2DObject(pickDiv); pl.position.set(0,2.62,0); group.add(pl);
   }
   nodeGroup.add(group);
-  n.view={group, div, label, pickRing, pickDiv}; n.lr=n.l; n.or=n.o; n.cr=n.spec;
+  n.view={group, div, label, pickRing, pickDiv}; n.lr=n.l; n.or=n.o; n.cr=n.spec; n.brr=n.br;
 }
 
 // ---------------- simulation (same rules as before) ----------------
@@ -779,7 +818,7 @@ function toggleLink(from,to){ if(from===to) return; const src=nodes[from];
   links.push({from,to,o:src.o,accum:0}); sfx('link'); }
 
 // прочность в полевой стычке: пузатик самый живучий, дух — самый хрупкий
-function spawnSoldier(from,to){ const st=cstat(from.spec);
+function spawnSoldier(from,to){ const st=tstats(from);
   soldiers.push({ x:from.x, z:from.z, tid:to.id, o:from.o, mesh:null,
     kind: from.spec||'recruit', dead:0,
     dmg: st.dmg*(from.o===2 && CMD==='war'?1.2:1),   // урон по чужой башне
@@ -826,9 +865,9 @@ function makeSoldierMesh(kind,color){
 function applyArrival(node, owner, dmg, rein){
   if(node.o===owner){ node.t+=(rein||1); }          // свои — усиливают (у 🛡/✨ вклад больше, у 🚜 меньше)
   else { node.atk=0.6;
-    node.t-=(dmg||1)*cstat(node.spec).def*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
+    node.t-=(dmg||1)*tstats(node).def*bastionAura(node)*(node.trait==='fort'?0.5:1)*(node.o===2 && CMD==='forge'?0.85:1);
     if(node.t<=0){ const prev=node.o;
-    node.o=owner; node.t=-node.t; node.atk=0; node.spec=null; removeLinksFrom(node.id);
+    node.o=owner; node.t=-node.t; node.atk=0; node.spec=null; node.br=null; node.prompted=null; removeLinksFrom(node.id);
     if(owner===1){ sfx('cap'); buzz(30); } else if(prev===1){ sfx('lost'); buzz([40,40,40]); } } }
 }
 
@@ -846,12 +885,26 @@ function step(dt){
       for(const L of out){ L.accum+=per; while(L.accum>=1){ L.accum-=1; spawnSoldier(n, nodes[L.to]); } } }
     if(n.t>levelNeed(n)+0.001 && n.l<MAX_LEVEL){ n.l++;
       if(n.o===1){ sfx('lvl');
-        // 2 уровень — открываем выбор класса сразу и объясняем (иначе никто не догадается тапнуть)
-        // во время туториала не перебиваем его — звёздочка на башне останется
-        // каждая башня, впервые дошедшая до L2, сама предлагает выбрать класс
-        if(n.l===2 && !n.spec && !n.prompted && tutStep<0){ n.prompted=true; specHint();
-          setTimeout(()=>{ if(!n.spec && !ended && !$('specMenu').classList.contains('show')) openSpec(n); }, 500); }
+        // L2 — выбор класса, L3 — выбор ветки: меню всплывает само (иначе никто не догадается тапнуть).
+        // во время туториала не перебиваем его — призыв на башне останется
+        if(pickMode(n) && !n.prompted?.[n.l] && tutStep<0){
+          n.prompted=n.prompted||{}; n.prompted[n.l]=true;
+          if(n.l===2) specHint();
+          setTimeout(()=>{ if(!ended && pickMode(n) && !$('specMenu').classList.contains('show')) openSpec(n); }, 500); }
+        if(n.l===4 && n.spec && EPICS[n.spec]) showHint('🌟 4 уровень! '+EPICS[n.spec].ic+' '+EPICS[n.spec].name+' — '+EPICS[n.spec].desc, 6000);
       } }
+  }
+  // ⚔ Осадный залп / 🚜 Таран — L4-эпик: раз в EPIC_EVERY сек по каждой связи уходит элита
+  for(const n of nodes){
+    if(!epicOn(n) || (n.spec!=='knight' && n.spec!=='mech')){ n.epicT=0; continue; }
+    const out=links.filter(L=>L.from===n.id);
+    if(!out.length){ n.epicT=0; continue; }
+    n.epicT=(n.epicT||0)+dt;
+    if(n.epicT>=EPIC_EVERY){ n.epicT=0;
+      for(const L of out){ spawnSoldier(n, nodes[L.to]); const s=soldiers[soldiers.length-1];
+        s.elite=true; s.dmg*=3.2; s.hp*=2.6; s.spd*=0.85; }
+      if(n.o===1) sfx('lvl');
+    }
   }
   // полевые стычки: встречные вражеские юниты сходятся и падают (слабый гибнет)
   const CLASH=0.42, CLASH2=CLASH*CLASH;
@@ -975,12 +1028,14 @@ function burst(n){ const ring=new THREE.Mesh(new THREE.TorusGeometry(0.7,0.09,10
 
 function syncVisuals(){
   for(const n of nodes){
-    if(n.lr!==n.l || n.or!==n.o || n.cr!==n.spec){ if(n.or!==-1 && n.or!==n.o) burst(n); buildTower(n); }   // rebuild on level/owner/class change
+    if(n.lr!==n.l || n.or!==n.o || n.cr!==n.spec || n.brr!==n.br){ if(n.or!==-1 && n.or!==n.o) burst(n); buildTower(n); }   // rebuild on level/owner/class/branch change
     const v=n.view; if(!v) continue;
     v.group.position.x = n.x;   // башни стоят статично (дрожание убрано)
     // label
-    const canPick = (n.o===1 && n.l>=2 && !n.spec);
-    v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]+' ':'')
+    const canPick = !!pickMode(n);
+    const brIc=branchOf(n), epIc=(epicOn(n)&&EPICS[n.spec])?EPICS[n.spec].ic:'';
+    v.div.textContent = (n.trait?TRAITS[n.trait].icon+' ':'')+(n.spec?SPEC_ICON[n.spec]:'')
+                      +(brIc?brIc.ic:'')+epIc+(n.spec?' ':'')
                       + Math.floor(n.t) + (canPick?' ⭐':'');
     if(v.pick!==canPick){ v.pick=canPick; v.div.classList.toggle('pick',canPick); }   // пульс: «тапни — выбери класс»
     if(v.pickRing){ const k=1+Math.sin(performance.now()*0.005)*0.13;                 // дышащее кольцо-призыв
@@ -989,7 +1044,10 @@ function syncVisuals(){
     v.div.style.color = CSS[n.o];
   }
   // soldiers meshes — фигурка по типу, лицом по ходу движения
-  for(const s of soldiers){ if(!s.mesh){ s.mesh=makeSoldierMesh(s.kind, SOLID[s.o]); soldierGroup.add(s.mesh); }
+  for(const s of soldiers){ if(!s.mesh){ s.mesh=makeSoldierMesh(s.kind, SOLID[s.o]); soldierGroup.add(s.mesh);
+      if(s.elite){ s.mesh.scale.multiplyScalar(1.65);            // эпик-элита — заметно крупнее и с отблеском
+        s.mesh.traverse(c=>{ if(c.isMesh && c.material && c.material.emissive){ c.material=c.material.clone();
+          c.material.emissive.set(0xffc23d); c.material.emissiveIntensity=0.5; } }); } }
     const tn=nodes[s.tid];
     const ph=performance.now()*0.001, seed=(s.x+s.z)*3;
     if(s.dead>0){                       // падение: заваливается набок, оседает и тает
@@ -1053,8 +1111,31 @@ function rebuildLinks(){
 let specNode=null;
 function worldToScreen(x,y,z){ const v=new THREE.Vector3(x,y,z).project(camera);
   return { x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight }; }
-function openSpec(n){ specNode=n; const p=worldToScreen(n.x,2.2,n.z);
-  const m=$('specMenu'); m.style.left=p.x+'px'; m.style.top=p.y+'px'; m.classList.add('show'); }
+// что сейчас можно выбрать у башни: класс (L2) или ветку класса (L3)
+function pickMode(n){
+  if(!n || n.o!==1) return null;
+  if(n.l>=2 && !n.spec) return 'class';
+  if(n.l>=3 && n.spec && !n.br && BRANCHES[n.spec]) return 'branch';
+  return null;
+}
+function openSpec(n){
+  const mode=pickMode(n); if(!mode) return;
+  specNode=n; const m=$('specMenu'); m.innerHTML='';
+  if(mode==='class'){
+    for(const k of ['chibi','knight','mech','spirit']){
+      const b=document.createElement('button'); b.dataset.mode='class'; b.dataset.val=k;
+      b.textContent=SPEC_ICON[k]; b.title=CLASS_NAME[k]; m.appendChild(b); }
+  }else{
+    for(const br of BRANCHES[n.spec]){
+      const b=document.createElement('button'); b.dataset.mode='branch'; b.dataset.val=br.k;
+      b.textContent=br.ic; b.title=br.name+' — '+br.desc; m.appendChild(b);
+      showHint(BRANCHES[n.spec].map(x=>x.ic+' '+x.name+' — '+x.desc).join(' · '), 6000); }
+  }
+  const p=worldToScreen(n.x,3.35,n.z);          // выше плашки «выбери …», чтобы не наезжало
+  m.style.left=p.x+'px'; m.style.top=p.y+'px'; m.classList.add('show');
+}
+function showHint(txt,ms){ const h=$('hint'); h.textContent=txt; h.style.opacity='1';
+  setTimeout(()=>{ h.style.opacity='0'; }, ms||5000); }
 function hideSpec(){ specNode=null; const m=$('specMenu'); if(m) m.classList.remove('show'); }
 function specHint(){
   if(localStorage.getItem('g_zahvat_spec_hint')) return;
@@ -1086,17 +1167,22 @@ function bindInput(){
     const far = downXY && Math.hypot(e.clientX-downXY.x, e.clientY-downXY.y)>14;
     if(drag){ const n=pickNode(e);
       if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id);
-      else if(!far){ const src=nodes[drag.fromId];      // тап по своей башне — меню специализации (со 2-й карты)
-        if(src.l>=2 && !src.spec) openSpec(src); else hideSpec(); }   // класс — со 2 уровня (на любой карте)
+      else if(!far){ const src=nodes[drag.fromId];      // короткий тап по своей башне — выбор класса (L2) или ветки (L3)
+        if(pickMode(src)) openSpec(src); else hideSpec(); }
       drag=null; dragLine.visible=false; }
     else if(!far){ hideSpec(); const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
     downXY=null; });
   el.addEventListener('pointercancel',()=>{ drag=null; dragLine.visible=false; downXY=null; });
 
-  document.querySelectorAll('#specMenu button').forEach(b=>{
-    b.addEventListener('pointerup',e=>{ e.stopPropagation();
-      if(specNode && specNode.o===1 && !specNode.spec && specNode.l>=2){ specNode.spec=b.dataset.s; sfx('lvl'); buzz(20); }
-      hideSpec(); }); });
+  // кнопки меню создаются на лету — слушаем контейнер
+  $('specMenu').addEventListener('pointerup',e=>{
+    const b=e.target.closest('button'); if(!b) return; e.stopPropagation();
+    const n=specNode; if(n && n.o===1){
+      if(b.dataset.mode==='class' && !n.spec && n.l>=2){ n.spec=b.dataset.val; sfx('lvl'); buzz(20); }
+      else if(b.dataset.mode==='branch' && n.spec && !n.br && n.l>=3){ n.br=b.dataset.val; sfx('lvl'); buzz(20);
+        const br=branchOf(n); if(br) showHint(br.ic+' '+br.name+' — '+br.desc, 4000); }
+    }
+    hideSpec(); });
   document.getElementById('rushBtn').onclick=()=>{ if(rushCD>0 || !running || ended) return;
     rushT=5; rushCD=HLVL>=6?15:20; sfx('rush'); buzz(25); };
   const sndBtn=document.getElementById('sndBtn'); sndBtn.textContent = muted?'🔇':'🔊';

@@ -50,6 +50,10 @@
     border:1.5px solid rgba(255,255,255,.25); background:rgba(15,18,38,.82); color:#e7ecff;
     font-family:inherit; font-size:13px; font-weight:700; backdrop-filter:blur(8px); }
   #tutSkip:active{ transform:translateX(-50%) scale(.96); }
+  /* поворот карты — отдельно от шапки, чтобы влезало на телефоне */
+  .rotpad{ position:fixed; right:max(14px,env(safe-area-inset-right)); bottom:calc(max(16px,env(safe-area-inset-bottom)) + 68px);
+    z-index:11; display:flex; gap:8px; }
+  .rotpad .iconbtn{ width:42px; height:42px; font-size:19px; }
   .powbar{ position:fixed; top:0; left:0; right:0; height:5px; z-index:11; display:flex; }
   .powbar div{ transition:width .35s ease; }
   #powP{ background:#3b82f6; width:33%; }
@@ -178,13 +182,15 @@
       <div class="pill"><span class="dot e"></span><span id="cntE">0</span></div>
       <button class="iconbtn" id="sndBtn">🔊</button>
       <button class="iconbtn" id="speedBtn">×1</button>
-      <button class="iconbtn" id="rotL" title="Повернуть влево">⟲</button>
-      <button class="iconbtn" id="rotR" title="Повернуть вправо">⟳</button>
       <button class="iconbtn" id="menuBtn">☰</button>
     </div>
   </div>
   <div class="hint" id="hint">Тяни от своей башни к другой — создать связь. Убрать: тапни по линии.</div>
 
+  <div class="rotpad">
+    <button class="iconbtn" id="rotL" title="Повернуть влево">⟲</button>
+    <button class="iconbtn" id="rotR" title="Повернуть вправо">⟳</button>
+  </div>
   <button id="tutSkip" title="Пропустить обучение">🏠 Прогнать Филина</button>
   <canvas id="confetti"></canvas>
   <div id="count"></div>

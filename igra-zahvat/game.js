@@ -466,7 +466,27 @@ function owlGoHome(grumble){
   if(!OW.ready) return;
   if(grumble){ owlSay(OWL_GRUMBLE[(Math.random()*OWL_GRUMBLE.length)|0]); OW.grump=1.6;
     setTimeout(()=>{ owlHush(); OW.goingHome=true; owlFlyTo(owlHomePoint()); OW.goingHome=true; }, 1500); }
-  else { owlHush(); owlFlyTo(owlHomePoint()); OW.goingHome=true; }
+  else { owlHush(); OW.pending=null; OW.onSpoke=null; owlFlyTo(owlHomePoint()); OW.goingHome=true; }
+}
+
+// ---- разовые подсказки Филина (показываются один раз на игрока) ----
+function owlTip(key, txt, after){
+  if(localStorage.getItem(key)) return false;
+  try{ localStorage.setItem(key,'1'); }catch(e){}
+  owlFlyTo(new THREE.Vector3(0.6, GROUND_TOP+2.9, 1.2));   // ближе к центру — облачко не режется краем
+  OW.pending=txt; OW.onSpoke=after||null;                  // продолжение — по факту речи, а не по таймеру
+  return true;
+}
+// «карту можно крутить» — Филин прилетает, говорит и сам поворачивает вид
+function owlRotationTip(){
+  const touch = matchMedia('(pointer:coarse)').matches;
+  const how = touch ? 'жми кнопки <b>⟲ ⟳</b> справа внизу'
+                    : 'зажми <b>правую кнопку</b> и веди мышью — или жми <b>⟲ ⟳</b> справа внизу';
+  owlTip('g_zahvat_rot_tip', 'Кстати! Карту можно <b>крутить</b>: '+how+'. Гляди!', ()=>{
+    rotateCam(1);                                   // показывает наглядно
+    setTimeout(()=>{ rotateCam(1); }, 1600);
+    setTimeout(()=>{ owlHush(); owlGoHome(false); }, 3600);
+  });
 }
 function owlUpdate(dt,t){
   if(!OW.ready) return;
@@ -482,7 +502,8 @@ function owlUpdate(dt,t){
     pitchTilt=(e<0.5?-0.22:0.18)*Math.sin(Math.PI*e);
     flapSpeed=16; flapAmp=0.95;
     if(k>=1){ OW.mode='perch'; OW.bank=0; OW.goingHome=false;
-      if(OW.pending){ const txt=OW.pending; OW.pending=null; setTimeout(()=>owlSay(txt),180); } }
+      if(OW.pending){ const txt=OW.pending; OW.pending=null; setTimeout(()=>owlSay(txt),180);
+        if(OW.onSpoke){ const cb=OW.onSpoke; OW.onSpoke=null; setTimeout(cb,1100); } } }
   } else {
     OW.bank*=0.9;
     OW.targetYaw=Math.atan2(camera.position.x-OW.pos.x, camera.position.z-OW.pos.z);
@@ -960,6 +981,7 @@ function startMap(m, seed, label){
     decorGroup.add(o); }
 
   for(const n of nodes) buildTower(n);
+  setTimeout(()=>{ if(!ended && tutStep<0) owlRotationTip(); }, 3500);   // разовый рассказ про поворот
   showIntro(m,label);   // интро перед каждым боем; на карте 1 — упрощённое, без дебютов
 }
 
@@ -1502,14 +1524,21 @@ function pickLink(e){ setPointer(e); raycaster.setFromCamera(pointer,camera);
   const hits=raycaster.intersectObjects(linkGroup.children,true);
   for(const h of hits){ const L=h.object.userData.link; if(L && L.o===1) return L; } return null; }
 
-let downXY=null;
+let downXY=null, camDrag=null;
 function bindInput(){
   const el=renderer.domElement;
-  el.addEventListener('pointerdown',e=>{ audio(); hideSpec(); if(ended) return; downXY={x:e.clientX,y:e.clientY};
+  el.addEventListener('contextmenu',e=>e.preventDefault());          // правая кнопка — вращение, не меню
+  el.addEventListener('pointerdown',e=>{ audio();
+    if(e.button===2 || e.button===1){ camDrag={x:e.clientX}; el.setPointerCapture(e.pointerId); return; }
+    hideSpec(); if(ended) return; downXY={x:e.clientX,y:e.clientY};
     const n=pickNode(e); if(n && n.o===1){ drag={fromId:n.id}; dragLine.visible=true; document.getElementById('hint').style.opacity='0'; } });
-  el.addEventListener('pointermove',e=>{ if(!drag) return; const g=pickGround(e); if(!g) return;
+  el.addEventListener('pointermove',e=>{
+    if(camDrag){ const dx=e.clientX-camDrag.x; camDrag.x=e.clientX;
+      camYaw-=dx*0.008; camYawTarget=camYaw; applyCam(); return; }
+    if(!drag) return; const g=pickGround(e); if(!g) return;
     const a=nodes[drag.fromId]; dragLine.geometry.setFromPoints([new THREE.Vector3(a.x,GROUND_TOP+0.4,a.z), new THREE.Vector3(g.x,GROUND_TOP+0.2,g.z)]); });
   el.addEventListener('pointerup',e=>{
+    if(camDrag){ camDrag=null; return; }
     const far = downXY && Math.hypot(e.clientX-downXY.x, e.clientY-downXY.y)>14;
     if(drag){ const n=pickNode(e);
       if(n && n.id!==drag.fromId && far) toggleLink(drag.fromId,n.id);
@@ -1518,7 +1547,7 @@ function bindInput(){
       drag=null; dragLine.visible=false; }
     else if(!far){ hideSpec(); const L=pickLink(e); if(L){ removeLink(L); sfx('unlink'); } }
     downXY=null; });
-  el.addEventListener('pointercancel',()=>{ drag=null; dragLine.visible=false; downXY=null; });
+  el.addEventListener('pointercancel',()=>{ camDrag=null; drag=null; dragLine.visible=false; downXY=null; });
 
   // кнопки меню создаются на лету — слушаем контейнер
   $('specMenu').addEventListener('pointerup',e=>{

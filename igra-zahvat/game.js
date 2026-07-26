@@ -458,8 +458,12 @@ function owlSay(txt){
 function owlHush(){ if(owlBubbleObj) owlBubbleObj.visible=false; }
 function owlFlyTo(v){
   if(!OW.ready) return;
-  OW.from.copy(OW.pos); OW.to.copy(v);
-  OW.dur=Math.max(1.6, OW.from.distanceTo(OW.to)/3.4);   // не спеша — чтобы разглядеть OW.t=0; OW.mode='fly'; OW.goingHome=false;
+  OW.from.copy(OW.pos);
+  OW.to.copy(v);
+  OW.dur=Math.max(1.6, OW.from.distanceTo(OW.to)/3.4);   // не спеша — чтобы успеть разглядеть
+  OW.t=0;
+  OW.mode='fly';
+  OW.goingHome=false;
 }
 function owlFlyToNode(n){ if(n) owlFlyTo(new THREE.Vector3(n.x+0.95, GROUND_TOP+0.28, n.z+0.95)); }   // на цоколь перед башней — не спорит с подписью
 function owlGoHome(grumble){
@@ -1542,7 +1546,7 @@ function bindInput(){
     if(camDrag){ const dx=e.clientX-camDrag.x, dyv=e.clientY-camDrag.y;
       camDrag.x=e.clientX; camDrag.y=e.clientY;
       camYaw-=dx*0.008; camYawTarget=camYaw;
-      camPitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,camPitch-dyv*0.006)); camPitchTarget=camPitch;
+      camPitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,camPitch+dyv*0.006)); camPitchTarget=camPitch;   // тянешь вниз — смотришь сверху
       applyCam(); return; }
     if(!drag) return; const g=pickGround(e); if(!g) return;
     const a=nodes[drag.fromId]; dragLine.geometry.setFromPoints([new THREE.Vector3(a.x,GROUND_TOP+0.4,a.z), new THREE.Vector3(g.x,GROUND_TOP+0.2,g.z)]); });
@@ -1568,6 +1572,11 @@ function bindInput(){
     }
     hideSpec(); });
   document.getElementById('tutSkip').onclick=(e)=>{ e.stopPropagation(); tutSkip(); };
+  document.getElementById('replayTut').onclick=()=>{        // посмотреть игру глазами новичка
+    try{ localStorage.removeItem(TUT_KEY); localStorage.removeItem('g_zahvat_rot_tip');
+         localStorage.removeItem('g_zahvat_spec_hint'); }catch(e){}
+    hideOverlay('ovMenu'); loadMap(0);
+  };
   document.getElementById('rotL').onclick=()=>rotateCam(-1);
   document.getElementById('rotR').onclick=()=>rotateCam(1);
   document.getElementById('tiltU').onclick=()=>tiltCam(1);

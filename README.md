@@ -8,7 +8,7 @@ Single-page static site — no frameworks, no build step. Semantic HTML + CSS, v
 
 - `index.html` — the portfolio (RU/EN, all content inline)
 - `assets/` — images
-- `cv/` — CV in PDF
+- `cv/` — CV in PDF (RU + EN; sources: `cv-source.html`, `cv-source-en.html` — print to PDF via headless Chromium, A4, background on)
 - `favicon.svg`, `og.png` — icon and social preview
 - `robots.txt`, `sitemap.xml`
 - Legacy URLs redirect to the root page (portfolio.html, cases.html, about.html, contact.html, writing.html).

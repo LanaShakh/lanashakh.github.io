@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Svetlana Shakhova — CV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1EBDF; --band:#E7DECE; --ink:#1A1712; --ink-soft:#534D42;
+    --ink-faint:#867E6E; --line:rgba(26,23,18,.16); --accent:#1B9E45;
+    --font-display:"Unbounded",system-ui,sans-serif;
+    --font-text:"Manrope",system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4;margin:0}
+  html,body{background:#fff}
+  body{font-family:var(--font-text);color:var(--ink);font-size:10.3px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{width:210mm;min-height:297mm;margin:0 auto;background:var(--paper);padding:0 16mm 16mm;position:relative}
+  .page + .page{page-break-before:always}
+
+  /* Header */
+  .head{background:var(--band);margin:0 -16mm 20px;padding:22px 16mm 20px;display:flex;align-items:center;gap:16px}
+  .logo{width:44px;height:44px;border-radius:10px;background:var(--accent);color:var(--paper);
+        font-family:var(--font-display);font-weight:800;font-size:30px;display:flex;align-items:flex-start;justify-content:center;line-height:.9;padding-top:2px;flex:none}
+  .head h1{font-family:var(--font-display);font-weight:700;font-size:30px;letter-spacing:-.01em;line-height:1}
+  .head .role{color:var(--accent);font-weight:700;font-size:12.5px;letter-spacing:.02em;margin-top:6px}
+  .contact{font-family:var(--font-mono);font-size:10px;color:var(--ink-soft);margin-top:9px}
+  .contact a{color:var(--ink-soft);text-decoration:none}
+
+  .summary{font-size:11px;line-height:1.62;color:var(--ink);max-width:none;margin-bottom:22px}
+  .summary b{color:var(--ink)}
+
+  h2.sec{font-family:var(--font-display);font-weight:700;color:var(--accent);font-size:13px;letter-spacing:.02em;
+         margin:20px 0 12px;padding-bottom:5px;border-bottom:1.5px solid var(--line)}
+
+  .job{margin-bottom:14px;break-inside:avoid}
+  .job-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .job-name{font-family:var(--font-display);font-weight:600;font-size:12.5px}
+  .job-name span{color:var(--ink-soft);font-weight:500}
+  .job-when{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-faint);white-space:nowrap;flex:none}
+  .job-tags{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-faint);margin:2px 0 7px}
+  ul.bul{list-style:none}
+  ul.bul li{position:relative;padding-left:14px;margin-bottom:4px;line-height:1.5}
+  ul.bul li::before{content:"–";position:absolute;left:0;color:var(--accent);font-weight:700}
+  .metric{color:var(--ink);font-weight:600}
+
+  .earlier{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft);line-height:1.65;margin-bottom:6px}
+
+  table.grid{width:100%;border-collapse:collapse}
+  table.grid td{padding:5px 0;vertical-align:top;border-bottom:1px solid var(--line)}
+  table.grid tr:last-child td{border-bottom:none}
+  td.k{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft);width:180px;padding-right:14px;letter-spacing:.01em}
+  td.v{font-size:10.5px}
+
+  .prod{break-inside:avoid;margin-bottom:9px;padding-left:14px;position:relative}
+  .prod::before{content:"▹";position:absolute;left:0;color:var(--accent)}
+  .prod b{font-family:var(--font-display);font-weight:600;font-size:11px}
+  .prod .lnk{color:var(--accent);text-decoration:none;font-family:var(--font-mono);font-size:9px}
+
+  .refs{font-size:10.3px;color:var(--ink-soft);line-height:1.6}
+  .foot-note{font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);margin-top:4px}
+  a{color:inherit}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div class="logo">“</div>
+    <div>
+      <h1>Svetlana Shakhova</h1>
+      <div class="role">CONTENT MANAGER · SEO COPYWRITER · AI BUILDER</div>
+      <div class="contact">Telegram @LanaShakh · svetla.shakh@gmail.com · Barnaul, GMT+7, remote · lanashakh.github.io</div>
+    </div>
+  </div>
+
+  <p class="summary">
+    I write and produce content for products and agencies: blogs, SEO copy, landing pages, expert articles.
+    My core strength is the combination of <b>SEO + editing + prompt engineering</b>. I work with AI every day —
+    not only writing with it, but <b>building working tools, educational games and multi-page sites (vibe coding)</b>,
+    testing everything by hand and standing behind the facts. Comfortable with feedback and revisions.
+    Russian — native, English — B2 in written work.
+  </p>
+
+  <h2 class="sec">EXPERIENCE</h2>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">It’s AI (its-ai.org) — <span>Content Manager, SEO Copywriter</span></div>
+      <div class="job-when">January 2026 — present</div>
+    </div>
+    <div class="job-tags">AI detection · English-language blog</div>
+    <ul class="bul">
+      <li>Launched the English-language blog from scratch as the project’s first copywriter: editorial policy, style guide, templates, source-work standards.</li>
+      <li>Built the pipeline from research to publication in Django CMS: keyword semantics, structure, LSI, meta tags, HTML layout with custom components.</li>
+      <li>Run the brand’s social media: expert posts on LinkedIn, threads on X/Twitter.</li>
+      <li><span class="metric">Result:</span> +21% site traffic in March 2026 (SimilarWeb), +81% X/Twitter audience; texts consistently pass AI detection as human-written.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">Multi-brand iGaming network (NDA) — <span>Writing Editor</span></div>
+      <div class="job-when">June — December 2025</div>
+    </div>
+    <div class="job-tags">iGaming · SEO · team editing</div>
+    <ul class="bul">
+      <li>Wrote homepages, category and bonus pages, and app landing pages to SEO-team briefs; adapted content for different geos and language versions.</li>
+      <li>Owned copywriter-team editing and final proofreading.</li>
+      <li>Built an intent-based unique-content system, prompts and checklists — <span class="metric">editing time cut in half</span>.</li>
+      <li>Moved a copywriter from manual writing to an AI workflow with no loss of quality.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">Artik Agency — <span>Copywriter-Analyst (project)</span></div>
+      <div class="job-when">September 2024 — December 2025</div>
+    </div>
+    <div class="job-tags">B2B · fintech · crypto · mobile</div>
+    <ul class="bul">
+      <li>Wrote B2B case studies and the expert blog: User Acquisition, mobile marketing, UGC; topics matched to the sales team’s goals so articles answered client objections.</li>
+      <li>Gathered facts straight from experts: <span class="metric">conducted interviews (including the agency’s CEO)</span> and worked with voice answers — wrote the questions, received audio, distilled it into text.</li>
+      <li>Worked with Singular reports and product analytics — data in the articles, not generic claims.</li>
+      <li>Improved the visual side: AI-built charts, unified tables. <span class="metric">Rate raised by 20%</span> at my manager’s initiative after probation.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-top">
+      <div class="job-name">LFCarry — <span>Content Manager, Prompt Engineer</span></div>
+      <div class="job-when">April 2022 — June 2025</div>
+    </div>
+    <div class="job-tags">SEO · AI workflow · prompts</div>
+    <ul class="bul">
+      <li>Ran the corporate blog and service pages with SEO copy and competitor analysis; published in WordPress and a custom CMS.</li>
+      <li>Built an AI content pipeline (research → structure → draft → hand-finishing) — <span class="metric">copywriting sped up 7×, organic traffic +30% in 6 months</span>.</li>
+      <li>Wrote prompts for the support &amp; sales AI assistant; <span class="metric">cut the bot’s error rate from 46% to 4.8% in 2 months</span> and set up answer quality control.</li>
+      <li>After the copywriter team was downsized, was retained and promoted to Content Manager.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-name" style="margin-bottom:5px">Earlier</div>
+    <div class="earlier">
+      2020 — 2025 · Goat Games (War and Magic), community manager · 2021 — 2022 · Gamegrad, web3 / Axie Infinity community ·
+      2009 — 2021 · banking (Credit Europe Bank, Post Bank), sales team lead
+    </div>
+    <ul class="bul">
+      <li>War and Magic YouTube channel — from zero to 7,500 subscribers; +35% player activity after a communication-strategy change.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="page">
+  <div class="head">
+    <div class="logo">“</div>
+    <div>
+      <h1>Svetlana Shakhova</h1>
+      <div class="role">CONTENT MANAGER · SEO COPYWRITER · AI BUILDER</div>
+      <div class="contact">Telegram @LanaShakh · svetla.shakh@gmail.com · Barnaul, GMT+7, remote · lanashakh.github.io</div>
+    </div>
+  </div>
+
+  <h2 class="sec">AI PRODUCTS &amp; VIBE CODING</h2>
+  <p style="font-size:10px;color:var(--ink-soft);margin-bottom:11px">Built solo with AI, no developers — from idea to working result.</p>
+
+  <div class="prod">
+    <b>“Count with the Robot”</b> — an educational kids’ game with voice-over.
+    <span class="lnk">lanashakh.github.io/igra-robot ↗</span><br>
+    My son learned to count to 100 in 2 weeks of playing. A series of learning games for other subjects is in the works.
+  </div>
+  <div class="prod">
+    <b>Miratext analog</b> (keyword-occurrence checker) — built in 30 minutes when the original service was down, then used it in real work tasks.
+  </div>
+  <div class="prod">
+    <b>Multi-page vanilla-HTML sites</b> — this portfolio and sites for iGaming projects (under NDA). Built without developers.
+  </div>
+  <div class="prod">
+    <b>AI-course reviews “through a student’s eyes”</b> — took demos of dozens of AI courses; I break down learning materials for usefulness, accuracy and reproducibility.
+  </div>
+
+  <h2 class="sec">SKILLS</h2>
+  <table class="grid">
+    <tr><td class="k">Content &amp; editing</td><td class="v">SEO copywriting, editing, content strategy, case studies, landing pages, email, UX copy, interviews and voice/audio source work</td></tr>
+    <tr><td class="k">AI &amp; prompt engineering</td><td class="v">ChatGPT, Claude, AI detectors, AI workflow setup, vibe coding (games, sites, tools)</td></tr>
+    <tr><td class="k">SEO tools</td><td class="v">Ahrefs, Miratext, Text.ru, Copywritely, Google Analytics</td></tr>
+    <tr><td class="k">CMS &amp; technical</td><td class="v">WordPress, Django CMS, HTML / multi-page sites, Figma</td></tr>
+    <tr><td class="k">Languages</td><td class="v">Russian — native · English — B2</td></tr>
+  </table>
+
+  <h2 class="sec">EDUCATION</h2>
+  <ul class="bul">
+    <li>Altai State University — Organizational Management, 2017.</li>
+    <li>Brunoyam — “Neural Networks for Marketers”, 2025; “Internet Marketer”, 2025.</li>
+    <li>Self-education: I constantly test and study AI tools and AI courses.</li>
+  </ul>
+
+  <h2 class="sec">REFERENCES</h2>
+  <p class="refs">Artem, Head of Marketing at LFCarry · Mikhail, Project Lead at Artik Agency — contacts on request.</p>
+  <p class="foot-note">Testimonials: lanashakh.github.io</p>
+</div>
+</body>
+</html>

@@ -594,12 +594,18 @@ function sayQuestion(q){
   if(q.type==='div') say([{f:`qd_${q.total}_${q.given}`, t:`сколько будет ${numWord(q.total)} разделить на ${numWord(q.given)}`}]);
   else               say([{f:`qm_${q.a}_${q.b}`,        t:`сколько будет ${numWord(q.a)} умножить на ${numWord(q.b)}`}]);
 }
-/* полный ответ после ошибки и на экране знакомства — тоже одной фразой */
-function sayAnswer(q){
-  if(q.type==='div') say([{f:`ad_${q.total}_${q.given}`, t:`${numWord(q.total)} разделить на ${numWord(q.given)} равно ${numWord(q.ans)}`}]);
-  else               say([{f:`am_${q.a}_${q.b}`,         t:`${numWord(q.a)} умножить на ${numWord(q.b)} равно ${numWord(q.ans)}`}]);
+/* полный ответ — тоже одной фразой */
+function answerToken(q){
+  return q.type==='div'
+    ? {f:`ad_${q.total}_${q.given}`, t:`${numWord(q.total)} разделить на ${numWord(q.given)} равно ${numWord(q.ans)}`}
+    : {f:`am_${q.a}_${q.b}`,         t:`${numWord(q.a)} умножить на ${numWord(q.b)} равно ${numWord(q.ans)}`};
 }
-const sayPraise = ()=> say([{f:'praise_'+rnd(8), t:pick(['Отлично','Молодец','Так держать','Точно'])}]);
+const praiseToken = ()=> ({f:'praise_'+rnd(8), t:pick(['Отлично','Молодец','Так держать','Точно'])});
+const sayAnswer = q => say([answerToken(q)]);
+/* верный ответ проговаривается целиком: услышать верную формулу сразу после того,
+   как сам её назвал, — и есть момент, когда она закрепляется в памяти */
+const sayPraisedAnswer = q => say([praiseToken(), answerToken(q)]);
+const sayPraise = ()=> say([praiseToken()]);
 
 /* кнопки «Повтори» бессмысленны в тишине — прячем их, а не обманываем */
 function syncVoiceUI(){
@@ -680,6 +686,7 @@ const DIAG_SET = [
   '2x7','3x4','5x8','6x7','3x3','4x6','4x9','7x8','6x6','3x7',
   '3x5','4x8','4x4','6x8','7x9','3x6','7x7','4x7','8x8','3x8'
 ];
+const OPT_COUNT = 4;    // вариантов ответа всегда четыре — сетка 2×2 везде одинаковая
 const T_FAST = 3500;    // быстрее — значит вспомнил, а не досчитал
 const T_SLOW = 9000;    // дольше — считал заново, фактом это не назвать
 
@@ -693,7 +700,7 @@ function nextDiag(){
   const i = S.diag.i;
   if(i >= DIAG_SET.length){ finishDiag(); return; }
   const f = FMAP[DIAG_SET[i]];
-  const opts = makeOptions(f.p, 6, 'diag', false, false);
+  const opts = makeOptions(f.p, OPT_COUNT, 'diag', false, false);
   diagQ = {f, opts};
 
   $('diag-prog').style.width = (i/DIAG_SET.length*100)+'%';
@@ -701,7 +708,7 @@ function nextDiag(){
   $('diag-q').innerHTML = `${f.a}<span class="op">×</span>${f.b}<span class="eq">=</span><span class="qm">?</span>`;
   $('diag-hint').textContent = i===0 ? 'Не знаешь — жми «не знаю», это нормально' : '';
 
-  const box = $('diag-opts'); box.innerHTML='';
+  const box = $('diag-opts'); box.className='opts two'; box.innerHTML='';
   opts.forEach(v=>{
     const b=document.createElement('button');
     b.className='opt'; b.textContent=v;
@@ -922,10 +929,11 @@ function askQuestion(f){
   const q = buildQ(f, stage);
   cur = q;
 
-  const n = stage===1 ? 3 : 4;
+  // вариантов всегда четыре: одинаковая сетка 2×2 на всех ступенях,
+  // ребёнку не приходится каждый раз заново осматривать экран
   const allowRev = st.box >= 3;                       // зеркала — только по освоенному факту
   const mode = stage===1 ? 'far' : 'near';
-  q.opts = makeOptions(q.ans, n, mode, allowRev, q.type==='div');
+  q.opts = makeOptions(q.ans, OPT_COUNT, mode, allowRev, q.type==='div');
 
   $('play-prog').style.width = (Math.min(sess.i,SESSION_LEN)/SESSION_LEN*100)+'%';
   $('play-lbl').textContent  = Math.min(sess.i+1,SESSION_LEN)+' / '+SESSION_LEN;
@@ -957,7 +965,7 @@ function askQuestion(f){
   $('play-show').style.visibility = stage===1 ? 'hidden' : 'visible';
 
   const box=$('play-opts');
-  box.className = 'opts' + (n===4?' two':'');
+  box.className = 'opts two';
   box.innerHTML='';
   q.opts.forEach(v=>{
     const b=document.createElement('button');
@@ -969,6 +977,34 @@ function askQuestion(f){
   show('s-play');
   sayQuestion(q);
   curT0 = Date.now();
+}
+
+/* дописываем ответ туда, где стоял вопросительный знак: слышимое и видимое
+   должны совпасть, иначе ребёнок сверяет две разные версии одного факта */
+function solvedHTML(q){
+  return q.type==='div'
+    ? `${q.total}<span class="op">÷</span>${q.given}<span class="eq">=</span>${q.ans}`
+    : `${q.a}<span class="op">×</span>${q.b}<span class="eq">=</span>${q.ans}`;
+}
+function showSolved(q){
+  if($('play-key').style.display!=='none'){
+    ['k-top','k-bl','k-br'].forEach(id=>{
+      if($(id).textContent==='?') $(id).textContent = q.ans;
+    });
+  }else{
+    $('play-q').innerHTML = solvedHTML(q);
+  }
+}
+
+/* следующий вопрос — только когда реплика договорена: фраза, обрезанная
+   на полуслове, для ребёнка с дислексией хуже, чем её отсутствие.
+   minMs держит паузу и в тишине, чтобы успеть прочитать готовый пример. */
+function advanceAfter(spoken, minMs){
+  const t0 = Date.now();
+  let done = false;
+  const go = ()=>{ if(done) return; done=true; nextStep(); };
+  Promise.resolve(spoken).then(()=>setTimeout(go, Math.max(320, minMs-(Date.now()-t0))));
+  setTimeout(go, 7000);                       // страховка, если звук не досчитался
 }
 
 function answer(v, btn){
@@ -986,7 +1022,14 @@ function answer(v, btn){
     btn.classList.add('pick');
     st.streak++; sess.right++; S.stats.right++;
     if(st.bestMs==null || ms<st.bestMs) st.bestMs=ms;
-    sayPraise();
+    showSolved(q);
+
+    /* Пока факт учится — проговариваем его целиком: «молодец, шесть умножить
+       на семь равно сорок два». Это главный момент закрепления, и экран
+       показывает ровно то же, что звучит. На освоенных фактах полная фраза
+       только тормозит — там нужна скорость, и хватает короткой похвалы. */
+    const consolidate = st.box < MASTER_BOX;
+    const spoken = consolidate ? sayPraisedAnswer(q) : sayPraise();
 
     // продвижение по ступеням: 2 верных подряд — следующая ступень
     if(st.streak>=2 && st.stage<3){ st.stage++; st.streak=0; }
@@ -1002,7 +1045,7 @@ function answer(v, btn){
       st.streak=0;
     }
     sess.i++; save();
-    setTimeout(nextStep, 620);
+    advanceAfter(spoken, consolidate ? 1500 : 700);
   }else{
     // ошибка не наказывается: гасим выбранное, подсвечиваем верное, показываем панель
     st.err++; st.streak=0; sess.wrong++;
@@ -1013,20 +1056,18 @@ function answer(v, btn){
 
     $('play-key').style.display='none'; $('play-keylbl').style.display='none';
     $('play-qbox').style.display='block';
-    $('play-q').innerHTML = q.type==='div'
-      ? `${q.total}<span class="op">÷</span>${q.given}<span class="eq">=</span>${q.ans}`
-      : `${q.a}<span class="op">×</span>${q.b}<span class="eq">=</span>${q.ans}`;
+    $('play-q').innerHTML = solvedHTML(q);
     $('play-hint').textContent = ruleHint(f.a,f.b) || `${f.a} ряда по ${f.b} — это ${f.p}`;
     const wrap=$('play-arraywrap'); wrap.style.display='flex';
     fillArray(buildArray($('play-array'),f.a,f.b),f.a,f.b);
 
-    sayAnswer(q);
+    const spoken = sayAnswer(q);
 
     // коррекционная петля: тот же факт сразу и ещё раз через два вопроса
     sess.pending.unshift({key:f.key, at:sess.i});
     sess.pending.push({key:f.key, at:sess.i+3});
     sess.i++; save();
-    setTimeout(nextStep, 2600);
+    advanceAfter(spoken, 2400);               // после ошибки пауза длиннее: надо разглядеть панель
   }
 }
 

@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070b1c">
+<title>Станция 42 — таблица умножения</title>
+<meta name="description" content="Станция 42 — тренажёр таблицы умножения и деления для детей с дислексией и дисграфией: без письма, без таймеров, вся озвучка голосом, семьи фактов и интервальные повторения.">
+<!-- SDK Яндекс Игр: вне платформы просто 404, игра работает как обычно -->
+<script src="/sdk.js" onerror="void 0"></script>
+<style>
+/* шрифт локально: без внешних запросов */
+@font-face{font-family:'Nunito';font-style:normal;font-weight:200 1000;font-display:swap;
+  src:url(fonts/nunito-cyr-ext.woff2) format('woff2');
+  unicode-range:U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;}
+@font-face{font-family:'Nunito';font-style:normal;font-weight:200 1000;font-display:swap;
+  src:url(fonts/nunito-cyr.woff2) format('woff2');
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;}
+@font-face{font-family:'Nunito';font-style:normal;font-weight:200 1000;font-display:swap;
+  src:url(fonts/nunito-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+</style>
+<style>
+  :root{
+    --bg0:#070b1c; --bg1:#101736;
+    --panel:#182047; --panel2:#232c60; --line:rgba(255,255,255,.10);
+    --ink:#f2eee2;            /* тёплый не-белый: мягче для глаз, чем #fff */
+    --muted:#9aa4d0;
+    --acc:#ffd166; --acc-d:#c79a34;
+    --teal:#5ee0c8; --teal-d:#2f9c8b;
+    --ok:#57d68f; --ok-d:#2f9c62;
+    --blue:#6f86e8; --blue-d:#3f52ad;
+    --violet:#a68ae8;
+    --shadow:0 18px 44px rgba(0,0,0,.45);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:'Nunito',ui-rounded,'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+    color:var(--ink); user-select:none; letter-spacing:.01em;
+    background:
+      radial-gradient(900px 600px at 12% -8%,rgba(111,134,232,.20),transparent 62%),
+      radial-gradient(760px 520px at 108% 4%,rgba(94,224,200,.14),transparent 58%),
+      linear-gradient(170deg,var(--bg0),var(--bg1) 55%,#0a1030);
+    background-attachment:fixed;
+    min-height:100%; display:flex; justify-content:center; align-items:flex-start;
+    padding:12px 10px calc(18px + env(safe-area-inset-bottom));
+    overflow-x:hidden;
+  }
+  /* звёзды — статичные, ничего не мигает по краям экрана */
+  .stars{position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background-image:
+      radial-gradient(1.6px 1.6px at 12% 18%,#fff,transparent),
+      radial-gradient(1.4px 1.4px at 78% 12%,#cfe1ff,transparent),
+      radial-gradient(1.2px 1.2px at 33% 62%,#fff,transparent),
+      radial-gradient(1.6px 1.6px at 88% 58%,#e5ecff,transparent),
+      radial-gradient(1.2px 1.2px at 60% 84%,#fff,transparent),
+      radial-gradient(1.3px 1.3px at 22% 88%,#cfe1ff,transparent),
+      radial-gradient(1.5px 1.5px at 51% 33%,#fff,transparent);}
+
+  .app{width:100%; max-width:560px; position:relative; z-index:1;}
+  .card{background:linear-gradient(165deg,var(--panel),#141b40);
+    border:1px solid var(--line); border-radius:28px; box-shadow:var(--shadow);
+    padding:18px 16px 22px;}
+
+  .screen{display:none;}
+  .screen.active{display:block; animation:pop .3s ease;}
+  @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+
+  h1{font-size:26px; font-weight:900; text-align:center; letter-spacing:-.01em;}
+  h2{font-size:20px; font-weight:900; margin-bottom:8px;}
+  .sub{text-align:center; color:var(--muted); font-size:15px; line-height:1.45; margin-top:6px;}
+  .lead{color:var(--muted); font-size:15px; line-height:1.5;}
+
+  .topbar{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .topbar .ttl{font-weight:900; font-size:17px;}
+  .spacer{margin-left:auto;}
+
+  button{font-family:inherit; cursor:pointer; border:none; color:var(--ink);}
+  .btn{background:var(--panel2); border:1px solid var(--line); border-radius:16px;
+    min-height:48px; padding:0 16px; font-size:16px; font-weight:800;
+    box-shadow:0 4px 0 rgba(0,0,0,.35); display:inline-flex; align-items:center; justify-content:center; gap:8px;}
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.35);}
+  .btn.primary{background:linear-gradient(100deg,var(--blue),var(--violet)); box-shadow:0 5px 0 var(--blue-d); border:none;}
+  .btn.gold{background:linear-gradient(100deg,#ffd166,#f0a93c); color:#3a2600; box-shadow:0 5px 0 var(--acc-d); border:none;}
+  .btn.teal{background:linear-gradient(100deg,#5ee0c8,#3fbfa8); color:#07332c; box-shadow:0 5px 0 var(--teal-d); border:none;}
+  .btn.wide{width:100%; min-height:60px; font-size:19px;}
+  .btn.ghost{background:transparent; box-shadow:none; color:var(--muted); font-weight:700;}
+  .btn.sm{min-height:40px; font-size:14px; padding:0 12px; border-radius:13px;}
+
+  .hero{text-align:center; font-size:62px; line-height:1; margin:4px 0 2px;
+    animation:float 3.4s ease-in-out infinite;}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+  .stat-row{display:flex; gap:8px; margin:14px 0;}
+  .stat{flex:1; background:rgba(255,255,255,.05); border:1px solid var(--line);
+    border-radius:16px; padding:10px 8px; text-align:center;}
+  .stat b{display:block; font-size:22px; font-weight:900;}
+  .stat span{font-size:12px; color:var(--muted); line-height:1.25; display:block; margin-top:2px;}
+
+  /* ---------- вопрос ---------- */
+  .qbar{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .prog{flex:1; height:12px; border-radius:99px; background:rgba(255,255,255,.09); overflow:hidden;}
+  .prog i{display:block; height:100%; width:0; border-radius:99px;
+    background:linear-gradient(90deg,var(--teal),var(--blue)); transition:width .35s ease;}
+  .prog-lbl{font-size:13px; color:var(--muted); font-weight:800; white-space:nowrap;}
+
+  .qbox{background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:22px;
+    padding:20px 14px 18px; text-align:center; margin-bottom:16px;}
+  .qtxt{font-size:46px; font-weight:900; letter-spacing:.04em; line-height:1.15;}
+  .qtxt .op{color:var(--acc); margin:0 .12em;}
+  .qtxt .eq{color:var(--muted); margin:0 .1em;}
+  .qtxt .qm{color:var(--teal);}
+  .qhint{margin-top:8px; font-size:14px; color:var(--muted); min-height:20px;}
+
+  .opts{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .opts.two{grid-template-columns:repeat(2,1fr);}
+  .opt{min-height:70px; border-radius:18px; background:var(--panel2); border:1px solid var(--line);
+    font-size:32px; font-weight:900; letter-spacing:.06em; box-shadow:0 5px 0 rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center;}
+  .opt:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.35);}
+  .opt.pick{background:linear-gradient(100deg,#5ee0c8,#3fbfa8); color:#07332c; box-shadow:0 5px 0 var(--teal-d);}
+  /* ошибка НЕ красная: верный ответ подсвечивается янтарём, выбранный просто гаснет */
+  .opt.right{background:linear-gradient(100deg,#ffd166,#f0a93c); color:#3a2600; box-shadow:0 5px 0 var(--acc-d);}
+  .opt.fade{opacity:.32;}
+  .opt[disabled]{cursor:default;}
+
+  .row-actions{display:flex; gap:10px; margin-top:14px;}
+  .row-actions .btn{flex:1;}
+
+  /* ---------- энергопанель (массив) ---------- */
+  .arraywrap{display:flex; justify-content:center; margin:6px 0 4px;}
+  .array{display:grid; gap:4px; padding:10px; border-radius:16px;
+    background:rgba(255,255,255,.04); border:1px solid var(--line);}
+  .cell{width:var(--cs,20px); height:var(--cs,20px); border-radius:5px;
+    background:rgba(255,255,255,.10); transition:background .18s, transform .18s;}
+  .cell.on{background:linear-gradient(140deg,#ffd166,#f0a93c); transform:scale(1.06);}
+  .cell.dim{background:rgba(255,209,102,.28);}
+  .arraylbl{text-align:center; font-size:15px; color:var(--muted); margin-top:6px; min-height:22px; font-weight:700;}
+  .counter{text-align:center; font-size:30px; font-weight:900; color:var(--acc); min-height:38px;}
+
+  /* ---------- ключ стыковки (семья фактов) ---------- */
+  .keywrap{display:flex; justify-content:center; margin:2px 0 10px;}
+  .fkey{position:relative; width:230px; height:196px;}
+  .fkey svg{position:absolute; inset:0; width:100%; height:100%;}
+  .slot{position:absolute; width:66px; height:52px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; font-weight:900; background:var(--panel2); border:1px solid var(--line);}
+  .slot.top{left:82px; top:0;}
+  .slot.bl{left:6px; bottom:0;}
+  .slot.br{right:6px; bottom:0;}
+  .slot.hid{background:linear-gradient(100deg,#5ee0c8,#3fbfa8); color:#07332c; font-size:30px;}
+  .fkey-lbl{text-align:center; font-size:13px; color:var(--muted); margin-top:2px;}
+
+  /* ---------- карта таблицы ---------- */
+  .mapwrap{overflow-x:auto; padding-bottom:6px;}
+  table.mtab{border-collapse:separate; border-spacing:3px; margin:0 auto;}
+  table.mtab td,table.mtab th{width:30px; height:30px; text-align:center; font-size:13px;
+    font-weight:800; border-radius:7px;}
+  table.mtab th{color:var(--muted); font-weight:900;}
+  td.m0{background:rgba(255,255,255,.07); color:var(--muted);}
+  td.m1{background:rgba(111,134,232,.42); color:#eaf0ff;}
+  td.m2{background:rgba(94,224,200,.40); color:#052b26;}
+  td.m3{background:linear-gradient(140deg,#57d68f,#2f9c62); color:#042416;}
+  td.mr{background:rgba(255,209,102,.20); color:#ffe6ad;}
+  .legend{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:12px; font-size:12px; color:var(--muted);}
+  .legend i{display:inline-block; width:13px; height:13px; border-radius:4px; margin-right:5px; vertical-align:-2px;}
+
+  /* ---------- коллекция модулей ---------- */
+  .mods{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:10px;}
+  .mod{aspect-ratio:1; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    font-size:11px; font-weight:800; color:var(--muted);}
+  .mod .em{font-size:20px; filter:grayscale(1) opacity(.45);}
+  .mod.got{background:linear-gradient(150deg,rgba(87,214,143,.30),rgba(47,156,98,.18)); border-color:rgba(87,214,143,.45); color:var(--ink);}
+  .mod.got .em{filter:none;}
+
+  /* ---------- итоги ---------- */
+  .group{background:rgba(255,255,255,.05); border:1px solid var(--line);
+    border-radius:18px; padding:12px 14px; margin-bottom:10px;}
+  .group .gt{display:flex; align-items:center; gap:8px; font-weight:900; font-size:16px;}
+  .group .gt b{margin-left:auto; font-size:22px;}
+  .group .gd{color:var(--muted); font-size:13.5px; line-height:1.45; margin-top:4px;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+  .chip{background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:10px;
+    padding:5px 9px; font-size:15px; font-weight:800; letter-spacing:.04em;}
+
+  .plist{list-style:none;}
+  .plist li{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:15px;}
+  .plist li:last-child{border-bottom:none;}
+  .plist .k{font-weight:900; letter-spacing:.05em; min-width:64px;}
+  .plist .v{margin-left:auto; color:var(--muted); font-size:13px; text-align:right;}
+
+  .note{background:rgba(255,209,102,.10); border:1px solid rgba(255,209,102,.28);
+    border-radius:16px; padding:11px 13px; font-size:13.5px; color:#ffe6ad; line-height:1.5; margin-top:12px;}
+  .divider{height:1px; background:var(--line); margin:16px 0;}
+  .center{text-align:center;}
+  .mt{margin-top:14px;}
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:11px 18px;
+    font-weight:800; font-size:15px; box-shadow:var(--shadow); opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; z-index:40;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="app"><div class="card">
+
+<!-- ═══════════ ГЛАВНАЯ ═══════════ -->
+<section id="s-home" class="screen active">
+  <div class="hero">🛰️</div>
+  <h1>Станция 42</h1>
+  <p class="sub" id="home-sub">Умножение и деление — без письма и без таймеров.</p>
+
+  <div class="stat-row" id="home-stats"></div>
+  <button class="btn primary wide" id="btn-go">🚀 В рейс</button>
+  <div class="row-actions">
+    <button class="btn" id="btn-map">🗺️ Карта</button>
+    <button class="btn" id="btn-mods">🧩 Модули</button>
+    <button class="btn" id="btn-parent">👤 Родителю</button>
+  </div>
+  <div class="note" id="home-note"></div>
+</section>
+
+<!-- ═══════════ ДИАГНОСТИКА: интро ═══════════ -->
+<section id="s-diag-intro" class="screen">
+  <div class="hero">📡</div>
+  <h1>Сканирование</h1>
+  <p class="sub">
+    Двадцать вопросов, минут пять. Это <b>не проверка</b> — станция смотрит,
+    какие системы уже работают сами, а какие надо чинить.<br><br>
+    Правильных и неправильных ответов тут нет. Если не знаешь — жми
+    «<b>не знаю</b>», это самый полезный ответ: тогда я точно пойму, что чинить.
+  </p>
+  <button class="btn teal wide mt" id="btn-diag-start">Начать сканирование</button>
+  <button class="btn ghost wide" id="btn-diag-skip">Пропустить, сразу в рейс</button>
+</section>
+
+<!-- ═══════════ ДИАГНОСТИКА: вопрос ═══════════ -->
+<section id="s-diag" class="screen">
+  <div class="qbar">
+    <div class="prog"><i id="diag-prog"></i></div>
+    <div class="prog-lbl" id="diag-lbl">1 / 20</div>
+  </div>
+  <div class="qbox">
+    <div class="qtxt" id="diag-q"></div>
+    <div class="qhint" id="diag-hint">Просто выбери, что кажется верным</div>
+  </div>
+  <div class="opts" id="diag-opts"></div>
+  <div class="row-actions">
+    <button class="btn" id="diag-repeat">🔊 Повтори</button>
+    <button class="btn gold" id="diag-idk">Не знаю</button>
+  </div>
+</section>
+
+<!-- ═══════════ ДИАГНОСТИКА: итог ═══════════ -->
+<section id="s-diag-res" class="screen">
+  <div class="hero">🛠️</div>
+  <h1>Станция просканирована</h1>
+  <p class="sub">Вот что показали приборы.</p>
+  <div id="diag-groups" class="mt"></div>
+  <div class="group">
+    <div class="gt">🎯 Первый рейс</div>
+    <div class="gd">Начнём с этих. Больше четырёх за раз брать нельзя — не удержится в голове.</div>
+    <div class="chips" id="diag-focus"></div>
+  </div>
+  <button class="btn primary wide mt" id="btn-res-go">🚀 В рейс</button>
+</section>
+
+<!-- ═══════════ ЗНАКОМСТВО (массив) ═══════════ -->
+<section id="s-learn" class="screen">
+  <div class="qbar">
+    <div class="prog"><i id="learn-prog"></i></div>
+    <div class="prog-lbl" id="learn-lbl"></div>
+  </div>
+  <h2 class="center" id="learn-ttl"></h2>
+  <div class="arraywrap"><div class="array" id="learn-array"></div></div>
+  <div class="counter" id="learn-count"></div>
+  <div class="arraylbl" id="learn-note"></div>
+  <button class="btn teal wide mt" id="learn-next">Понятно</button>
+</section>
+
+<!-- ═══════════ ТРЕНИРОВКА ═══════════ -->
+<section id="s-play" class="screen">
+  <div class="qbar">
+    <div class="prog"><i id="play-prog"></i></div>
+    <div class="prog-lbl" id="play-lbl"></div>
+  </div>
+
+  <div class="keywrap" id="play-key" style="display:none">
+    <div class="fkey">
+      <svg viewBox="0 0 230 196" aria-hidden="true">
+        <polygon points="115,26 24,170 206,170" fill="rgba(255,255,255,.045)"
+                 stroke="rgba(255,255,255,.22)" stroke-width="2.5" stroke-linejoin="round"/>
+      </svg>
+      <div class="slot top" id="k-top"></div>
+      <div class="slot bl" id="k-bl"></div>
+      <div class="slot br" id="k-br"></div>
+    </div>
+  </div>
+  <div class="fkey-lbl" id="play-keylbl" style="display:none">одна деталь — три вопроса</div>
+
+  <div class="qbox" id="play-qbox">
+    <div class="qtxt" id="play-q"></div>
+    <div class="qhint" id="play-hint"></div>
+  </div>
+
+  <div class="arraywrap" id="play-arraywrap" style="display:none">
+    <div class="array" id="play-array"></div>
+  </div>
+
+  <div class="opts" id="play-opts"></div>
+  <div class="row-actions">
+    <button class="btn" id="play-repeat">🔊 Повтори</button>
+    <button class="btn" id="play-show">👁️ Покажи</button>
+    <button class="btn ghost sm" id="play-quit">Выйти</button>
+  </div>
+</section>
+
+<!-- ═══════════ ИТОГ РЕЙСА ═══════════ -->
+<section id="s-done" class="screen">
+  <div class="hero">🌟</div>
+  <h1>Рейс окончен</h1>
+  <p class="sub" id="done-sub"></p>
+  <div class="stat-row" id="done-stats"></div>
+  <div id="done-new"></div>
+  <button class="btn primary wide mt" id="btn-done-home">На станцию</button>
+</section>
+
+<!-- ═══════════ КАРТА ═══════════ -->
+<section id="s-map" class="screen">
+  <div class="topbar">
+    <div class="ttl">🗺️ Карта таблицы</div>
+    <div class="spacer"></div>
+    <button class="btn sm" data-home>Назад</button>
+  </div>
+  <div class="mapwrap" id="map-tab"></div>
+  <div class="legend">
+    <span><i style="background:rgba(255,209,102,.35)"></i>по правилу</span>
+    <span><i style="background:rgba(255,255,255,.12)"></i>чиним</span>
+    <span><i style="background:rgba(111,134,232,.6)"></i>считаешь</span>
+    <span><i style="background:rgba(94,224,200,.6)"></i>почти</span>
+    <span><i style="background:#57d68f"></i>освоено</span>
+  </div>
+  <div class="note" id="map-note"></div>
+</section>
+
+<!-- ═══════════ МОДУЛИ ═══════════ -->
+<section id="s-mods" class="screen">
+  <div class="topbar">
+    <div class="ttl">🧩 Модули станции</div>
+    <div class="spacer"></div>
+    <button class="btn sm" data-home>Назад</button>
+  </div>
+  <p class="lead">Пятнадцать фактов, которые не берутся правилом. Каждый освоенный — модуль на станцию. Всё остальное в таблице считается правилами, зубрить это не нужно.</p>
+  <div class="mods" id="mods-grid"></div>
+</section>
+
+<!-- ═══════════ РОДИТЕЛЮ ═══════════ -->
+<section id="s-parent" class="screen">
+  <div class="topbar">
+    <div class="ttl">👤 Родителю</div>
+    <div class="spacer"></div>
+    <button class="btn sm" data-home>Назад</button>
+  </div>
+  <div class="stat-row" id="p-stats"></div>
+  <h2 class="mt">Где спотыкается</h2>
+  <ul class="plist" id="p-weak"></ul>
+  <h2 class="mt">Освоено</h2>
+  <ul class="plist" id="p-strong"></ul>
+  <div class="note">
+    Оптимальный режим — 5–7 минут каждый день. Длинная сессия раз в неделю
+    при дислексии работает хуже: усталость приходит раньше, чем закрепление.
+    Ошибки в отчёте — это рабочий материал, а не повод для разговора с ребёнком.
+  </div>
+  <div class="divider"></div>
+  <div class="row-actions">
+    <button class="btn sm" id="p-rediag">Пересканировать</button>
+    <button class="btn sm" id="p-reset">Сбросить прогресс</button>
+  </div>
+</section>
+
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════
+   СТАНЦИЯ 42 — таблица умножения и деления
+   для ребёнка с дислексией/дисграфией.
+
+   Ключевые принципы, зашитые в код:
+   1. Умножение и деление — ОДИН факт (семья), а не две таблицы.
+   2. Реально учатся только 15 фактов; остальное берётся правилами.
+   3. Ответ только тапом. Никакого ввода цифр — дисграфия.
+   4. Никаких таймеров на экране. Время меряется молча, для алгоритма.
+   5. Дистракторы контролируемые: зеркальные пары (36/63, 12/21)
+      не показываются рядом, пока факт не освоен.
+   6. Ошибка не наказывается, а обслуживается коррекционной петлёй.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ---------- утилиты ---------- */
+const $  = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random()*n);
+const pick = a => a[rnd(a.length)];
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=rnd(i+1); [a[i],a[j]]=[a[j],a[i]];} return a; }
+const today = () => Math.floor(Date.now()/86400000);
+function plural(n, one, few, many){
+  const a=Math.abs(n)%100, b=a%10;
+  if(a>10 && a<20) return many;
+  if(b>1 && b<5)   return few;
+  if(b===1)        return one;
+  return many;
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1700); }
+
+/* ---------- факты ---------- */
+const RULE_N = [2,5,9];                 // берутся приёмом, а не памятью
+const HARD_N = [3,4,6,7,8];             // «злое ядро»
+const fkey = (a,b) => Math.min(a,b)+'x'+Math.max(a,b);
+
+const FACTS = [];
+for(let a=2;a<=9;a++) for(let b=a;b<=9;b++){
+  const kind = (RULE_N.includes(a)||RULE_N.includes(b)) ? 'rule' : (a===b ? 'square' : 'core');
+  FACTS.push({a,b,key:fkey(a,b),p:a*b,kind});
+}
+const FMAP = Object.fromEntries(FACTS.map(f=>[f.key,f]));
+const LEARNABLE = FACTS.filter(f=>f.kind!=='rule');      // ровно 15 штук
+const MOD_EMOJI = ['🛸','🔭','⚙️','🔋','📡','🛰️','🚀','🪐','⭐','🧪','🧭','💠','🔧','🛞','🎛️'];
+
+/* приём, которым берётся «правильный» факт — показываем словами, не зубрим */
+function ruleHint(a,b){
+  const [s,l] = a<b ? [a,b] : [b,a];
+  if(s===2) return 'На 2 — это просто удвоить: '+l+' и ещё '+l+'.';
+  if(s===5) return 'На 5 — это половина от «на 10». '+l+'×10 = '+(l*10)+', половина — '+(l*5)+'.';
+  if(s===9) return 'На 9 — это «на 10 минус само число»: '+(l*10)+' − '+l+' = '+(l*9)+'.';
+  if(l===2) return 'На 2 — это просто удвоить.';
+  if(l===5) return 'На 5 — половина от «на 10».';
+  if(l===9) return 'На 9 — «на 10» минус само число.';
+  return '';
+}
+
+/* ---------- состояние ---------- */
+const SKEY='st42.v1';
+let S = null;
+
+function blankState(){
+  const facts={};
+  FACTS.forEach(f=>{ facts[f.key]={box:0, stage:0, streak:0, seen:0, err:0, bestMs:null, last:null}; });
+  return {
+    v:1,
+    diag:{status:'none', i:0, log:[]},
+    facts,
+    stats:{sessions:0, answers:0, right:0, days:[], lastDay:null},
+    prefs:{voice:true}
+  };
+}
+function load(){
+  try{ const raw=localStorage.getItem(SKEY); if(raw){ const s=JSON.parse(raw);
+    if(s && s.v===1 && s.facts){ // добираем факты, если структура менялась
+      FACTS.forEach(f=>{ if(!s.facts[f.key]) s.facts[f.key]={box:0,stage:0,streak:0,seen:0,err:0,bestMs:null,last:null}; });
+      return s; } } }catch(e){}
+  return blankState();
+}
+function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
+
+/* ---------- озвучка ----------
+   Числа 0–100, похвалы и «сколько будет» взяты из пака «Считаем с Роботом».
+   Слов «умножить»/«разделить» в паке нет — до появления
+   voices_pack/op_umn.mp3 и op_del.mp3 они проговариваются синтезом.
+   Как только файлы положат в папку, движок подхватит их сам. */
+const VB='voices_pack/';
+const missingAudio = new Set();
+let voiceToken = 0;
+let audioReady = false;
+
+function playFile(name){
+  return new Promise(res=>{
+    if(missingAudio.has(name)) return res(false);
+    const a = new Audio(VB+name+'.mp3');
+    a.onended = ()=>res(true);
+    a.onerror = ()=>{ missingAudio.add(name); res(false); };
+    const p = a.play();
+    if(p && p.catch) p.catch(()=>res(false));
+  });
+}
+function tts(text){
+  return new Promise(res=>{
+    if(!window.speechSynthesis) return res();
+    try{
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='ru-RU'; u.rate=.95; u.pitch=1.05;
+      u.onend=()=>res(); u.onerror=()=>res();
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+      setTimeout(res, 2600);            // страховка: некоторые Android не шлют onend
+    }catch(e){ res(); }
+  });
+}
+/* токены: {n:42} — число из пака; {f:'praise_1'} — файл; {f:'op_umn',t:'умножить на'} — файл или синтез */
+async function say(tokens){
+  if(!S || !S.prefs.voice) return;
+  const my = ++voiceToken;
+  for(const tk of tokens){
+    if(my!==voiceToken) return;
+    if(tk.n!=null){
+      const ok = await playFile('n'+tk.n);
+      if(!ok && my===voiceToken) await tts(String(tk.n));
+    }else{
+      const ok = await playFile(tk.f);
+      if(!ok && tk.t && my===voiceToken) await tts(tk.t);
+    }
+  }
+}
+const stopVoice = ()=>{ voiceToken++; try{ speechSynthesis && speechSynthesis.cancel(); }catch(e){} };
+
+const OP_MUL = {f:'op_umn', t:'умножить на'};
+const OP_DIV = {f:'op_del', t:'разделить на'};
+
+function sayQuestion(q){
+  if(q.type==='div') say([{f:'q_skolko',t:'сколько будет'},{n:q.total},OP_DIV,{n:q.given}]);
+  else               say([{f:'q_skolko',t:'сколько будет'},{n:q.a},OP_MUL,{n:q.b}]);
+}
+const sayPraise = ()=> say([{f:'praise_'+rnd(8), t:pick(['Отлично','Молодец','Так держать','Точно'])}]);
+
+/* «разогрев» звука: браузеры пускают аудио только после первого тапа */
+function unlockAudio(){
+  if(audioReady) return; audioReady=true;
+  try{ const a=new Audio(VB+'n0.mp3'); a.volume=0; a.play().then(()=>{a.pause();}).catch(()=>{}); }catch(e){}
+}
+
+/* ---------- экраны ---------- */
+const SCREENS=['s-home','s-diag-intro','s-diag','s-diag-res','s-learn','s-play','s-done','s-map','s-mods','s-parent'];
+function show(id){
+  stopVoice();
+  SCREENS.forEach(s=>$(s).classList.toggle('active', s===id));
+  window.scrollTo(0,0);
+}
+
+/* ---------- энергопанель (массив a×b) ---------- */
+function buildArray(el, a, b){
+  el.innerHTML='';
+  const cs = Math.max(11, Math.min(24, Math.floor(280/Math.max(a,b))));
+  el.style.setProperty('--cs', cs+'px');
+  el.style.gridTemplateColumns = `repeat(${b}, ${cs}px)`;
+  const cells=[];
+  for(let i=0;i<a*b;i++){ const c=document.createElement('div'); c.className='cell'; el.appendChild(c); cells.push(c); }
+  return cells;
+}
+function fillArray(cells,a,b){ cells.forEach(c=>c.classList.add('dim')); }
+
+/* ---------- варианты ответа ----------
+   mode:
+     'diag'  — соседние произведения (диагностически информативно), без зеркал
+     'far'   — заведомо далёкие числа, ошибиться трудно
+     'near'  — соседние произведения
+   zeroReversal: не ставить рядом 36/63, 12/21 и т.п. */
+function digitsReversed(x,y){
+  const sx=String(x), sy=String(y);
+  return sx.length===2 && sy.length===2 && sx[0]===sy[1] && sx[1]===sy[0] && sx[0]!==sx[1];
+}
+function makeOptions(correct, count, mode, allowReversal, factor){
+  const out=[correct];
+  const bad = c => c===correct || c<1 || c>100 || out.includes(c) ||
+                   (!allowReversal && out.some(o=>digitsReversed(o,c)));
+  let pool=[];
+  if(factor){                                       // ответ — множитель (деление)
+    for(let d=2;d<=12;d++) pool.push(d);
+    pool = pool.filter(x=>Math.abs(x-correct)<=5);
+  }else if(mode==='far'){
+    for(let d=6;d<=34;d+=2) pool.push(correct+d, correct-d);
+  }else{
+    const f = FACTS.find(x=>x.p===correct) || {a:1,b:correct};
+    pool = [correct+f.a, correct-f.a, correct+f.b, correct-f.b,
+            correct+1, correct-1, correct+2, correct-2,
+            correct+10, correct-10, correct+f.a+f.b];
+  }
+  pool = shuffle(pool);
+  for(const c of pool){ if(out.length>=count) break; if(!bad(c)) out.push(c); }
+  let g=1;
+  while(out.length<count){ const c=correct+ (g%2?g:-g); g++; if(!bad(c)) out.push(c); if(g>60) break; }
+  return shuffle(out);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ДИАГНОСТИКА ПЕРВОГО ЗАПУСКА
+   20 вопросов, ~5 минут. Никакой обратной связи о правильности:
+   двадцать «неверно» подряд убили бы мотивацию раньше, чем
+   мы успели бы что-то измерить. Обратная связь — только о прогрессе.
+   Итог раскладывает факты по коробкам Лейтнера.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* порядок: лёгкое в начале, тяжёлое не кучей; 10 ядро + 5 квадратов + 5 проб на правила */
+const DIAG_SET = [
+  '2x7','3x4','5x8','6x7','3x3','4x6','4x9','7x8','6x6','3x7',
+  '3x5','4x8','4x4','6x8','7x9','3x6','7x7','4x7','8x8','3x8'
+];
+const T_FAST = 3500;    // быстрее — значит вспомнил, а не досчитал
+const T_SLOW = 9000;    // дольше — считал заново, фактом это не назвать
+
+let diagQ = null, diagT0 = 0;
+
+function startDiag(){
+  S.diag = {status:'running', i:0, log:[]};
+  save(); nextDiag();
+}
+function nextDiag(){
+  const i = S.diag.i;
+  if(i >= DIAG_SET.length){ finishDiag(); return; }
+  const f = FMAP[DIAG_SET[i]];
+  const opts = makeOptions(f.p, 6, 'diag', false, false);
+  diagQ = {f, opts};
+
+  $('diag-prog').style.width = (i/DIAG_SET.length*100)+'%';
+  $('diag-lbl').textContent = (i+1)+' / '+DIAG_SET.length;
+  $('diag-q').innerHTML = `${f.a}<span class="op">×</span>${f.b}<span class="eq">=</span><span class="qm">?</span>`;
+  $('diag-hint').textContent = i===0 ? 'Не знаешь — жми «не знаю», это нормально' : '';
+
+  const box = $('diag-opts'); box.innerHTML='';
+  opts.forEach(v=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent=v;
+    b.onclick=()=>answerDiag(v,b);
+    box.appendChild(b);
+  });
+  show('s-diag');
+  sayQuestion({type:'mul', a:f.a, b:f.b});
+  diagT0 = Date.now();
+}
+function answerDiag(v, btn){
+  if(!diagQ) return;
+  const ms = Date.now()-diagT0;
+  const f = diagQ.f;
+  diagQ = null;
+  stopVoice();
+  if(btn){ btn.classList.add('pick'); }
+  [...$('diag-opts').children].forEach(b=>b.disabled=true);
+
+  S.diag.log.push({key:f.key, ans:v, ok:v===f.p, ms, idk:v===null});
+  S.diag.i++;
+  save();
+
+  setTimeout(nextDiag, btn ? 320 : 120);
+}
+function levelOf(rec){
+  if(rec.idk || !rec.ok) return 0;
+  if(rec.ms <= T_FAST) return 2;
+  if(rec.ms <= T_SLOW) return 1;
+  return 0;
+}
+function finishDiag(){
+  const lvl = {};                              // key -> 0|1|2
+  S.diag.log.forEach(r=>{ lvl[r.key] = levelOf(r); });
+
+  /* пробы на правила распространяем на всю строку: ×2, ×5, ×9 — это приём,
+     а не 8 отдельных фактов, и проверять каждый было бы издевательством */
+  const rowLvl = {};
+  S.diag.log.forEach(r=>{
+    const f = FMAP[r.key]; if(f.kind!=='rule') return;
+    [f.a,f.b].filter(n=>RULE_N.includes(n)).forEach(n=>{
+      rowLvl[n] = rowLvl[n]==null ? levelOf(r) : Math.min(rowLvl[n], levelOf(r));
+    });
+  });
+
+  FACTS.forEach(f=>{
+    let L = lvl[f.key];
+    if(L==null && f.kind==='rule'){
+      const ns=[f.a,f.b].filter(n=>RULE_N.includes(n)).map(n=>rowLvl[n]).filter(x=>x!=null);
+      L = ns.length ? Math.min(...ns) : 1;
+    }
+    if(L==null) L = 0;
+    const st = S.facts[f.key];
+    st.box   = L===2 ? 3 : (L===1 ? 1 : 0);
+    st.stage = L===2 ? 3 : (L===1 ? 2 : 0);
+    st.last  = L===2 ? today() : null;
+  });
+
+  S.diag.status='done';
+  save();
+  renderDiagResult(lvl);
+  show('s-diag-res');
+  say([{f:'win_good', t:'Сканирование закончено'}]);
+}
+function renderDiagResult(lvl){
+  const g = {2:[],1:[],0:[]};
+  S.diag.log.forEach(r=>{ g[levelOf(r)].push(FMAP[r.key]); });
+
+  const rows = [
+    {l:2, em:'✅', ttl:'Работает само',   d:'Ответ пришёл сразу, без счёта. Эти факты будем только изредка освежать.'},
+    {l:1, em:'⏳', ttl:'Считаешь в уме',  d:'Ответ верный, но добывается счётом. Доведём до автоматизма — это быстро.'},
+    {l:0, em:'🛠️', ttl:'В ремонт',       d:'Начнём с картинки-панели, а не с зубрёжки. Это и есть основная работа.'}
+  ];
+  $('diag-groups').innerHTML = rows.map(r=>`
+    <div class="group">
+      <div class="gt">${r.em} ${r.ttl} <b>${g[r.l].length}</b></div>
+      <div class="gd">${r.d}</div>
+      <div class="chips">${g[r.l].map(f=>`<span class="chip">${f.a}×${f.b}</span>`).join('')}</div>
+    </div>`).join('');
+
+  $('diag-focus').innerHTML = focusSet().map(f=>`<span class="chip">${f.a}×${f.b}</span>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ДВИЖОК ПОВТОРЕНИЙ
+   Коробки Лейтнера + активный набор из 3–4 фактов
+   (больше не влезает в рабочую память).
+   ═══════════════════════════════════════════════════════════════ */
+const BOX_DAYS = [0,1,2,4,8];
+const MASTER_BOX = 4;
+
+const isDue = st => st.box>=MASTER_BOX ? (st.last==null || today()-st.last >= 14)
+                                       : (st.last==null || today()-st.last >= BOX_DAYS[st.box]);
+
+/* Активный набор: не больше четырёх фактов одновременно.
+   Как только факт добирается до коробки 2, он уходит на интервальное
+   повторение и освобождает место — иначе набор никогда не обновится. */
+const FOCUS_MAX = 4;
+function focusSet(){
+  const rank = f => (f.kind==='rule'?100:0) + S.facts[f.key].box*10 + S.facts[f.key].stage;
+  const byRank = list => list.sort((x,y)=>rank(x)-rank(y));
+  const out = byRank(FACTS.filter(f=>S.facts[f.key].box < 2)).slice(0,FOCUS_MAX);
+  if(out.length < FOCUS_MAX){
+    // иначе, когда в ремонте остался один факт, весь рейс превращается в долбёжку одного примера
+    const have = new Set(out.map(f=>f.key));
+    byRank(FACTS.filter(f=>!have.has(f.key) && S.facts[f.key].box < MASTER_BOX))
+      .slice(0, FOCUS_MAX-out.length).forEach(f=>out.push(f));
+  }
+  return out;
+}
+function reviewPool(focus){
+  const fk = new Set(focus.map(f=>f.key));
+  return FACTS.filter(f=>!fk.has(f.key) && S.facts[f.key].box>=1 && isDue(S.facts[f.key]));
+}
+
+const SESSION_LEN = 20;
+let sess = null;
+
+function startSession(){
+  const focus = focusSet();
+  if(!focus.length){                       // всё освоено — гоняем повторение
+    const all = FACTS.filter(f=>isDue(S.facts[f.key]));
+    sess = {queue: shuffle(all.length?all:FACTS).slice(0,SESSION_LEN).map(f=>f.key),
+            i:0, right:0, wrong:0, learned:[], t0:Date.now(), pending:[]};
+  }else{
+    const rev = shuffle(reviewPool(focus));
+    const q=[];
+    let ri=0;
+    for(let i=0;i<SESSION_LEN;i++){
+      // 1 повторение на каждые 3 из активного набора: новое всегда вперемешку со знакомым
+      const useRev = (i%4===3) && rev.length;
+      q.push(useRev ? rev[ri++ % rev.length].key : focus[i % focus.length].key);
+    }
+    // не даём одному факту идти два раза подряд
+    for(let i=1;i<q.length;i++) if(q[i]===q[i-1] && q[i+1]) { const t=q[i]; q[i]=q[i+1]; q[i+1]=t; }
+    sess = {queue:q, i:0, right:0, wrong:0, learned:[], t0:Date.now(), pending:[]};
+  }
+  S.stats.sessions++;
+  const d=today();
+  if(S.stats.lastDay!==d){ S.stats.lastDay=d; S.stats.days.push(d); if(S.stats.days.length>400) S.stats.days.shift(); }
+  save();
+  nextStep();
+}
+
+function nextStep(){
+  if(!sess) return;
+  const overrun = sess.i >= sess.queue.length + 4;   // коррекции не должны растягивать рейс бесконечно
+  if((sess.i >= sess.queue.length && !sess.pending.length) || overrun){ endSession(); return; }
+  const key = sess.pending.length && sess.pending[0].at<=sess.i
+            ? sess.pending.shift().key
+            : sess.queue[Math.min(sess.i, sess.queue.length-1)];
+  const f = FMAP[key];
+  const st = S.facts[key];
+  if(st.stage===0) showLearn(f);
+  else             askQuestion(f);
+}
+
+/* ---------- ступень 0: знакомство с панелью ---------- */
+let learnFact=null;
+function showLearn(f){
+  learnFact=f;
+  $('learn-prog').style.width = (sess.i/SESSION_LEN*100)+'%';
+  $('learn-lbl').textContent  = Math.min(sess.i+1,SESSION_LEN)+' / '+SESSION_LEN;
+  $('learn-ttl').innerHTML = `Энергопанель ${f.a} × ${f.b}`;
+  const cells = buildArray($('learn-array'), f.a, f.b);
+  $('learn-count').textContent='';
+  $('learn-note').textContent = ruleHint(f.a,f.b) || 'Смотри: '+f.a+' ряда по '+f.b+'.';
+  $('learn-next').style.visibility='hidden';
+  show('s-learn');
+
+  // считаем рядами: и видно, и слышно — два канала вместо одного вербального
+  let r=0;
+  const step = ()=>{
+    if(learnFact!==f) return;
+    if(r>=f.a){
+      $('learn-count').textContent = f.a+' × '+f.b+' = '+f.p;
+      $('learn-note').textContent  = ruleHint(f.a,f.b) || 'Разложи '+f.p+' по '+f.b+' в ряд — получится '+f.a+' ряда. Это же деление.';
+      $('learn-next').style.visibility='visible';
+      say([{n:f.a},OP_MUL,{n:f.b},{f:'op_eq',t:'равно'},{n:f.p}]);
+      return;
+    }
+    for(let c=0;c<f.b;c++) $('learn-array').children[r*f.b+c].classList.add('on');
+    const sum=(r+1)*f.b;
+    $('learn-count').textContent = sum;
+    say([{n:sum}]);
+    r++;
+    setTimeout(step, 850);
+  };
+  setTimeout(step, 500);
+}
+$('learn-next').onclick = ()=>{
+  if(!learnFact) return;
+  const st=S.facts[learnFact.key];
+  if(st.stage===0) st.stage=1;
+  save();
+  const f=learnFact; learnFact=null;
+  askQuestion(f);
+};
+
+/* ---------- ступени 1–3: вопрос ---------- */
+let cur=null, curT0=0;
+
+function buildQ(f, stage){
+  const st = S.facts[f.key];
+  // ступень 2 (семья) и 3 (молния) — половина вопросов на деление: это тот же факт
+  const div = stage>=2 && Math.random()<0.5;
+  if(div){
+    const given = Math.random()<0.5 ? f.a : f.b;
+    const ans   = given===f.a ? f.b : f.a;
+    return {f, stage, type:'div', total:f.p, given, ans};
+  }
+  return {f, stage, type:'mul', a:f.a, b:f.b, ans:f.p};
+}
+
+function askQuestion(f){
+  const st = S.facts[f.key];
+  const stage = Math.max(1, st.stage);
+  const q = buildQ(f, stage);
+  cur = q;
+
+  const n = stage===1 ? 3 : 4;
+  const allowRev = st.box >= 3;                       // зеркала — только по освоенному факту
+  const mode = stage===1 ? 'far' : 'near';
+  q.opts = makeOptions(q.ans, n, mode, allowRev, q.type==='div');
+
+  $('play-prog').style.width = (Math.min(sess.i,SESSION_LEN)/SESSION_LEN*100)+'%';
+  $('play-lbl').textContent  = Math.min(sess.i+1,SESSION_LEN)+' / '+SESSION_LEN;
+
+  const showKey = stage===2;
+  $('play-key').style.display    = showKey?'flex':'none';
+  $('play-keylbl').style.display = showKey?'block':'none';
+  $('play-qbox').style.display   = showKey?'none':'block';
+
+  if(showKey){
+    // ключ стыковки: 42 сверху, 6 и 7 снизу; закрыт тот угол, который спрашиваем
+    $('k-top').textContent = q.type==='div' ? f.p : '?';
+    $('k-top').className   = 'slot top' + (q.type==='mul' ? ' hid' : '');
+    const bl = q.type==='div' ? (q.given===f.a ? f.a : '?') : f.a;
+    const br = q.type==='div' ? (q.given===f.b ? f.b : '?') : f.b;
+    $('k-bl').textContent=bl; $('k-bl').className='slot bl'+(bl==='?'?' hid':'');
+    $('k-br').textContent=br; $('k-br').className='slot br'+(br==='?'?' hid':'');
+  }else{
+    $('play-q').innerHTML = q.type==='div'
+      ? `${q.total}<span class="op">÷</span>${q.given}<span class="eq">=</span><span class="qm">?</span>`
+      : `${q.a}<span class="op">×</span>${q.b}<span class="eq">=</span><span class="qm">?</span>`;
+    $('play-hint').textContent = stage===1 ? (ruleHint(f.a,f.b)||'') : '';
+  }
+
+  // панель видна на ступени 1 (подсказка), спрятана дальше — но её всегда можно вызвать
+  const wrap=$('play-arraywrap');
+  if(stage===1){ wrap.style.display='flex'; fillArray(buildArray($('play-array'),f.a,f.b),f.a,f.b); }
+  else wrap.style.display='none';
+  $('play-show').style.visibility = stage===1 ? 'hidden' : 'visible';
+
+  const box=$('play-opts');
+  box.className = 'opts' + (n===4?' two':'');
+  box.innerHTML='';
+  q.opts.forEach(v=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent=v; b.dataset.v=v;
+    b.onclick=()=>answer(v,b);
+    box.appendChild(b);
+  });
+
+  show('s-play');
+  sayQuestion(q);
+  curT0 = Date.now();
+}
+
+function answer(v, btn){
+  if(!cur) return;
+  const q = cur; cur=null;
+  const ms = Date.now()-curT0;
+  const f = q.f, st = S.facts[f.key];
+  stopVoice();
+  [...$('play-opts').children].forEach(b=>b.disabled=true);
+
+  st.seen++; S.stats.answers++;
+  const ok = v===q.ans;
+
+  if(ok){
+    btn.classList.add('pick');
+    st.streak++; sess.right++; S.stats.right++;
+    if(st.bestMs==null || ms<st.bestMs) st.bestMs=ms;
+    sayPraise();
+
+    // продвижение по ступеням: 2 верных подряд — следующая ступень
+    if(st.streak>=2 && st.stage<3){ st.stage++; st.streak=0; }
+    else if(st.stage===3 && st.streak>=2 && ms<=T_FAST){
+      // коробка растёт не чаще раза в день: «выучил за один вечер» — это иллюзия,
+      // факт должен пережить ночь, иначе к утру его не будет
+      if(st.last==null || st.last < today()){
+        const was = st.box;
+        st.box = Math.min(MASTER_BOX, st.box+1);
+        st.last = today();
+        if(was<MASTER_BOX && st.box>=MASTER_BOX && f.kind!=='rule') sess.learned.push(f.key);
+      }
+      st.streak=0;
+    }
+    sess.i++; save();
+    setTimeout(nextStep, 620);
+  }else{
+    // ошибка не наказывается: гасим выбранное, подсвечиваем верное, показываем панель
+    st.err++; st.streak=0; sess.wrong++;
+    st.box = Math.max(0, st.box-1);
+    if(st.stage>1) st.stage--;
+    btn.classList.add('fade');
+    [...$('play-opts').children].forEach(b=>{ if(+b.dataset.v===q.ans) b.classList.add('right'); });
+
+    $('play-key').style.display='none'; $('play-keylbl').style.display='none';
+    $('play-qbox').style.display='block';
+    $('play-q').innerHTML = q.type==='div'
+      ? `${q.total}<span class="op">÷</span>${q.given}<span class="eq">=</span>${q.ans}`
+      : `${q.a}<span class="op">×</span>${q.b}<span class="eq">=</span>${q.ans}`;
+    $('play-hint').textContent = ruleHint(f.a,f.b) || `${f.a} ряда по ${f.b} — это ${f.p}`;
+    const wrap=$('play-arraywrap'); wrap.style.display='flex';
+    fillArray(buildArray($('play-array'),f.a,f.b),f.a,f.b);
+
+    say([{n:q.type==='div'?q.total:q.a}, q.type==='div'?OP_DIV:OP_MUL, {n:q.type==='div'?q.given:q.b},
+         {f:'op_eq',t:'равно'}, {n:q.ans}]);
+
+    // коррекционная петля: тот же факт сразу и ещё раз через два вопроса
+    sess.pending.unshift({key:f.key, at:sess.i});
+    sess.pending.push({key:f.key, at:sess.i+3});
+    sess.i++; save();
+    setTimeout(nextStep, 2600);
+  }
+}
+
+$('play-show').onclick = ()=>{
+  if(!cur) return;
+  const wrap=$('play-arraywrap');
+  if(wrap.style.display==='flex'){ wrap.style.display='none'; return; }
+  wrap.style.display='flex';
+  fillArray(buildArray($('play-array'),cur.f.a,cur.f.b),cur.f.a,cur.f.b);
+};
+$('play-repeat').onclick = ()=>{ if(cur) sayQuestion(cur); };
+$('diag-repeat').onclick = ()=>{ if(diagQ) sayQuestion({type:'mul',a:diagQ.f.a,b:diagQ.f.b}); };
+$('diag-idk').onclick    = ()=>{ if(diagQ){ const f=diagQ.f; diagQ=null; stopVoice();
+  [...$('diag-opts').children].forEach(b=>b.disabled=true);
+  S.diag.log.push({key:f.key, ans:null, ok:false, ms:Date.now()-diagT0, idk:true});
+  S.diag.i++; save(); setTimeout(nextDiag,160); } };
+$('play-quit').onclick = ()=>{ if(confirm('Закончить рейс? Прогресс сохранён.')){ sess=null; cur=null; save(); goHome(); } };
+
+function endSession(){
+  const mins = Math.max(1, Math.round((Date.now()-sess.t0)/60000));
+  $('done-sub').textContent = sess.learned.length
+    ? 'Станция приросла модулями. Так и работает.'
+    : 'Ровный рейс. Завтра будет легче — так память и устроена.';
+  $('done-stats').innerHTML = `
+    <div class="stat"><b>${sess.right}</b><span>верных</span></div>
+    <div class="stat"><b>${mins}</b><span>${plural(mins,'минута','минуты','минут')}</span></div>
+    <div class="stat"><b>${masteredCount()}/15</b><span>модулей</span></div>`;
+  $('done-new').innerHTML = sess.learned.length
+    ? `<div class="group"><div class="gt">🧩 Новые модули</div>
+       <div class="chips">${sess.learned.map(k=>`<span class="chip">${FMAP[k].a}×${FMAP[k].b}</span>`).join('')}</div></div>`
+    : '';
+  sess=null; save();
+  show('s-done');
+  say([{f:'win_ok', t:'Рейс окончен, молодец'}]);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ЭКРАНЫ: главная, карта, модули, родителю
+   ═══════════════════════════════════════════════════════════════ */
+const masteredCount = () => LEARNABLE.filter(f=>S.facts[f.key].box>=MASTER_BOX).length;
+
+function streakDays(){
+  const d=[...new Set(S.stats.days)].sort((a,b)=>b-a);
+  if(!d.length) return 0;
+  const t=today();
+  if(d[0]!==t && d[0]!==t-1) return 0;
+  let n=1; for(let i=1;i<d.length;i++){ if(d[i-1]-d[i]===1) n++; else break; }
+  return n;
+}
+function renderHome(){
+  const m = masteredCount();
+  $('home-stats').innerHTML = `
+    <div class="stat"><b>${m}/15</b><span>модулей<br>собрано</span></div>
+    <div class="stat"><b>${streakDays()}</b><span>${plural(streakDays(),'день','дня','дней')}<br>подряд</span></div>
+    <div class="stat"><b>${S.stats.sessions}</b><span>${plural(S.stats.sessions,'рейс','рейса','рейсов')}<br>всего</span></div>`;
+  const f = focusSet();
+  const scanning = S.diag.status==='none' || S.diag.status==='running';
+  $('home-sub').textContent = scanning
+    ? 'Сначала станция посмотрит, что уже работает.'
+    : 'Умножение и деление — одно и то же. Без письма и без таймеров.';
+  $('home-note').innerHTML = f.length
+    ? 'Сейчас в работе: ' + f.map(x=>`<b>${x.a}×${x.b}</b>`).join(', ') + '. Один рейс — 20 вопросов, минут шесть.'
+    : 'Все пятнадцать модулей собраны. Дальше — короткие рейсы на повторение, чтобы не забылось.';
+  $('btn-go').textContent = scanning
+    ? (S.diag.i>0 ? '📡 Продолжить сканирование' : '📡 Начать сканирование')
+    : '🚀 В рейс';
+}
+
+function renderMap(){
+  let h='<table class="mtab"><tr><th></th>';
+  for(let b=1;b<=10;b++) h+=`<th>${b}</th>`;
+  h+='</tr>';
+  for(let a=1;a<=10;a++){
+    h+=`<tr><th>${a}</th>`;
+    for(let b=1;b<=10;b++){
+      let cls='mr';
+      if(a>=2&&a<=9&&b>=2&&b<=9){
+        const st=S.facts[fkey(a,b)];
+        const f=FMAP[fkey(a,b)];
+        cls = f.kind==='rule' && st.box>=1 ? 'mr'
+            : st.box>=MASTER_BOX ? 'm3' : st.box>=2 ? 'm2' : st.box>=1 ? 'm1' : 'm0';
+      }
+      h+=`<td class="${cls}">${a*b}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</table>';
+  $('map-tab').innerHTML=h;
+  const left = 15-masteredCount();
+  $('map-note').textContent = left>0
+    ? `Жёлтое берётся правилами — ×1, ×2, ×5, ×9, ×10 — и зубрить это не нужно. Реально осталось ${left} ${plural(left,'факт','факта','фактов')}.`
+    : 'Вся таблица закрыта. Осталось изредка освежать, чтобы держалось.';
+}
+
+function renderMods(){
+  $('mods-grid').innerHTML = LEARNABLE.map((f,i)=>{
+    const got = S.facts[f.key].box>=MASTER_BOX;
+    return `<div class="mod${got?' got':''}"><span class="em">${MOD_EMOJI[i]}</span>${f.a}×${f.b}</div>`;
+  }).join('');
+}
+
+function renderParent(){
+  const total=S.stats.answers||0;
+  const acc = total ? Math.round(S.stats.right/total*100) : 0;
+  $('p-stats').innerHTML = `
+    <div class="stat"><b>${masteredCount()}/15</b><span>освоено</span></div>
+    <div class="stat"><b>${acc}%</b><span>верных</span></div>
+    <div class="stat"><b>${streakDays()}</b><span>${plural(streakDays(),'день','дня','дней')} подряд</span></div>`;
+
+  const weak = FACTS.filter(f=>S.facts[f.key].seen>0 && S.facts[f.key].box<MASTER_BOX)
+    .sort((x,y)=>{
+      const a=S.facts[x.key], b=S.facts[y.key];
+      return (b.err/(b.seen||1)) - (a.err/(a.seen||1));
+    }).slice(0,8);
+  $('p-weak').innerHTML = weak.length ? weak.map(f=>{
+    const st=S.facts[f.key];
+    const stg=['знакомство','узнавание','семья фактов','молния'][st.stage]||'—';
+    return `<li><span class="k">${f.a}×${f.b}</span><span>${stg}</span>
+      <span class="v">ошибок ${st.err} из ${st.seen}${st.bestMs?'<br>лучшее '+(st.bestMs/1000).toFixed(1)+' с':''}</span></li>`;
+  }).join('') : '<li><span class="v">Пока нет данных — нужен хотя бы один рейс.</span></li>';
+
+  const strong = LEARNABLE.filter(f=>S.facts[f.key].box>=MASTER_BOX);
+  $('p-strong').innerHTML = strong.length
+    ? strong.map(f=>`<li><span class="k">${f.a}×${f.b}</span><span>= ${f.p}</span>
+        <span class="v">${S.facts[f.key].bestMs?(S.facts[f.key].bestMs/1000).toFixed(1)+' с':''}</span></li>`).join('')
+    : '<li><span class="v">Пока пусто. Факт считается освоенным после трёх верных ответов в разные дни быстрее трёх секунд.</span></li>';
+}
+
+function goHome(){ renderHome(); show('s-home'); }
+
+/* ---------- навигация ---------- */
+$('btn-go').onclick = ()=>{
+  unlockAudio();
+  if(S.diag.status==='none' || S.diag.status==='running'){ show('s-diag-intro'); return; }
+  startSession();
+};
+$('btn-diag-start').onclick = ()=>{
+  unlockAudio();
+  // сканирование прервали на середине — продолжаем с того же места, а не с нуля
+  if(S.diag.status==='running' && S.diag.i>0 && S.diag.i<DIAG_SET.length) nextDiag();
+  else startDiag();
+};
+$('btn-diag-skip').onclick  = ()=>{
+  // без диагностики стартуем консервативно: всё «в ремонт», кроме строк ×2/×5/×9
+  FACTS.forEach(f=>{ const st=S.facts[f.key];
+    if(f.kind==='rule'){ st.box=1; st.stage=2; } else { st.box=0; st.stage=0; } });
+  S.diag.status='skipped'; save(); startSession();
+};
+$('btn-res-go').onclick   = ()=>startSession();
+$('btn-done-home').onclick= goHome;
+$('btn-map').onclick   = ()=>{ renderMap(); show('s-map'); };
+$('btn-mods').onclick  = ()=>{ renderMods(); show('s-mods'); };
+$('btn-parent').onclick= ()=>{ renderParent(); show('s-parent'); };
+document.querySelectorAll('[data-home]').forEach(b=>b.onclick=goHome);
+$('p-rediag').onclick = ()=>{ if(confirm('Пройти сканирование заново? Оценка фактов будет пересобрана.')){
+  S.diag={status:'none',i:0,log:[]}; save(); show('s-diag-intro'); } };
+$('p-reset').onclick  = ()=>{ if(confirm('Стереть весь прогресс? Отменить будет нельзя.')){
+  S = blankState(); save(); goHome(); toast('Прогресс сброшен'); } };
+
+document.addEventListener('pointerdown', unlockAudio, {once:true});
+
+/* ---------- старт ---------- */
+S = load();
+goHome();
+if(S.diag.status==='none') setTimeout(()=>show('s-diag-intro'), 400);
+</script>
+</body>
+</html>

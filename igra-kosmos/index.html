@@ -468,13 +468,24 @@ function load(){
 function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
 
 /* ---------- озвучка ----------
+   Пак озвучен Silero TTS v4_ru, голос xenia, 48 кГц — тем же, чем пак
+   «Считаем с Роботом», так что числа из старого пака и новые фразы звучат
+   одним голосом.
+
+   ВОПРОСЫ И ОТВЕТЫ ОЗВУЧЕНЫ ЦЕЛИКОМ, а не собраны из слов: «сколько будет
+   шесть умножить на семь» — один файл qm_6_7.mp3. Склейка отдельных слов
+   даёт рваную интонацию и звучит механически, а при дислексии разбирать
+   такую речь на слух — отдельная работа, которой быть не должно.
+   Числа поштучно звучат только там, где это и есть список чисел:
+   счёт рядами на экране знакомства.
+
    ГЛАВНОЕ ПРАВИЛО: голос в игре всегда ОДИН.
    Смешивать записанный голос с синтезом посреди фразы нельзя: при дислексии
    ребёнок тратит ресурс на переключение между голосами вместо счёта,
    а если в системе нет русского голоса, синтез ещё и читает кириллицу
    английской фонетикой. Поэтому режим озвучки выбирается один раз на старте:
 
-     'pack'   — весь голосовой пак на месте (включая op_umn/op_del/op_eq);
+     'pack'   — весь голосовой пак на месте (фразы qm/qd/am/ad);
      'tts'    — пака не хватает, но есть русский голос: озвучиваем ТОЛЬКО синтезом;
      'silent' — русского голоса нет вообще: молчим. Задание видно на экране,
                 кнопка «Повтори» прячется, чтобы не обманывать ребёнка.
@@ -482,7 +493,7 @@ function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){}
    Половинчатых состояний нет — либо всё паком, либо всё синтезом, либо тишина. */
 const VB='voices_pack/';
 const AUDIO_DATA = (typeof window!=='undefined' && window.AUDIO_DATA) || null;  // офлайн-сборка вшивает сюда data-URI
-const OP_FILES = ['op_umn','op_del','op_eq'];   // именно этих трёх нет в паке «Робота»
+const PROBE_FILES = ['qm_6_7','qd_42_7','am_6_7'];   // по ним проверяем, что пак фраз на месте
 let VOICE_MODE = null;                          // null = ещё не определён
 let voiceReady = null, ruVoice = null;
 let voiceToken = 0, audioReady = false;
@@ -514,7 +525,7 @@ function findRuVoice(){
   });
 }
 async function resolveVoiceMode(){
-  const packOk = (await Promise.all(OP_FILES.map(fileExists))).every(Boolean);
+  const packOk = (await Promise.all(PROBE_FILES.map(fileExists))).every(Boolean);
   if(packOk){ VOICE_MODE='pack'; return; }
   ruVoice = await findRuVoice();
   VOICE_MODE = ruVoice ? 'tts' : 'silent';
@@ -549,7 +560,9 @@ function tts(text){
 async function say(tokens){
   if(!S || !S.prefs.voice) return;
   const my = ++voiceToken;
-  await ensureVoiceMode();
+  // ждём определения режима только на самом первом обращении: иначе лишний await
+  // даёт следующей реплике обогнать текущую, и первое число счёта пропадает
+  if(VOICE_MODE===null) await ensureVoiceMode();
   if(my!==voiceToken || VOICE_MODE==='silent') return;
 
   if(VOICE_MODE==='tts'){                       // одной фразой, одним голосом
@@ -564,14 +577,27 @@ async function say(tokens){
 }
 const stopVoice = ()=>{ voiceToken++; try{ speechSynthesis && speechSynthesis.cancel(); }catch(e){} };
 
-const OP_MUL = {f:'op_umn', t:'умножить на'};
-const OP_DIV = {f:'op_del', t:'разделить на'};
-const OP_EQ  = {f:'op_eq',  t:'равно'};
-const Q_HOW  = {f:'q_skolko', t:'сколько будет'};
+/* числительные словами — нужны только для текста в режиме синтеза */
+const NUM_U=['ноль','один','два','три','четыре','пять','шесть','семь','восемь','девять','десять',
+  'одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать',
+  'восемнадцать','девятнадцать'];
+const NUM_T={2:'двадцать',3:'тридцать',4:'сорок',5:'пятьдесят',6:'шестьдесят',7:'семьдесят',8:'восемьдесят',9:'девяносто'};
+function numWord(n){
+  if(n<20) return NUM_U[n];
+  if(n===100) return 'сто';
+  const t=Math.floor(n/10), u=n%10;
+  return NUM_T[t] + (u ? ' '+NUM_U[u] : '');
+}
 
+/* вопрос — один готовый файл на всю фразу, без склейки */
 function sayQuestion(q){
-  if(q.type==='div') say([Q_HOW,{n:q.total},OP_DIV,{n:q.given}]);
-  else               say([Q_HOW,{n:q.a},OP_MUL,{n:q.b}]);
+  if(q.type==='div') say([{f:`qd_${q.total}_${q.given}`, t:`сколько будет ${numWord(q.total)} разделить на ${numWord(q.given)}`}]);
+  else               say([{f:`qm_${q.a}_${q.b}`,        t:`сколько будет ${numWord(q.a)} умножить на ${numWord(q.b)}`}]);
+}
+/* полный ответ после ошибки и на экране знакомства — тоже одной фразой */
+function sayAnswer(q){
+  if(q.type==='div') say([{f:`ad_${q.total}_${q.given}`, t:`${numWord(q.total)} разделить на ${numWord(q.given)} равно ${numWord(q.ans)}`}]);
+  else               say([{f:`am_${q.a}_${q.b}`,         t:`${numWord(q.a)} умножить на ${numWord(q.b)} равно ${numWord(q.ans)}`}]);
 }
 const sayPraise = ()=> say([{f:'praise_'+rnd(8), t:pick(['Отлично','Молодец','Так держать','Точно'])}]);
 
@@ -854,7 +880,7 @@ function showLearn(f){
       $('learn-count').textContent = f.a+' × '+f.b+' = '+f.p;
       $('learn-note').textContent  = ruleHint(f.a,f.b) || 'Разложи '+f.p+' по '+f.b+' в ряд — получится '+f.a+' ряда. Это же деление.';
       $('learn-next').style.visibility='visible';
-      say([{n:f.a},OP_MUL,{n:f.b},{f:'op_eq',t:'равно'},{n:f.p}]);
+      sayAnswer({type:'mul', a:f.a, b:f.b, ans:f.p});
       return;
     }
     for(let c=0;c<f.b;c++) $('learn-array').children[r*f.b+c].classList.add('on');
@@ -994,8 +1020,7 @@ function answer(v, btn){
     const wrap=$('play-arraywrap'); wrap.style.display='flex';
     fillArray(buildArray($('play-array'),f.a,f.b),f.a,f.b);
 
-    say([{n:q.type==='div'?q.total:q.a}, q.type==='div'?OP_DIV:OP_MUL, {n:q.type==='div'?q.given:q.b},
-         {f:'op_eq',t:'равно'}, {n:q.ans}]);
+    sayAnswer(q);
 
     // коррекционная петля: тот же факт сразу и ещё раз через два вопроса
     sess.pending.unshift({key:f.key, at:sess.i});
@@ -1133,15 +1158,13 @@ function renderParent(){
 /* режим озвучки показываем родителю прямым текстом: от него зависит,
    что ребёнок слышит, и это не должно выясняться на слух */
 function renderVoiceNote(){
-  const files = OP_FILES.map(f=>`<b>${f}.mp3</b>`).join(', ');
   const txt = {
-    pack:  'Озвучка: живой голос, полный пак. Ничего делать не нужно.',
+    pack:  'Озвучка: голосовой пак, тот же голос, что в «Считаем с Роботом». '+
+           'Вопросы и ответы записаны целыми фразами, не собраны из слов. Делать ничего не нужно.',
     tts:   'Озвучка: синтез речи браузера — одним голосом, без подмешивания записи. '+
-           'Чтобы включить живой голос, положите в <b>voices_pack/</b> три файла: '+files+
-           ' («умножить на», «разделить на», «равно»). Остальное уже там.',
-    silent:'Звук выключен: в системе нет русского голоса, а пака не хватает. '+
-           'Задание видно на экране, кнопки «Повтори» скрыты. Чтобы включить звук, '+
-           'положите в <b>voices_pack/</b> три файла: '+files+'.'
+           'Значит, папка <b>voices_pack/</b> не подгрузилась: проверьте, что она лежит рядом с index.html.',
+    silent:'Звук выключен: папка <b>voices_pack/</b> недоступна, а русского голоса в системе нет. '+
+           'Задание видно на экране, кнопки «Повтори» скрыты.'
   }[VOICE_MODE] || 'Озвучка: определяется…';
   $('p-voice').innerHTML = txt;
 }

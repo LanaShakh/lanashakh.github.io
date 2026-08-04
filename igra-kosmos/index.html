@@ -374,6 +374,7 @@
     при дислексии работает хуже: усталость приходит раньше, чем закрепление.
     Ошибки в отчёте — это рабочий материал, а не повод для разговора с ребёнком.
   </div>
+  <div class="note" id="p-voice"></div>
   <div class="divider"></div>
   <div class="row-actions">
     <button class="btn sm" id="p-rediag">Пересканировать</button>
@@ -467,67 +468,124 @@ function load(){
 function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
 
 /* ---------- озвучка ----------
-   Числа 0–100, похвалы и «сколько будет» взяты из пака «Считаем с Роботом».
-   Слов «умножить»/«разделить» в паке нет — до появления
-   voices_pack/op_umn.mp3 и op_del.mp3 они проговариваются синтезом.
-   Как только файлы положат в папку, движок подхватит их сам. */
+   ГЛАВНОЕ ПРАВИЛО: голос в игре всегда ОДИН.
+   Смешивать записанный голос с синтезом посреди фразы нельзя: при дислексии
+   ребёнок тратит ресурс на переключение между голосами вместо счёта,
+   а если в системе нет русского голоса, синтез ещё и читает кириллицу
+   английской фонетикой. Поэтому режим озвучки выбирается один раз на старте:
+
+     'pack'   — весь голосовой пак на месте (включая op_umn/op_del/op_eq);
+     'tts'    — пака не хватает, но есть русский голос: озвучиваем ТОЛЬКО синтезом;
+     'silent' — русского голоса нет вообще: молчим. Задание видно на экране,
+                кнопка «Повтори» прячется, чтобы не обманывать ребёнка.
+
+   Половинчатых состояний нет — либо всё паком, либо всё синтезом, либо тишина. */
 const VB='voices_pack/';
-const missingAudio = new Set();
-let voiceToken = 0;
-let audioReady = false;
+const AUDIO_DATA = (typeof window!=='undefined' && window.AUDIO_DATA) || null;  // офлайн-сборка вшивает сюда data-URI
+const OP_FILES = ['op_umn','op_del','op_eq'];   // именно этих трёх нет в паке «Робота»
+let VOICE_MODE = null;                          // null = ещё не определён
+let voiceReady = null, ruVoice = null;
+let voiceToken = 0, audioReady = false;
+
+const audioSrc = name => (AUDIO_DATA ? AUDIO_DATA[name] : VB+name+'.mp3');
+
+function probeAudio(name){                 // запасной способ: если открыли файл напрямую (file://), fetch не работает
+  return new Promise(res=>{
+    const a=new Audio(); a.preload='metadata';
+    a.onloadedmetadata=()=>res(true); a.onerror=()=>res(false);
+    a.src=VB+name+'.mp3';
+    setTimeout(()=>res(false), 2500);
+  });
+}
+function fileExists(name){
+  if(AUDIO_DATA) return Promise.resolve(!!AUDIO_DATA[name]);
+  return fetch(VB+name+'.mp3',{method:'HEAD'}).then(r=>r.ok).catch(()=>probeAudio(name));
+}
+function findRuVoice(){
+  return new Promise(res=>{
+    if(!window.speechSynthesis) return res(null);
+    const grab = ()=>(speechSynthesis.getVoices()||[]).find(v=>/^ru/i.test(v.lang)) || null;
+    const first = grab();
+    if(first) return res(first);
+    let done=false;
+    const finish = ()=>{ if(done) return; done=true; speechSynthesis.onvoiceschanged=null; res(grab()); };
+    speechSynthesis.onvoiceschanged = finish;
+    setTimeout(finish, 1200);           // список голосов приезжает асинхронно
+  });
+}
+async function resolveVoiceMode(){
+  const packOk = (await Promise.all(OP_FILES.map(fileExists))).every(Boolean);
+  if(packOk){ VOICE_MODE='pack'; return; }
+  ruVoice = await findRuVoice();
+  VOICE_MODE = ruVoice ? 'tts' : 'silent';
+}
+const ensureVoiceMode = ()=> (voiceReady = voiceReady || resolveVoiceMode());
 
 function playFile(name){
   return new Promise(res=>{
-    if(missingAudio.has(name)) return res(false);
-    const a = new Audio(VB+name+'.mp3');
+    const src = audioSrc(name);
+    if(!src) return res(false);
+    const a = new Audio(src);
     a.onended = ()=>res(true);
-    a.onerror = ()=>{ missingAudio.add(name); res(false); };
+    a.onerror = ()=>res(false);
     const p = a.play();
     if(p && p.catch) p.catch(()=>res(false));
   });
 }
 function tts(text){
   return new Promise(res=>{
-    if(!window.speechSynthesis) return res();
+    if(!window.speechSynthesis || !ruVoice) return res();
     try{
       const u=new SpeechSynthesisUtterance(text);
-      u.lang='ru-RU'; u.rate=.95; u.pitch=1.05;
+      try{ u.voice=ruVoice; }catch(e){}          // если голос не присвоился, язык всё равно удержит русский
+      u.lang=ruVoice.lang||'ru-RU'; u.rate=.92; u.pitch=1.05;
       u.onend=()=>res(); u.onerror=()=>res();
       speechSynthesis.cancel(); speechSynthesis.speak(u);
-      setTimeout(res, 2600);            // страховка: некоторые Android не шлют onend
+      setTimeout(res, 400 + text.length*90);   // страховка: часть Android не шлёт onend
     }catch(e){ res(); }
   });
 }
-/* токены: {n:42} — число из пака; {f:'praise_1'} — файл; {f:'op_umn',t:'умножить на'} — файл или синтез */
+/* токен: {n:42} — число, {f:'op_umn', t:'умножить на'} — файл пака и его текстовый двойник */
 async function say(tokens){
   if(!S || !S.prefs.voice) return;
   const my = ++voiceToken;
-  for(const tk of tokens){
+  await ensureVoiceMode();
+  if(my!==voiceToken || VOICE_MODE==='silent') return;
+
+  if(VOICE_MODE==='tts'){                       // одной фразой, одним голосом
+    const text = tokens.map(tk=>tk.n!=null?String(tk.n):(tk.t||'')).filter(Boolean).join(' ');
+    if(text) await tts(text);
+    return;
+  }
+  for(const tk of tokens){                      // только пак, без подмешивания синтеза
     if(my!==voiceToken) return;
-    if(tk.n!=null){
-      const ok = await playFile('n'+tk.n);
-      if(!ok && my===voiceToken) await tts(String(tk.n));
-    }else{
-      const ok = await playFile(tk.f);
-      if(!ok && tk.t && my===voiceToken) await tts(tk.t);
-    }
+    await playFile(tk.n!=null ? 'n'+tk.n : tk.f);
   }
 }
 const stopVoice = ()=>{ voiceToken++; try{ speechSynthesis && speechSynthesis.cancel(); }catch(e){} };
 
 const OP_MUL = {f:'op_umn', t:'умножить на'};
 const OP_DIV = {f:'op_del', t:'разделить на'};
+const OP_EQ  = {f:'op_eq',  t:'равно'};
+const Q_HOW  = {f:'q_skolko', t:'сколько будет'};
 
 function sayQuestion(q){
-  if(q.type==='div') say([{f:'q_skolko',t:'сколько будет'},{n:q.total},OP_DIV,{n:q.given}]);
-  else               say([{f:'q_skolko',t:'сколько будет'},{n:q.a},OP_MUL,{n:q.b}]);
+  if(q.type==='div') say([Q_HOW,{n:q.total},OP_DIV,{n:q.given}]);
+  else               say([Q_HOW,{n:q.a},OP_MUL,{n:q.b}]);
 }
 const sayPraise = ()=> say([{f:'praise_'+rnd(8), t:pick(['Отлично','Молодец','Так держать','Точно'])}]);
+
+/* кнопки «Повтори» бессмысленны в тишине — прячем их, а не обманываем */
+function syncVoiceUI(){
+  const on = VOICE_MODE && VOICE_MODE!=='silent';
+  ['play-repeat','diag-repeat'].forEach(id=>{ $(id).style.display = on ? '' : 'none'; });
+}
 
 /* «разогрев» звука: браузеры пускают аудио только после первого тапа */
 function unlockAudio(){
   if(audioReady) return; audioReady=true;
-  try{ const a=new Audio(VB+'n0.mp3'); a.volume=0; a.play().then(()=>{a.pause();}).catch(()=>{}); }catch(e){}
+  ensureVoiceMode().then(syncVoiceUI);
+  try{ const s=audioSrc('n0'); if(s){ const a=new Audio(s); a.volume=0; a.play().then(()=>a.pause()).catch(()=>{}); } }catch(e){}
 }
 
 /* ---------- экраны ---------- */
@@ -1072,6 +1130,21 @@ function renderParent(){
     : '<li><span class="v">Пока пусто. Факт считается освоенным после трёх верных ответов в разные дни быстрее трёх секунд.</span></li>';
 }
 
+/* режим озвучки показываем родителю прямым текстом: от него зависит,
+   что ребёнок слышит, и это не должно выясняться на слух */
+function renderVoiceNote(){
+  const files = OP_FILES.map(f=>`<b>${f}.mp3</b>`).join(', ');
+  const txt = {
+    pack:  'Озвучка: живой голос, полный пак. Ничего делать не нужно.',
+    tts:   'Озвучка: синтез речи браузера — одним голосом, без подмешивания записи. '+
+           'Чтобы включить живой голос, положите в <b>voices_pack/</b> три файла: '+files+
+           ' («умножить на», «разделить на», «равно»). Остальное уже там.',
+    silent:'Звук выключен: в системе нет русского голоса, а пака не хватает. '+
+           'Задание видно на экране, кнопки «Повтори» скрыты. Чтобы включить звук, '+
+           'положите в <b>voices_pack/</b> три файла: '+files+'.'
+  }[VOICE_MODE] || 'Озвучка: определяется…';
+  $('p-voice').innerHTML = txt;
+}
 function goHome(){ renderHome(); show('s-home'); }
 
 /* ---------- навигация ---------- */
@@ -1096,7 +1169,7 @@ $('btn-res-go').onclick   = ()=>startSession();
 $('btn-done-home').onclick= goHome;
 $('btn-map').onclick   = ()=>{ renderMap(); show('s-map'); };
 $('btn-mods').onclick  = ()=>{ renderMods(); show('s-mods'); };
-$('btn-parent').onclick= ()=>{ renderParent(); show('s-parent'); };
+$('btn-parent').onclick= ()=>{ renderParent(); show('s-parent'); ensureVoiceMode().then(renderVoiceNote); };
 document.querySelectorAll('[data-home]').forEach(b=>b.onclick=goHome);
 $('p-rediag').onclick = ()=>{ if(confirm('Пройти сканирование заново? Оценка фактов будет пересобрана.')){
   S.diag={status:'none',i:0,log:[]}; save(); show('s-diag-intro'); } };
@@ -1108,6 +1181,7 @@ document.addEventListener('pointerdown', unlockAudio, {once:true});
 /* ---------- старт ---------- */
 S = load();
 goHome();
+ensureVoiceMode().then(syncVoiceUI);
 if(S.diag.status==='none') setTimeout(()=>show('s-diag-intro'), 400);
 </script>
 </body>

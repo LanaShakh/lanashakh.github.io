@@ -758,5 +758,6 @@ if(init!=='ru')setLang(init);var nv=document.querySelector('.nav');function onSc
  setTimeout(function(){try{mo.disconnect()}catch(e){}}, 25000);
 })();</script>
 <script>(function(){var RU='https://lanashakh.github.io/cv/Shakhova-Svetlana-CV.pdf',EN='https://lanashakh.github.io/cv/Shakhova-Svetlana-CV-EN.pdf';function u(){var en=(document.documentElement.lang||'').toLowerCase().indexOf('en')===0;document.querySelectorAll('a[data-cv]').forEach(function(a){a.href=en?EN:RU;});}u();try{new MutationObserver(u).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}})();</script>
+<script>(function(){var hero=document.querySelector('.hero'),stage=document.querySelector('.hero .stage');if(!hero||!stage)return;var inside=false;function fire(t){stage.dispatchEvent(new MouseEvent(t,{bubbles:false}));}hero.addEventListener('mousemove',function(e){var r=stage.getBoundingClientRect();var i=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;if(i&&!inside){inside=true;fire('mouseenter');}else if(!i&&inside){inside=false;fire('mouseleave');}});hero.addEventListener('mouseleave',function(){if(inside){inside=false;fire('mouseleave');}});})();</script>
 </body>
 </html>
